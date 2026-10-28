@@ -14,6 +14,7 @@ export type MemberBundle = {
   upcoming: AppointmentRow | null;
   history: AppointmentRow[];
   creditChf: number;
+  invitedByName: string | null; // display name of who invited this member
 };
 
 export function toPublicMember(m: MemberRow): PublicMember {
@@ -27,11 +28,22 @@ export async function loadMemberBundle(
 ): Promise<MemberBundle | null> {
   const member = await getMemberById(memberId);
   if (!member) return null;
-  const [circle, upcoming, history, creditChf] = await Promise.all([
+  const [circle, upcoming, history, creditChf, inviter] = await Promise.all([
     getCircle(memberId),
     getUpcoming(memberId),
     getHistory(memberId),
     getCreditChf(memberId),
+    member.invited_by ? getMemberById(member.invited_by) : Promise.resolve(null),
   ]);
-  return { member: toPublicMember(member), circle, upcoming, history, creditChf };
+  const invitedByName = inviter
+    ? `${inviter.first_name}${inviter.last_name ? " " + inviter.last_name[0] + "." : ""}`
+    : null;
+  return {
+    member: toPublicMember(member),
+    circle,
+    upcoming,
+    history,
+    creditChf,
+    invitedByName,
+  };
 }

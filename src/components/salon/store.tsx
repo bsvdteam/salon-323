@@ -71,6 +71,7 @@ export interface SalonState {
   inviteOk: boolean;
   inviteFirst: string; // first name fixed by the matched invite (server)
   inviteBy: string; // inviter display name ("Marco R.")
+  myInviter: string; // who invited the logged-in member (for the circle tab)
   busy: boolean; // a server action is in flight (login / onboarding)
   barberAuthed: boolean; // barber passed the /barber username+password gate
   veil: boolean;
@@ -190,6 +191,7 @@ function initialState(start?: StartConfig): SalonState {
     inviteOk: false,
     inviteFirst: "",
     inviteBy: "",
+    myInviter: "",
     busy: false,
     barberAuthed: false,
     veil: false,

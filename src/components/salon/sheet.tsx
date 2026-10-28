@@ -3,9 +3,10 @@
 import { useSalon } from "./store";
 import { useSalonActions } from "./actions";
 import { tiers, labelOf, mon } from "@/lib/data";
+import { updateUsernameAction } from "@/lib/actions";
 
 export function Sheet() {
-  const { state, set } = useSalon();
+  const { state, set, say } = useSalon();
   const a = useSalonActions();
   const sh = state.sheet;
   if (!sh) return null;
@@ -236,6 +237,21 @@ export function Sheet() {
                           : {},
                       )
                     }
+                    onBlur={() => {
+                      // Persist the change; the server enforces format +
+                      // uniqueness. On a clash we just flag it (the member can
+                      // pick another; a re-login re-syncs the stored value).
+                      const u = U.username.trim();
+                      if (!u) return;
+                      updateUsernameAction(u).then((res) => {
+                        if (!res.ok)
+                          say(
+                            res.error === "username_taken"
+                              ? "Username schon vergeben"
+                              : "Ungültiger Username",
+                          );
+                      });
+                    }}
                     autoCapitalize="none"
                     autoCorrect="off"
                     spellCheck={false}

@@ -241,11 +241,11 @@ export function OnboardScreen() {
             }}
           >
             <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-              <span style={kick}>Von Marco R.</span>
+              <span style={kick}>Von {st.inviteBy || "Salon 323"}</span>
               <span style={h2}>Willkommen, {st.first.trim() || "Gast"}.</span>
               <span style={lead}>
-                Deinen Vornamen hat Marco mit dem Code festgelegt. Ergänze
-                deinen Nachnamen.
+                Deinen Vornamen hat {st.inviteBy || "der Salon"} mit dem Code
+                festgelegt. Ergänze deinen Nachnamen.
               </span>
             </div>
             <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>

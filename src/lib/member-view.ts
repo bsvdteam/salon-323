@@ -56,6 +56,7 @@ export type MemberStatePatch = {
   user: SalonUser;
   invites: Invite[];
   template: ServiceKey[];
+  myInviter: string;
 };
 
 /** The identity slice of SalonState for a logged-in member. Booking state
@@ -77,5 +78,6 @@ export function bundleToState(b: MemberBundle, isNew: boolean): MemberStatePatch
     },
     invites: circleToInvites(b.circle),
     template: (m.template as ServiceKey[]) ?? ["haare", "bart"],
+    myInviter: b.invitedByName ?? "",
   };
 }

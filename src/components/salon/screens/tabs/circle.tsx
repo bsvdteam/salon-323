@@ -2,6 +2,7 @@
 
 import { useSalon } from "../../store";
 import { tiers, type Invite } from "@/lib/data";
+import { generateInviteAction } from "@/lib/actions";
 
 const LGN =
   "linear-gradient(160deg,rgba(255,255,255,.75),rgba(255,255,255,.35))";
@@ -173,24 +174,34 @@ export function CircleTab() {
 
   const createInvite = () => {
     const name = st.newInv.trim();
-    if (!name || INV.length >= 3) return;
-    const A = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
-    let code = "";
-    for (let k = 0; k < 6; k++) code += A[Math.floor(Math.random() * A.length)];
-    set((p) => ({
-      invites: [
-        ...(p.invites || []),
-        {
-          name,
-          meta: "Einladung offen · noch 7 Tage",
-          tag: "OFFEN",
-          pending: true,
-          code,
-        },
-      ],
-      lastCode: { code, name },
-      newInv: "",
-    }));
+    if (!name || INV.length >= 3 || st.busy) return;
+    set({ busy: true });
+    // The server creates the invite (inviter = the logged-in member, 3-limit).
+    generateInviteAction(name).then((res) => {
+      set({ busy: false });
+      if (res.ok) {
+        set((p) => ({
+          invites: [
+            ...(p.invites || []),
+            {
+              name,
+              meta: "Einladung offen · noch 7 Tage",
+              tag: "OFFEN",
+              pending: true,
+              code: res.code,
+            },
+          ],
+          lastCode: { code: res.code, name },
+          newInv: "",
+        }));
+      } else {
+        say(
+          res.error === "limit"
+            ? "Einladungs-Limit erreicht (max. 3)"
+            : "Konnte keinen Code erstellen",
+        );
+      }
+    });
   };
   const copyCode = () => {
     try {
@@ -210,7 +221,9 @@ export function CircleTab() {
           animation: "up 1.4s cubic-bezier(.22,1,.36,1) both",
         }}
       >
-        <span style={kick}>Invited by Marco R.</span>
+        <span style={kick}>
+          {st.myInviter ? `Invited by ${st.myInviter}` : "Gründungsmitglied"}
+        </span>
         <h1
           style={{
             margin: 0,

@@ -31,7 +31,8 @@ import {
 } from "@/lib/db/appointments";
 import { loadMemberBundle, type MemberBundle } from "@/lib/db/bundle";
 import { createEvent, wallISO } from "@/lib/google/calendar";
-import { durOf, labelOf } from "@/lib/data";
+import { durOf, labelOf, tiers } from "@/lib/data";
+import { supabaseAdmin } from "@/lib/supabase/server";
 import type { ServiceKey, PayMethod } from "@/lib/supabase/types";
 
 const TZ = process.env.GOOGLE_TZ || "Europe/Zurich";
@@ -238,6 +239,66 @@ export async function cancelAppointmentAction(
   const bundle = await loadMemberBundle(mid);
   if (!bundle) return { ok: false, error: "unknown" };
   return { ok: true, bundle };
+}
+
+export type AdminMember = {
+  id: string;
+  n: string;
+  tier: string;
+  cuts: number;
+  via: string;
+  last: string;
+  since: [number, number];
+  tpl: string;
+  note: string;
+};
+
+/** Barber: the real member roster for the admin Members tab. */
+export async function listMembersAction(): Promise<AdminMember[] | null> {
+  const s = await getSession();
+  if (!s || s.role !== "barber") return null;
+  const sb = supabaseAdmin();
+  const { data, error } = await sb
+    .from("members")
+    .select("id, first_name, last_name, cuts, member_since, template, note, invited_by")
+    .eq("is_barber", false)
+    .order("cuts", { ascending: false });
+  if (error) throw error;
+
+  const inviterIds = [
+    ...new Set((data ?? []).map((m) => m.invited_by).filter(Boolean)),
+  ] as string[];
+  const inviters = new Map<string, string>();
+  if (inviterIds.length) {
+    const { data: inv } = await sb
+      .from("members")
+      .select("id, first_name, last_name")
+      .in("id", inviterIds);
+    for (const i of inv ?? [])
+      inviters.set(
+        i.id,
+        `${i.first_name}${i.last_name ? " " + i.last_name[0] + "." : ""}`,
+      );
+  }
+
+  return (data ?? []).map((m): AdminMember => {
+    let ti = 0;
+    tiers.forEach((t, k) => {
+      if (m.cuts >= t.min) ti = k;
+    });
+    const [y, mo] = m.member_since.split("-").map(Number);
+    return {
+      id: m.id,
+      n: `${m.first_name} ${m.last_name}`.trim(),
+      tier: tiers[ti].r,
+      cuts: m.cuts,
+      via: m.invited_by ? (inviters.get(m.invited_by) ?? "—") : "Gründer",
+      last: "—",
+      since: [(mo || 1) - 1, y],
+      tpl: labelOf((m.template as ServiceKey[]) ?? []),
+      note: m.note ?? "",
+    };
+  });
 }
 
 /** Barber: generate an invite code for a first member (inviter = the barber). */

@@ -5,6 +5,8 @@ import { useSalonActions } from "../actions";
 import { Icon } from "../icons";
 import { AdminAppointments } from "../admin-appointments";
 import { InviteGenerator, MemberCount } from "../invite-generator";
+import { useEffect, useState } from "react";
+import { listMembersAction, type AdminMember } from "@/lib/actions";
 import {
   schedule,
   members as MEMBERS,
@@ -73,6 +75,17 @@ export function AdminScreen() {
   const a = useSalonActions();
   const st = state;
   const fmt = fmtTime;
+
+  // Real member roster from the DB (the Members tab). The Today schedule still
+  // uses the demo `schedule`/`mem` until booking is reconciled.
+  const [realMem, setRealMem] = useState<AdminMember[]>([]);
+  useEffect(() => {
+    listMembersAction()
+      .then((r) => {
+        if (r) setRealMem(r);
+      })
+      .catch(() => {});
+  }, []);
 
   // ── shared slot math ──
   const isTaken = (off: number, m: number) => ((m / 30) * 7 + off * 13) % 5 < 2;
@@ -215,7 +228,7 @@ export function AdminScreen() {
 
   // ── Members ──
   const qq = st.q.trim().toLowerCase();
-  const memberList = mem
+  const memberList = realMem
     .filter(
       (m) =>
         (!qq || m.n.toLowerCase().includes(qq)) &&
