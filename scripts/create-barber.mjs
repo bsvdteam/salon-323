@@ -62,12 +62,22 @@ const sb = createClient(
 
 console.log("\nSalon 323 · Barber/Admin anlegen\n");
 
-const name = (await ask("Anzeigename (z. B. dein Vorname) [Barber]: ")) || "Barber";
-let username = (await ask("Login-Username (a–z, 0–9, _): ")).toLowerCase();
+// Profile can be pre-filled via env vars; otherwise we prompt. The password is
+// NEVER taken from env — it is always typed here, hidden, and only hashed.
+const name =
+  process.env.BARBER_NAME ||
+  (await ask("Anzeigename (z. B. dein Vorname) [Barber]: ")) ||
+  "Barber";
+const username = (
+  process.env.BARBER_USERNAME || (await ask("Login-Username (a–z, 0–9, _): "))
+).toLowerCase();
 if (!/^[a-z0-9_]{2,20}$/.test(username)) {
   console.error("✗ Ungültiger Username (2–20 Zeichen: a–z, 0–9, _).");
   process.exit(1);
 }
+const email = process.env.BARBER_EMAIL || (await ask("E-Mail (optional): ")) || null;
+const phone = process.env.BARBER_PHONE || (await ask("Telefon (optional): ")) || "";
+console.log(`\n→ ${name}  ·  @${username}${email ? "  ·  " + email : ""}\n`);
 const pw1 = await askHidden("Passwort (min. 8 Zeichen): ");
 if (pw1.length < 8) {
   console.error("✗ Passwort zu kurz (min. 8 Zeichen).");
@@ -95,20 +105,21 @@ if (existing) {
   }
   const { error } = await sb
     .from("members")
-    .update({ password_hash, first_name: name })
+    .update({ password_hash, first_name: name, phone, contact_email: email })
     .eq("id", existing.id);
   if (error) {
     console.error("✗ Fehler:", error.message);
     process.exit(1);
   }
-  console.log(`\n✓ Barber-Passwort aktualisiert (Username: ${username}).`);
+  console.log(`\n✓ Barber-Daten + Passwort aktualisiert (Username: ${username}).`);
 } else {
   const { error } = await sb.from("members").insert({
     member_no: "0000",
     username,
     first_name: name,
     last_name: "",
-    phone: "",
+    phone,
+    contact_email: email,
     is_barber: true,
     password_hash,
   });

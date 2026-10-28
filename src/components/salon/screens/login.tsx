@@ -1,13 +1,13 @@
 "use client";
 
-import { useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useSalon } from "../store";
 import { useSalonActions } from "../actions";
 import { Wordmark } from "../wordmark";
 import { useOverlayActions } from "../overlays/overlay-actions";
 import { useCardScale } from "../use-portrait";
 import { salon } from "@/lib/data";
-import { findInviteCode } from "@/config/access";
+import { memberCountAction } from "@/lib/actions";
 
 const WA_CODE_REQUEST =
   salon.wa +
@@ -122,8 +122,15 @@ export function LoginScreen() {
   const usernameOk = st.username.trim().length > 0;
   const modeMember = st.mode === "member";
   const modeInvite = st.mode === "invite";
-  const inviteMatch = findInviteCode(st.code);
   const codeInvalid = st.code.length === 6 && !st.checking && !st.inviteOk;
+
+  // Real member count (non-barber), fetched once on mount.
+  const [memberCount, setMemberCount] = useState<number | null>(null);
+  useEffect(() => {
+    memberCountAction()
+      .then(setMemberCount)
+      .catch(() => {});
+  }, []);
 
   const pty = useRef(0);
   const peekWheel = (e: React.WheelEvent) => {
@@ -167,7 +174,7 @@ export function LoginScreen() {
       >
         <span>N° 323</span>
         {/* Member count, top-right on the landing (Supabase-backed later). */}
-        <span>47 Members</span>
+        <span>{memberCount !== null ? `${memberCount} ` : ""}Members</span>
       </div>
 
       {/* intro cards */}
@@ -618,7 +625,7 @@ export function LoginScreen() {
                       <span>Wird geprüft</span>
                     </>
                   )}
-                  {st.inviteOk && inviteMatch && (
+                  {st.inviteOk && st.inviteFirst && (
                     <span
                       style={{
                         display: "flex",
@@ -635,7 +642,7 @@ export function LoginScreen() {
                           background: "#F4A69E",
                         }}
                       />
-                      Von {inviteMatch.invitedBy} · für {inviteMatch.firstName}
+                      Von {st.inviteBy} · für {st.inviteFirst}
                     </span>
                   )}
                   {codeInvalid && (

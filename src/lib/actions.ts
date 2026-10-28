@@ -14,6 +14,7 @@ import {
   updateUsername,
   setTemplate,
   setMemberNote,
+  setContactEmail,
 } from "@/lib/db/members";
 import {
   validateInvite,
@@ -76,6 +77,7 @@ export type OnboardArgs = {
   last: string;
   username: string;
   phone: string;
+  email?: string;
   card: number;
 };
 
@@ -90,6 +92,8 @@ export async function redeemOnboardAction(
 
   const res = await redeemInviteCreateMember(args);
   if (!res.ok) return { ok: false, error: res.error };
+  if (args.email && args.email.trim())
+    await setContactEmail(res.member.id, args.email);
   await setSession({ mid: res.member.id, role: "member" });
   const bundle = await loadMemberBundle(res.member.id);
   if (!bundle) return { ok: false, error: "unknown" };
@@ -234,6 +238,16 @@ export async function cancelAppointmentAction(
   const bundle = await loadMemberBundle(mid);
   if (!bundle) return { ok: false, error: "unknown" };
   return { ok: true, bundle };
+}
+
+/** Barber: generate an invite code for a first member (inviter = the barber). */
+export async function barberGenerateInviteAction(
+  firstName: string,
+): Promise<GenerateResult> {
+  const s = await getSession();
+  if (!s || s.role !== "barber") return { ok: false, error: "unknown" };
+  if (!firstName.trim()) return { ok: false, error: "unknown" };
+  return generateInvite(s.mid, firstName);
 }
 
 /** Barber: set a private note on a member. */

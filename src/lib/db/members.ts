@@ -77,3 +77,12 @@ export async function setMemberNote(id: string, note: string): Promise<void> {
     .eq("id", id);
   if (error) throw error;
 }
+
+export async function setContactEmail(id: string, email: string): Promise<void> {
+  const sb = supabaseAdmin();
+  const { error } = await sb
+    .from("members")
+    .update({ contact_email: email.trim() || null })
+    .eq("id", id);
+  if (error) throw error;
+}

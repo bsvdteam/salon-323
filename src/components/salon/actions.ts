@@ -3,7 +3,13 @@
 import { useCallback, useEffect, useRef } from "react";
 import { useSalon } from "./store";
 import { lucaState, verses, type ServiceKey } from "@/lib/data";
-import { findInviteCode } from "@/config/access";
+import {
+  loginMemberAction,
+  validateInviteAction,
+  redeemOnboardAction,
+  logoutAction,
+} from "@/lib/actions";
+import { bundleToState } from "@/lib/member-view";
 
 /** Auth + navigation actions, ported 1:1 from the prototype Component methods. */
 export function useSalonActions() {
@@ -42,14 +48,26 @@ export function useSalonActions() {
     });
   }, [go, set, toApp]);
 
-  // Returning member logs in with just a username — no password yet.
+  // Returning member logs in with just a username — no password yet. The
+  // server verifies the username really exists; an unknown name is rejected.
   const loginUsername = useCallback(() => {
     const u = sref.current.username.trim();
-    if (!u) return;
-    const base = lucaState();
-    set({ ...base, user: { ...base.user, username: u } });
-    goWelcome();
-  }, [set, goWelcome]);
+    if (!u || sref.current.busy) return;
+    set({ busy: true });
+    loginMemberAction(u).then((res) => {
+      if (res.ok) {
+        set({ busy: false, ...bundleToState(res.bundle, false) });
+        goWelcome();
+      } else {
+        set({ busy: false });
+        say(
+          res.error === "use_barber_login"
+            ? "Bitte über /barber anmelden"
+            : "Diesen Username gibt es nicht",
+        );
+      }
+    });
+  }, [set, goWelcome, say]);
 
   const onCode = useCallback(
     (value: string) => {
@@ -57,30 +75,34 @@ export function useSalonActions() {
         .toUpperCase()
         .replace(/[^A-Z0-9]/g, "")
         .slice(0, 6);
-      if (timers.current.code) clearTimeout(timers.current.code);
-      set({ code: v, inviteOk: false, checking: v.length === 6 });
+      set({ code: v, inviteOk: false, inviteFirst: "", inviteBy: "", checking: v.length === 6 });
       if (v.length === 6)
-        timers.current.code = setTimeout(
-          // Valid only if the code is in the access config (src/config/access.ts).
-          () => set({ checking: false, inviteOk: !!findInviteCode(v) }),
-          1400,
-        );
+        // The server checks the code against the invites table (open + valid).
+        validateInviteAction(v).then((match) => {
+          if (sref.current.code !== v) return; // user kept typing — ignore stale
+          set({
+            checking: false,
+            inviteOk: !!match,
+            inviteFirst: match?.firstName ?? "",
+            inviteBy: match?.inviterName ?? "",
+          });
+        });
     },
     [set],
   );
 
   const redeem = useCallback(() => {
-    const match = findInviteCode(sref.current.code);
-    if (!sref.current.inviteOk || !match) return;
+    if (!sref.current.inviteOk || !sref.current.inviteFirst) return;
     // The inviter set the first name with the code — it's fixed for the invitee.
     go(() =>
       set({
         screen: "onboard",
         ob: 0,
-        first: match.firstName,
+        first: sref.current.inviteFirst,
         last: "",
         username: "",
         phone: "",
+        email: "",
         cardSel: 0,
       }),
     );
@@ -96,27 +118,43 @@ export function useSalonActions() {
     else if (st.ob === 3 && /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(st.email.trim()))
       set({ ob: 4 });
     else if (st.ob === 4) {
-      set({
-        user: {
-          first: st.first.trim(),
-          last: st.last.trim(),
-          username: st.username.trim(),
-          cuts: 0,
-          since: [9, 2026],
-          no: "0048",
-          phone: st.phone,
-          email: st.email.trim(),
-          card: st.cardSel,
-          isNew: true,
-        },
-        invites: [],
-        appt: null,
-        history: [],
-        lastCode: null,
+      if (st.busy) return;
+      set({ busy: true });
+      // Atomic on the server: redeem the invite + create the member + log in.
+      redeemOnboardAction({
+        code: st.code,
+        last: st.last.trim(),
+        username: st.username.trim(),
+        phone: st.phone,
+        email: st.email.trim(),
+        card: st.cardSel,
+      }).then((res) => {
+        if (res.ok) {
+          set({
+            busy: false,
+            ...bundleToState(res.bundle, true),
+            appt: null,
+            history: [],
+            lastCode: null,
+          });
+          goWelcome();
+        } else {
+          set({ busy: false });
+          if (res.error === "username_taken" || res.error === "username_invalid") {
+            set({ ob: 1 });
+            say(res.error === "username_taken" ? "Username schon vergeben" : "Ungültiger Username");
+          } else if (res.error === "phone_invalid") {
+            set({ ob: 2 });
+            say("Telefonnummer prüfen");
+          } else if (res.error === "invite_invalid") {
+            say("Code ungültig oder abgelaufen");
+          } else {
+            say("Etwas ging schief – bitte nochmal");
+          }
+        }
       });
-      goWelcome();
     }
-  }, [set, goWelcome]);
+  }, [set, goWelcome, say]);
 
   const obBack = useCallback(() => {
     if (sref.current.ob === 0)
@@ -125,6 +163,7 @@ export function useSalonActions() {
   }, [go, set]);
 
   const logout = useCallback(() => {
+    logoutAction(); // clear the server session cookie
     go(() => {
       set({
         screen: "login",

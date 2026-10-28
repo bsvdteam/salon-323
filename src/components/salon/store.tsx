@@ -69,6 +69,9 @@ export interface SalonState {
   code: string;
   checking: boolean;
   inviteOk: boolean;
+  inviteFirst: string; // first name fixed by the matched invite (server)
+  inviteBy: string; // inviter display name ("Marco R.")
+  busy: boolean; // a server action is in flight (login / onboarding)
   veil: boolean;
   ob: number;
   first: string;
@@ -184,6 +187,9 @@ function initialState(start?: StartConfig): SalonState {
     code: "",
     checking: false,
     inviteOk: false,
+    inviteFirst: "",
+    inviteBy: "",
+    busy: false,
     veil: false,
     ob: 0,
     first: "",
