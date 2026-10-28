@@ -11,6 +11,22 @@ import { WelcomeScreen } from "./screens/welcome";
 import { OnboardScreen } from "./screens/onboard";
 import { AppScreen } from "./screens/app";
 import { AdminScreen } from "./screens/admin";
+import { BarberLogin } from "./screens/barber-login";
+import { sessionAction } from "@/lib/actions";
+
+/** /barber shows nothing until a barber signs in with username + password. A
+ *  valid barber session (cookie) skips the form. */
+function BarberGate() {
+  const { state, set } = useSalon();
+  useEffect(() => {
+    if (state.barberAuthed) return;
+    sessionAction().then((s) => {
+      if (s?.role === "barber") set({ barberAuthed: true });
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+  return state.barberAuthed ? <AdminScreen /> : <BarberLogin />;
+}
 
 function Screens() {
   const { state } = useSalon();
@@ -29,7 +45,7 @@ function Screens() {
       {state.screen === "onboard" && <OnboardScreen />}
       {state.screen === "welcome" && <WelcomeScreen />}
       {state.screen === "app" && <AppScreen />}
-      {state.screen === "admin" && <AdminScreen />}
+      {state.screen === "admin" && <BarberGate />}
     </div>
   );
 }

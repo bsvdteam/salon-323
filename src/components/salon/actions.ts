@@ -175,6 +175,7 @@ export function useSalonActions() {
         inviteOk: false,
         checking: false,
         flipped: false,
+        barberAuthed: false,
         ...lucaState(),
       });
       startIntro();

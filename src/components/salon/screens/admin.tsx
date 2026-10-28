@@ -4,6 +4,7 @@ import { useSalon, type AdminTab, type DayHours } from "../store";
 import { useSalonActions } from "../actions";
 import { Icon } from "../icons";
 import { AdminAppointments } from "../admin-appointments";
+import { InviteGenerator, MemberCount } from "../invite-generator";
 import {
   schedule,
   members as MEMBERS,
@@ -987,7 +988,9 @@ export function AdminScreen() {
               animation: "up 1.4s cubic-bezier(.22,1,.36,1) both",
             }}
           >
-            <span style={kick}>{47 + (U?.isNew ? 1 : 0)} Mitglieder</span>
+            <span style={kick}>
+              <MemberCount />
+            </span>
             <h1
               style={{
                 margin: 0,
@@ -999,6 +1002,7 @@ export function AdminScreen() {
               The Circle.
             </h1>
           </div>
+          <InviteGenerator />
           <div
             className="glass-dark"
             style={{
