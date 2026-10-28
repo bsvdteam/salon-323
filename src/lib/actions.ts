@@ -332,6 +332,104 @@ export async function listMembersAction(): Promise<AdminMember[] | null> {
   });
 }
 
+export type AdminTodayAppt = {
+  id: string;
+  start: number; // minutes from midnight (salon-local)
+  sv: ServiceKey[];
+  done: boolean;
+  m: AdminMember;
+};
+
+/** Barber: today's real appointments for the "Heute" agenda. */
+export async function listTodayAppointmentsAction(): Promise<
+  AdminTodayAppt[] | null
+> {
+  const s = await getSession();
+  if (!s || s.role !== "barber") return null;
+  const sb = supabaseAdmin();
+  const dayStart = new Date();
+  dayStart.setHours(0, 0, 0, 0);
+  const dayEnd = new Date(dayStart);
+  dayEnd.setDate(dayEnd.getDate() + 1);
+  const { data, error } = await sb
+    .from("appointments")
+    .select("id, starts_at, services, status, member_id")
+    .gte("starts_at", dayStart.toISOString())
+    .lt("starts_at", dayEnd.toISOString())
+    .neq("status", "cancelled")
+    .order("starts_at", { ascending: true });
+  if (error) throw error;
+  const rows = data ?? [];
+  if (!rows.length) return [];
+
+  const memberIds = [...new Set(rows.map((r) => r.member_id))];
+  const { data: ms } = await sb.from("members").select("*").in("id", memberIds);
+  const byId = new Map((ms ?? []).map((m) => [m.id, m]));
+  const inviterIds = [
+    ...new Set((ms ?? []).map((m) => m.invited_by).filter(Boolean)),
+  ] as string[];
+  const inviters = new Map<string, string>();
+  if (inviterIds.length) {
+    const { data: inv } = await sb
+      .from("members")
+      .select("id, first_name, last_name")
+      .in("id", inviterIds);
+    for (const i of inv ?? [])
+      inviters.set(
+        i.id,
+        `${i.first_name}${i.last_name ? " " + i.last_name[0] + "." : ""}`,
+      );
+  }
+
+  return rows.map((r): AdminTodayAppt => {
+    const m = byId.get(r.member_id);
+    const d = new Date(r.starts_at);
+    let ti = 0;
+    if (m) tiers.forEach((t, k) => { if (m.cuts >= t.min) ti = k; });
+    const [y, mo] = (m?.member_since ?? "2026-01-01").split("-").map(Number);
+    return {
+      id: r.id,
+      start: d.getHours() * 60 + d.getMinutes(),
+      sv: r.services as ServiceKey[],
+      done: r.status === "done",
+      m: {
+        id: r.member_id,
+        n: m ? `${m.first_name} ${m.last_name}`.trim() : "—",
+        tier: tiers[ti].r,
+        cuts: m?.cuts ?? 0,
+        via: m?.invited_by ? (inviters.get(m.invited_by) ?? "—") : "Gründer",
+        last: "—",
+        since: [(mo || 1) - 1, y],
+        tpl: labelOf((m?.template as ServiceKey[]) ?? []),
+        note: m?.note ?? "",
+      },
+    };
+  });
+}
+
+/** Barber marks an appointment done → status 'done' + bump the member's cuts. */
+export async function markApptDoneAction(
+  appointmentId: string,
+): Promise<{ ok: boolean }> {
+  const s = await getSession();
+  if (!s || s.role !== "barber") return { ok: false };
+  const sb = supabaseAdmin();
+  const { data: ap } = await sb
+    .from("appointments")
+    .select("member_id, status")
+    .eq("id", appointmentId)
+    .maybeSingle();
+  if (!ap || ap.status === "done") return { ok: true };
+  await sb.from("appointments").update({ status: "done" }).eq("id", appointmentId);
+  const { data: m } = await sb
+    .from("members")
+    .select("cuts")
+    .eq("id", ap.member_id)
+    .maybeSingle();
+  if (m) await sb.from("members").update({ cuts: m.cuts + 1 }).eq("id", ap.member_id);
+  return { ok: true };
+}
+
 /** Barber: generate an invite code for a first member (inviter = the barber). */
 export async function barberGenerateInviteAction(
   firstName: string,

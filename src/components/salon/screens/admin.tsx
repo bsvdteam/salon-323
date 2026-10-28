@@ -6,10 +6,14 @@ import { Icon } from "../icons";
 import { AdminAppointments } from "../admin-appointments";
 import { InviteGenerator, MemberCount } from "../invite-generator";
 import { useEffect, useState } from "react";
-import { listMembersAction, type AdminMember } from "@/lib/actions";
 import {
-  schedule,
-  members as MEMBERS,
+  listMembersAction,
+  listTodayAppointmentsAction,
+  markApptDoneAction,
+  type AdminMember,
+  type AdminTodayAppt,
+} from "@/lib/actions";
+import {
   labelOf,
   durOf,
   dateOf,
@@ -18,7 +22,6 @@ import {
   monS,
   mon,
   fmtTime,
-  NOWMIN,
 } from "@/lib/data";
 
 const kick: React.CSSProperties = {
@@ -76,8 +79,7 @@ export function AdminScreen() {
   const st = state;
   const fmt = fmtTime;
 
-  // Real member roster from the DB (the Members tab). The Today schedule still
-  // uses the demo `schedule`/`mem` until booking is reconciled.
+  // Real member roster from the DB (the Members tab).
   const [realMem, setRealMem] = useState<AdminMember[]>([]);
   useEffect(() => {
     listMembersAction()
@@ -85,6 +87,18 @@ export function AdminScreen() {
         if (r) setRealMem(r);
       })
       .catch(() => {});
+  }, []);
+  // Today's real appointments + the current time (captured in the effect, never
+  // during render — Date.now() in render is an impure call).
+  const [today, setToday] = useState<{
+    nowMin: number;
+    appts: AdminTodayAppt[];
+  } | null>(null);
+  useEffect(() => {
+    const nowMin = new Date().getHours() * 60 + new Date().getMinutes();
+    listTodayAppointmentsAction()
+      .then((r) => setToday({ nowMin, appts: r ?? [] }))
+      .catch(() => setToday({ nowMin, appts: [] }));
   }, []);
 
   // ── shared slot math ──
@@ -102,60 +116,31 @@ export function AdminScreen() {
   const isAbs = (o: number) => st.abs.some((ab) => o >= ab.a && o <= ab.b);
   const todayLabel = `${wdL[dateOf(0).getDay()]}, ${dateOf(0).getDate()}. ${mon[dateOf(0).getMonth()]}`;
 
-  // ── Today ──
-  const U = st.user;
-  const mem = MEMBERS.map((m) => ({
-    n: m[0],
-    tier: m[1],
-    cuts: m[2],
-    via: m[3],
-    last: m[4],
-    since: m[5],
-    tpl: m[6],
-    note: m[7],
-  }));
-  if (U?.isNew)
-    mem.push({
-      n: (U.first + " " + U.last).trim(),
-      tier: "I",
-      cuts: 0,
-      via: "Marco R.",
-      last: "neu",
-      since: U.since,
-      tpl: labelOf(st.template),
-      note: "Neu im Circle.",
-    });
-  const findM = (n: string) =>
-    mem.find((m) => m.n === n) ?? {
-      n,
-      tier: "I",
-      cuts: 0,
-      via: "—",
-      last: "—",
-      since: [9, 2026] as [number, number],
-      tpl: "—",
-      note: "",
-    };
-  const appts = schedule.map(([n, start, sv]) => ({
-    id: n + start,
-    n,
-    start,
-    dur: durOf(sv),
-    sv,
-    tier: findM(n).tier,
-    m: findM(n),
+  // ── Today (real appointments from Supabase) ──
+  const nowMin = today?.nowMin ?? 0;
+  const appts = (today?.appts ?? []).map((a) => ({
+    id: a.id,
+    n: a.m.n,
+    start: a.start,
+    dur: durOf(a.sv),
+    sv: a.sv,
+    tier: a.m.tier,
+    m: a.m,
+    serverDone: a.done,
   }));
   const isDone = (ap: (typeof appts)[number]) =>
-    !!st.done[ap.id] || (ap.start + ap.dur <= NOWMIN && !st.started[ap.id]);
+    ap.serverDone ||
+    !!st.done[ap.id] ||
+    (ap.start + ap.dur <= nowMin && !st.started[ap.id]);
   const cur = appts.find(
-    (ap) => !isDone(ap) && (ap.start <= NOWMIN || st.started[ap.id]),
+    (ap) => !isDone(ap) && (ap.start <= nowMin || st.started[ap.id]),
   );
   const nxt = appts.find((ap) => !isDone(ap));
-  const openClient = (m: (typeof mem)[number]) =>
+  const openClient = (m: AdminMember) =>
     set({ sheet: { type: "client", m } });
   let curV: Record<string, unknown> = {};
   if (cur) {
-    const el = Math.max(0, NOWMIN - cur.start),
+    const el = Math.max(0, nowMin - cur.start),
       p = Math.min(1, el / cur.dur);
     curV = {
       kicker: `Im Stuhl · ${fmt(cur.start)}–${fmt(cur.start + cur.dur)}`,
@@ -168,13 +153,14 @@ export function AdminScreen() {
       btn: "Fertig · abbuchen",
       btnIcon: "✓",
       act: () => {
+        markApptDoneAction(cur.id).catch(() => {}); // Status + Cuts in der DB
         set((p2) => ({ done: { ...p2.done, [cur.id]: true } }));
         say(`${cur.n.split(" ")[0]} · CHF 20 belastet`);
       },
       open: () => openClient(cur.m),
     };
   } else if (nxt) {
-    const inMin = nxt.start - NOWMIN;
+    const inMin = nxt.start - nowMin;
     curV = {
       kicker: `Als Nächstes · ${inMin > 0 ? "in " + inMin + " min" : fmt(nxt.start)}`,
       n: nxt.n,
@@ -554,7 +540,10 @@ export function AdminScreen() {
               animation: "up 1.4s cubic-bezier(.22,1,.36,1) both",
             }}
           >
-            <span style={kick}>{todayLabel} · 13:42</span>
+            <span style={kick}>
+              {todayLabel}
+              {today ? ` · ${fmt(nowMin)}` : ""}
+            </span>
             <h1
               style={{
                 margin: 0,
@@ -866,7 +855,7 @@ export function AdminScreen() {
                   position: "absolute",
                   left: 0,
                   right: 0,
-                  top: top(NOWMIN) - 6 + "px",
+                  top: top(nowMin) - 6 + "px",
                   display: "flex",
                   alignItems: "center",
                   gap: 6,
@@ -882,7 +871,7 @@ export function AdminScreen() {
                     color: "#C4554B",
                   }}
                 >
-                  13:42
+                  {fmt(nowMin)}
                 </span>
                 <span
                   data-loop
