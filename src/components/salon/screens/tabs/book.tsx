@@ -14,6 +14,7 @@ import {
   fmtTime,
 } from "@/lib/data";
 import type { DayHours } from "../../store";
+import { bookAppointmentAction } from "@/lib/actions";
 
 export function BookTab() {
   const { state, set, say } = useSalon();
@@ -21,24 +22,29 @@ export function BookTab() {
   const st = state;
 
   // ── echte Verfügbarkeit: belegte Zeiten aus dem Google-Kalender ──
-  const [mounted, setMounted] = useState(false);
-  const [busy, setBusy] = useState<{ s: number; e: number }[]>([]);
+  // "now" wird im Effect erfasst (nie im Render – das wäre eine unreine Funktion).
+  const [avail, setAvail] = useState<{
+    nowMs: number;
+    busy: { s: number; e: number }[];
+  } | null>(null);
   useEffect(() => {
-    setMounted(true);
+    const nowMs = Date.now();
     const d2s = (d: Date) =>
       `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
     fetch(`/api/availability?from=${d2s(dateOf(0))}&to=${d2s(dateOf(14))}`)
       .then((r) => r.json())
-      .then((j) => {
-        if (j?.ok)
-          setBusy(
-            j.busy.map((b: { start: string; end: string }) => ({
-              s: new Date(b.start).getTime(),
-              e: new Date(b.end).getTime(),
-            })),
-          );
-      })
-      .catch(() => {});
+      .then((j) =>
+        setAvail({
+          nowMs,
+          busy: j?.ok
+            ? j.busy.map((b: { start: string; end: string }) => ({
+                s: new Date(b.start).getTime(),
+                e: new Date(b.end).getTime(),
+              }))
+            : [],
+        }),
+      )
+      .catch(() => setAvail({ nowMs, busy: [] }));
   }, []);
 
   // ── slot/day math ──
@@ -51,12 +57,12 @@ export function BookTab() {
   // Belegt, wenn der Slot zu bald/vorbei ist (Vorlaufzeit) oder einen
   // Kalendertermin (inkl. Puffer) überschneidet.
   const isTaken = (off: number, m: number) => {
-    if (!mounted) return false; // SSR/erste Render: alles frei -> kein Hydration-Mismatch
+    if (!avail) return false; // SSR/erste Render: alles frei -> kein Hydration-Mismatch
     const start = slotStartMs(off, m);
     const end = start + 30 * 60000;
-    if (start < Date.now() + st.leadHours * 3600000) return true;
+    if (start < avail.nowMs + st.leadHours * 3600000) return true;
     const buf = st.bufferMin * 60000;
-    return busy.some((b) => b.s - buf < end && b.e + buf > start);
+    return avail.busy.some((b) => b.s - buf < end && b.e + buf > start);
   };
   const PZ = st.pause;
   const slotsW = (w: DayHours | undefined) => {
@@ -254,14 +260,10 @@ export function BookTab() {
   const confirmBook = async () => {
     const d = dateOf(effDay);
     const bPrice = resch ? (st.appt!.price ?? 20) : price;
-
-    // Echten Termin im Kalender anlegen. Name/Telefon kommen aus dem Login
-    // (vorerst Demo-Mitglied; echte User sobald Supabase in der anderen Session dran ist).
     const p2 = (n: number) => String(n).padStart(2, "0");
     const dateStr = `${d.getFullYear()}-${p2(d.getMonth() + 1)}-${p2(d.getDate())}`;
-    const name = st.user ? `${st.user.first} ${st.user.last}`.trim() : "Gast";
 
-    // "Zum Kalender"-Link für den Kunden (öffnet Google Calendar mit vorbefülltem Termin).
+    // "Zum Kalender"-Link für den Kunden (Google Calendar Template).
     const [bh, bm] = (st.time || "0:0").split(":").map(Number);
     const bStart = bh * 60 + bm;
     const gcal = (mins: number) =>
@@ -270,26 +272,22 @@ export function BookTab() {
       `Salon 323 — ${labelOf(st.sel, st.cut)}`,
     )}&dates=${gcal(bStart)}/${gcal(bStart + 30)}&ctz=Europe/Zurich`;
 
-    let eventId: string | undefined;
-    try {
-      const res = await fetch("/api/book", {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({
-          date: dateStr,
-          time: st.time,
-          services: st.sel,
-          cut: st.sel.includes("haare") ? st.cut : undefined,
-          name,
-          phone: st.user?.phone,
-          email: st.user?.email || undefined,
-        }),
-      });
-      const j = await res.json();
-      if (!j.ok) throw new Error(j.error || "Fehler");
-      eventId = j.eventId;
-    } catch {
-      say("Buchung fehlgeschlagen – bitte nochmal");
+    // System of record = Supabase. Die Action legt den Termin in der DB an UND
+    // spiegelt ihn (best effort) in den Google-Kalender – damit bleiben
+    // Verfügbarkeit und Barber-Agenda (beide kalenderbasiert) konsistent.
+    const res = await bookAppointmentAction({
+      date: dateStr,
+      time: st.time!,
+      services: st.sel,
+      cut: st.sel.includes("haare") ? st.cut : undefined,
+      payMethod: "ort",
+    });
+    if (!res.ok) {
+      say(
+        res.error === "not_authenticated"
+          ? "Bitte zuerst anmelden"
+          : "Buchung fehlgeschlagen – bitte nochmal",
+      );
       set({ slideDone: false });
       return;
     }
@@ -301,7 +299,7 @@ export function BookTab() {
         services: [...st.sel],
         price: bPrice,
         pay: "ort",
-        eventId,
+        eventId: res.bundle.upcoming?.google_event_id ?? undefined,
       },
       creditUsed: (st.creditUsed || 0) + (resch ? 0 : credApplied),
       booked: {
@@ -317,7 +315,9 @@ export function BookTab() {
     // Slot sofort lokal blockieren (bis der nächste Verfügbarkeits-Abruf kommt).
     const [hh, mm] = (st.time || "0:0").split(":").map(Number);
     const startMs = slotStartMs(effDay, hh * 60 + mm);
-    setBusy((b) => [...b, { s: startMs, e: startMs + 30 * 60000 }]);
+    setAvail((aa) =>
+      aa ? { ...aa, busy: [...aa.busy, { s: startMs, e: startMs + 30 * 60000 }] } : aa,
+    );
   };
 
   const slideDown = (e: React.PointerEvent) => {

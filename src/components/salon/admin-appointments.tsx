@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useSalon } from "./store";
+import { cancelApptByEventIdAction } from "@/lib/actions";
 
 type Appt = { id: string; start: string; end: string; summary: string };
 
@@ -43,6 +44,7 @@ export function AdminAppointments() {
       });
       const j = await r.json();
       if (!j.ok) throw new Error();
+      await cancelApptByEventIdAction(ev.id); // Supabase-Status mitziehen
       setItems((prev) => prev.filter((x) => x.id !== ev.id));
       say("Termin abgesagt – Kunde benachrichtigt");
     } catch {

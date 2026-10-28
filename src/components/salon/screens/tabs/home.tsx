@@ -13,6 +13,7 @@ import {
   monS,
   type ServiceKey,
 } from "@/lib/data";
+import { cancelUpcomingAction } from "@/lib/actions";
 
 const HR = 13; // demo "now" hour → greeting
 
@@ -67,12 +68,8 @@ export function HomeTab() {
         if (holdT.current) clearTimeout(holdT.current);
         holdT.current = setTimeout(() => {
           holdDone.current = false;
-          // Echten Kalendertermin löschen (nur wenn er einen hat).
-          const evId = st.appt?.eventId;
-          if (evId)
-            fetch(`/api/book?eventId=${encodeURIComponent(evId)}`, {
-              method: "DELETE",
-            }).catch(() => {});
+          // Termin serverseitig absagen: Supabase-Status + Google-Event in einem.
+          cancelUpcomingAction().catch(() => {});
           set({ appt: null, cancelling: false });
           say("Termin freigegeben");
         }, 700);

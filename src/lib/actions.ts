@@ -30,7 +30,7 @@ import {
   getUpcoming,
 } from "@/lib/db/appointments";
 import { loadMemberBundle, type MemberBundle } from "@/lib/db/bundle";
-import { createEvent, wallISO } from "@/lib/google/calendar";
+import { createEvent, wallISO, deleteEvent } from "@/lib/google/calendar";
 import { durOf, labelOf, tiers } from "@/lib/data";
 import { supabaseAdmin } from "@/lib/supabase/server";
 import type { ServiceKey, PayMethod } from "@/lib/supabase/types";
@@ -239,6 +239,37 @@ export async function cancelAppointmentAction(
   const bundle = await loadMemberBundle(mid);
   if (!bundle) return { ok: false, error: "unknown" };
   return { ok: true, bundle };
+}
+
+/** Member cancels their own upcoming appointment (home hold-to-release):
+ *  mark the DB row cancelled and remove the mirrored Google-Calendar event. */
+export async function cancelUpcomingAction(): Promise<{ ok: boolean }> {
+  const mid = await requireMember();
+  const up = await getUpcoming(mid);
+  if (!up) return { ok: true };
+  await cancelAppointment(up.id);
+  if (up.google_event_id) {
+    try {
+      await deleteEvent(up.google_event_id);
+    } catch {
+      // calendar offline — the DB cancel still stands
+    }
+  }
+  return { ok: true };
+}
+
+/** Barber cancels via Google event id (AdminAppointments) → sync the DB row. */
+export async function cancelApptByEventIdAction(
+  eventId: string,
+): Promise<{ ok: boolean }> {
+  const s = await getSession();
+  if (!s || s.role !== "barber") return { ok: false };
+  const sb = supabaseAdmin();
+  await sb
+    .from("appointments")
+    .update({ status: "cancelled" })
+    .eq("google_event_id", eventId);
+  return { ok: true };
 }
 
 export type AdminMember = {

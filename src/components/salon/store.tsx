@@ -17,6 +17,8 @@ import {
   type SalonUser,
   type ServiceKey,
 } from "@/lib/data";
+import { sessionAction } from "@/lib/actions";
+import { bundleToState } from "@/lib/member-view";
 
 /* Design tweaks (prototype props). showBarber is enabled so the barber portal
    is testable on localhost; in production it only appears with a barber session. */
@@ -381,6 +383,12 @@ export function SalonProvider({
         : {}),
     }));
     if (!startRef.current) startIntro();
+    // If a real member session exists (cookie), replace the demo seed with
+    // their live data, so reloads and deep-links keep the logged-in member.
+    sessionAction().then((s) => {
+      if (s?.role === "member")
+        setState((p) => ({ ...p, ...bundleToState(s.bundle, false) }));
+    });
     return () => {
       clearIntro();
       if (veilT.current) clearTimeout(veilT.current);
