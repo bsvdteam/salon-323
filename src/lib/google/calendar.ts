@@ -181,3 +181,44 @@ export async function deleteEvent(eventId: string): Promise<void> {
     throw new Error(`Termin löschen fehlgeschlagen: ${await res.text()}`);
   }
 }
+
+export type CalEvent = {
+  id: string;
+  start: string; // ISO (dateTime) oder YYYY-MM-DD (Ganztags)
+  end: string;
+  summary: string;
+};
+
+/** Listet echte Termine im Zeitfenster (für den Admin: anzeigen + absagen). */
+export async function listEvents(
+  timeMinISO: string,
+  timeMaxISO: string,
+): Promise<CalEvent[]> {
+  const token = await accessToken();
+  const params = new URLSearchParams({
+    timeMin: timeMinISO,
+    timeMax: timeMaxISO,
+    singleEvents: "true",
+    orderBy: "startTime",
+    maxResults: "100",
+  });
+  const res = await fetch(
+    `${CAL_BASE}/calendars/${encodeURIComponent(calendarId())}/events?${params.toString()}`,
+    { headers: { Authorization: `Bearer ${token}` } },
+  );
+  if (!res.ok) throw new Error(`Termine laden fehlgeschlagen: ${await res.text()}`);
+  const j = (await res.json()) as {
+    items?: {
+      id: string;
+      summary?: string;
+      start?: { dateTime?: string; date?: string };
+      end?: { dateTime?: string; date?: string };
+    }[];
+  };
+  return (j.items ?? []).map((e) => ({
+    id: e.id,
+    start: e.start?.dateTime ?? e.start?.date ?? "",
+    end: e.end?.dateTime ?? e.end?.date ?? "",
+    summary: e.summary ?? "(ohne Titel)",
+  }));
+}

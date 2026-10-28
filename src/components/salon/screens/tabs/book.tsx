@@ -260,6 +260,16 @@ export function BookTab() {
     const p2 = (n: number) => String(n).padStart(2, "0");
     const dateStr = `${d.getFullYear()}-${p2(d.getMonth() + 1)}-${p2(d.getDate())}`;
     const name = st.user ? `${st.user.first} ${st.user.last}`.trim() : "Gast";
+
+    // "Zum Kalender"-Link für den Kunden (öffnet Google Calendar mit vorbefülltem Termin).
+    const [bh, bm] = (st.time || "0:0").split(":").map(Number);
+    const bStart = bh * 60 + bm;
+    const gcal = (mins: number) =>
+      `${d.getFullYear()}${p2(d.getMonth() + 1)}${p2(d.getDate())}T${p2(Math.floor(mins / 60))}${p2(mins % 60)}00`;
+    const calUrl = `https://calendar.google.com/calendar/render?action=TEMPLATE&text=${encodeURIComponent(
+      `Salon 323 — ${labelOf(st.sel, st.cut)}`,
+    )}&dates=${gcal(bStart)}/${gcal(bStart + 30)}&ctz=Europe/Zurich`;
+
     let eventId: string | undefined;
     try {
       const res = await fetch("/api/book", {
@@ -299,6 +309,7 @@ export function BookTab() {
         time: st.time!,
         when: `${["Sonntag", "Montag", "Dienstag", "Mittwoch", "Donnerstag", "Freitag", "Samstag"][d.getDay()]}, ${d.getDate()}. ${["Januar", "Februar", "März", "April", "Mai", "Juni", "Juli", "August", "September", "Oktober", "November", "Dezember"][d.getMonth()]}`,
         what: `${labelOf(st.sel, st.cut)} · ${durOf(st.sel)} min · CHF 20`,
+        cal: calUrl,
       },
       rescheduling: false,
     });

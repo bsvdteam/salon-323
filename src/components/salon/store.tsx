@@ -91,7 +91,13 @@ export interface SalonState {
   time: string | null;
   rescheduling: boolean;
   cancelling: boolean;
-  booked: { pay: string; time: string; when: string; what: string } | null;
+  booked: {
+    pay: string;
+    time: string;
+    when: string;
+    what: string;
+    cal?: string; // "Zum Kalender"-Link (Google Calendar Template)
+  } | null;
   flipped: boolean;
   cut: string;
 

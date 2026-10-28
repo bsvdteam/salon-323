@@ -187,9 +187,33 @@ export function BookedOverlay() {
           >
             {PAY_LONG[b.pay]}
           </span>
+          {b.cal && (
+            <a
+              href={b.cal}
+              target="_blank"
+              rel="noopener noreferrer"
+              style={{
+                marginTop: 20,
+                width: "100%",
+                height: 46,
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                border: "1px solid rgba(244,166,158,.4)",
+                background: "rgba(244,166,158,.1)",
+                color: "#F4A69E",
+                borderRadius: 999,
+                fontSize: 12.5,
+                textDecoration: "none",
+                animation: "up 1.2s cubic-bezier(.22,1,.36,1) 1.6s both",
+              }}
+            >
+              Zum Kalender hinzufügen
+            </a>
+          )}
           <div
             style={{
-              marginTop: 26,
+              marginTop: b.cal ? 10 : 26,
               width: "100%",
               display: "flex",
               gap: 8,

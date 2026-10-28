@@ -1,31 +1,28 @@
-import { createServerClient } from "@supabase/ssr";
-import { cookies } from "next/headers";
+// SERVER-ONLY Supabase client. Uses the service_role key, which bypasses RLS,
+// so it must never reach the browser. Import this only from server actions and
+// route handlers (files that run on the server). The runtime guard below throws
+// if it is ever bundled into client code.
+import { createClient, type SupabaseClient } from "@supabase/supabase-js";
+import type { Database } from "./types";
 
-import { env } from "@/lib/env";
+if (typeof window !== "undefined") {
+  throw new Error("supabase/server.ts must never be imported in the browser");
+}
 
-// Supabase-Client für Server-Components, Route Handlers und Server Actions.
-export async function createClient() {
-  const cookieStore = await cookies();
+let cached: SupabaseClient<Database> | null = null;
 
-  return createServerClient(
-    env.NEXT_PUBLIC_SUPABASE_URL!,
-    env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-    {
-      cookies: {
-        getAll() {
-          return cookieStore.getAll();
-        },
-        setAll(cookiesToSet) {
-          try {
-            cookiesToSet.forEach(({ name, value, options }) =>
-              cookieStore.set(name, value, options),
-            );
-          } catch {
-            // Aus einer Server-Component aufgerufen — kann ignoriert werden,
-            // solange das Proxy die Session aktualisiert.
-          }
-        },
-      },
-    },
-  );
+/** The admin (service_role) client. Reused across invocations in one process. */
+export function supabaseAdmin(): SupabaseClient<Database> {
+  if (cached) return cached;
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  if (!url || !serviceKey) {
+    throw new Error(
+      "Supabase env missing — set NEXT_PUBLIC_SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY in .env.local",
+    );
+  }
+  cached = createClient<Database>(url, serviceKey, {
+    auth: { persistSession: false, autoRefreshToken: false },
+  });
+  return cached;
 }

@@ -3,6 +3,7 @@
 import { useSalon, type AdminTab, type DayHours } from "../store";
 import { useSalonActions } from "../actions";
 import { Icon } from "../icons";
+import { AdminAppointments } from "../admin-appointments";
 import {
   schedule,
   members as MEMBERS,
@@ -551,6 +552,7 @@ export function AdminScreen() {
               {appts.length} Termine heute.
             </h1>
           </div>
+          <AdminAppointments />
           {cur || nxt ? (
             <div
               className="glass-dark"
