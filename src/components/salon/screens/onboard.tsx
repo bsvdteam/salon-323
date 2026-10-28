@@ -22,17 +22,22 @@ const field: React.CSSProperties = {
   fontSize: 16,
 };
 const h2: React.CSSProperties = {
-  fontSize: 28,
+  fontSize: 27,
   fontWeight: 300,
   letterSpacing: "-.02em",
-  lineHeight: 1.15,
+  lineHeight: 1.12,
 };
-const lead: React.CSSProperties = {
-  fontSize: 13,
-  lineHeight: 1.6,
-  color: "rgba(244,247,250,.7)",
-  textWrap: "pretty",
-};
+
+/** Consistent header for every onboarding step — same kicker + title position,
+    so the card never shifts between steps. */
+function StepHead({ kickLabel, title }: { kickLabel: string; title: string }) {
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+      <span style={kick}>{kickLabel}</span>
+      <span style={h2}>{title}</span>
+    </div>
+  );
+}
 
 /** Live preview of the chosen member card. */
 function CardPreview({
@@ -50,6 +55,7 @@ function CardPreview({
   const T = tiers[0];
   return (
     <div
+      key={style}
       style={{
         position: "relative",
         width: "100%",
@@ -59,7 +65,7 @@ function CardPreview({
         color: c.text,
         boxShadow:
           "0 30px 60px -30px rgba(10,20,40,.6),inset 0 0 0 1px rgba(255,255,255,.22)",
-        animation: "cardMorph 1.2s cubic-bezier(.22,1,.36,1) both",
+        animation: "cardMorph 1s cubic-bezier(.22,1,.36,1) both",
       }}
     >
       <div
@@ -136,6 +142,84 @@ function CardPreview({
   );
 }
 
+/** One card in the dealt "hand" — a small card face that reveals in with a
+    stagger (like dealing from a pack), lifts when selected. */
+function DealtCard({
+  c,
+  i,
+  on,
+  pick,
+}: {
+  c: (typeof cardStyles)[number];
+  i: number;
+  on: boolean;
+  pick: () => void;
+}) {
+  const rot = [-7, 0, 7][i] ?? 0;
+  return (
+    <button
+      onClick={pick}
+      style={{
+        flex: 1,
+        display: "flex",
+        flexDirection: "column",
+        gap: 7,
+        alignItems: "center",
+        border: 0,
+        background: "transparent",
+        padding: 0,
+        // re-deals whenever the step is entered (key set by parent)
+        animation: `dealIn .9s cubic-bezier(.22,1,.36,1) ${0.12 + i * 0.12}s both`,
+        ["--deal-rot" as string]: `${rot}deg`,
+      }}
+    >
+      <span
+        style={{
+          position: "relative",
+          width: "100%",
+          aspectRatio: "1.586/1",
+          borderRadius: 12,
+          overflow: "hidden",
+          backgroundImage: c.front,
+          backgroundSize: "cover",
+          backgroundPosition: "50% 45%",
+          boxShadow: on
+            ? "0 0 0 2px #F4F7FA, 0 14px 26px -12px rgba(0,0,0,.7)"
+            : "inset 0 0 0 1px rgba(255,255,255,.18)",
+          transform: on ? "translateY(-4px) scale(1.03)" : "none",
+          opacity: on ? 1 : 0.72,
+          transition:
+            "box-shadow .5s, transform .6s cubic-bezier(.22,1,.36,1), opacity .5s",
+        }}
+      >
+        <span
+          style={{
+            position: "absolute",
+            left: 7,
+            top: 6,
+            fontFamily: "var(--font-geist-mono)",
+            fontSize: 6.5,
+            letterSpacing: ".2em",
+            color: c.text,
+            opacity: 0.85,
+          }}
+        >
+          323
+        </span>
+      </span>
+      <span
+        style={{
+          fontSize: 10.5,
+          color: on ? "#F4F7FA" : "rgba(244,247,250,.5)",
+          transition: "color .5s",
+        }}
+      >
+        {c.name}
+      </span>
+    </button>
+  );
+}
+
 export function OnboardScreen() {
   const { state, set } = useSalon();
   const a = useSalonActions();
@@ -188,12 +272,13 @@ export function OnboardScreen() {
         className="glass-dark"
         style={{
           width: "min(380px,100%)",
+          minHeight: "min(72vh,540px)",
           borderRadius: 38,
           padding: 22,
-          animation: "up 1.6s cubic-bezier(.22,1,.36,1) both",
+          animation: "up 1.4s cubic-bezier(.22,1,.36,1) both",
           display: "flex",
           flexDirection: "column",
-          gap: 26,
+          gap: 22,
         }}
       >
         <div
@@ -231,241 +316,198 @@ export function OnboardScreen() {
           </div>
         </div>
 
-        {st.ob === 0 && (
-          <div
-            style={{
-              display: "flex",
-              flexDirection: "column",
-              gap: 22,
-              animation: "fade 1s ease both",
-            }}
-          >
-            <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-              <span style={kick}>Von {st.inviteBy || "Salon 323"}</span>
-              <span style={h2}>Willkommen, {st.first.trim() || "Gast"}.</span>
-              <span style={lead}>
-                Deinen Vornamen hat {st.inviteBy || "der Salon"} mit dem Code
-                festgelegt. Ergänze deinen Nachnamen.
-              </span>
-            </div>
-            <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-              <div
-                style={{
-                  ...field,
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "space-between",
-                  color: "rgba(244,247,250,.55)",
-                }}
-              >
-                <span style={{ color: "#F4F7FA" }}>{st.first}</span>
-                <span style={{ fontSize: 11, letterSpacing: ".04em" }}>
-                  Vom Code · fix
-                </span>
-              </div>
-              <input
-                value={st.last}
-                onChange={(e) => set({ last: e.target.value })}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter") a.obNext();
-                }}
-                autoFocus
-                placeholder="Nachname"
-                style={field}
-              />
-            </div>
-          </div>
-        )}
-
-        {st.ob === 1 && (
-          <div
-            style={{
-              display: "flex",
-              flexDirection: "column",
-              gap: 22,
-              animation: "fade 1s ease both",
-            }}
-          >
-            <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-              <span style={kick}>Dein Username</span>
-              <span style={h2}>Wähl dir einen Namen.</span>
-              <span style={lead}>
-                Damit meldest du dich später an. Du kannst ihn im Profil
-                jederzeit ändern.
-              </span>
-            </div>
+        {/* content area — flex:1 keeps the title at a fixed height and pins the
+            button to the bottom, so the card never changes size between steps */}
+        <div
+          style={{
+            flex: 1,
+            display: "flex",
+            flexDirection: "column",
+            gap: 20,
+          }}
+        >
+          {st.ob === 0 && (
             <div
               style={{
                 display: "flex",
-                alignItems: "center",
-                gap: 2,
-                ...field,
+                flexDirection: "column",
+                gap: 18,
+                animation: "fade .8s ease both",
               }}
             >
-              <span style={{ color: "rgba(244,247,250,.4)", fontSize: 16 }}>
-                @
-              </span>
+              <StepHead
+                kickLabel={`Von ${st.inviteBy || "Salon 323"}`}
+                title={`Willkommen, ${st.first.trim() || "Gast"}.`}
+              />
+              <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                <div
+                  style={{
+                    ...field,
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "space-between",
+                    color: "rgba(244,247,250,.55)",
+                  }}
+                >
+                  <span style={{ color: "#F4F7FA" }}>{st.first}</span>
+                  <span style={{ fontSize: 11, letterSpacing: ".04em" }}>
+                    Vom Code · fix
+                  </span>
+                </div>
+                <input
+                  value={st.last}
+                  onChange={(e) => set({ last: e.target.value })}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") a.obNext();
+                  }}
+                  autoFocus
+                  placeholder="Nachname"
+                  style={field}
+                />
+              </div>
+            </div>
+          )}
+
+          {st.ob === 1 && (
+            <div
+              style={{
+                display: "flex",
+                flexDirection: "column",
+                gap: 18,
+                animation: "fade .8s ease both",
+              }}
+            >
+              <StepHead kickLabel="Username" title="Wähl deinen Namen." />
+              <div
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 2,
+                  ...field,
+                }}
+              >
+                <span style={{ color: "rgba(244,247,250,.4)", fontSize: 16 }}>
+                  @
+                </span>
+                <input
+                  value={st.username}
+                  onChange={(e) =>
+                    set({
+                      username: e.target.value.replace(/\s/g, "").toLowerCase(),
+                    })
+                  }
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") a.obNext();
+                  }}
+                  autoFocus
+                  autoCapitalize="none"
+                  autoCorrect="off"
+                  spellCheck={false}
+                  placeholder="username"
+                  style={{
+                    flex: 1,
+                    minWidth: 0,
+                    height: "100%",
+                    background: "transparent",
+                    border: 0,
+                    color: "#F4F7FA",
+                    fontFamily: "var(--font-urbanist)",
+                    fontSize: 16,
+                  }}
+                />
+              </div>
+            </div>
+          )}
+
+          {st.ob === 2 && (
+            <div
+              style={{
+                display: "flex",
+                flexDirection: "column",
+                gap: 18,
+                animation: "fade .8s ease both",
+              }}
+            >
+              <StepHead kickLabel="Telefon" title="Deine Nummer." />
               <input
-                value={st.username}
-                onChange={(e) =>
-                  set({
-                    username: e.target.value.replace(/\s/g, "").toLowerCase(),
-                  })
-                }
+                value={st.phone}
+                onChange={(e) => set({ phone: e.target.value })}
                 onKeyDown={(e) => {
                   if (e.key === "Enter") a.obNext();
                 }}
                 autoFocus
+                type="tel"
+                placeholder="+41 79 000 00 00"
+                style={field}
+              />
+              <span style={{ fontSize: 11.5, color: "rgba(244,247,250,.5)" }}>
+                Nur für die Terminerinnerung.
+              </span>
+            </div>
+          )}
+
+          {st.ob === 3 && (
+            <div
+              style={{
+                display: "flex",
+                flexDirection: "column",
+                gap: 18,
+                animation: "fade .8s ease both",
+              }}
+            >
+              <StepHead kickLabel="E-Mail" title="Deine E-Mail." />
+              <input
+                value={st.email}
+                onChange={(e) => set({ email: e.target.value })}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") a.obNext();
+                }}
+                autoFocus
+                type="email"
                 autoCapitalize="none"
                 autoCorrect="off"
                 spellCheck={false}
-                placeholder="username"
-                style={{
-                  flex: 1,
-                  minWidth: 0,
-                  height: "100%",
-                  background: "transparent",
-                  border: 0,
-                  color: "#F4F7FA",
-                  fontFamily: "var(--font-urbanist)",
-                  fontSize: 16,
-                }}
+                placeholder="du@mail.ch"
+                style={field}
               />
-            </div>
-          </div>
-        )}
-
-        {st.ob === 2 && (
-          <div
-            style={{
-              display: "flex",
-              flexDirection: "column",
-              gap: 22,
-              animation: "fade 1s ease both",
-            }}
-          >
-            <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-              <span style={kick}>Telefon</span>
-              <span style={h2}>Deine Nummer.</span>
-              <span style={lead}>
-                Für die Terminerinnerung. Keine Werbung, versprochen.
+              <span style={{ fontSize: 11.5, color: "rgba(244,247,250,.5)" }}>
+                Für die Terminbestätigung.
               </span>
             </div>
-            <input
-              value={st.phone}
-              onChange={(e) => set({ phone: e.target.value })}
-              onKeyDown={(e) => {
-                if (e.key === "Enter") a.obNext();
-              }}
-              autoFocus
-              type="tel"
-              placeholder="+41 79 000 00 00"
-              style={field}
-            />
-          </div>
-        )}
+          )}
 
-        {st.ob === 3 && (
-          <div
-            style={{
-              display: "flex",
-              flexDirection: "column",
-              gap: 22,
-              animation: "fade 1s ease both",
-            }}
-          >
-            <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-              <span style={kick}>E-Mail</span>
-              <span style={h2}>Deine E-Mail.</span>
-              <span style={lead}>
-                Für die Terminbestätigung – und falls sich etwas ändert.
-              </span>
-            </div>
-            <input
-              value={st.email}
-              onChange={(e) => set({ email: e.target.value })}
-              onKeyDown={(e) => {
-                if (e.key === "Enter") a.obNext();
+          {st.ob === 4 && (
+            <div
+              key="cardstep"
+              style={{
+                display: "flex",
+                flexDirection: "column",
+                gap: 16,
+                animation: "fade .8s ease both",
               }}
-              autoFocus
-              type="email"
-              autoCapitalize="none"
-              autoCorrect="off"
-              spellCheck={false}
-              placeholder="du@mail.ch"
-              style={field}
-            />
-          </div>
-        )}
-
-        {st.ob === 4 && (
-          <div
-            style={{
-              display: "flex",
-              flexDirection: "column",
-              gap: 18,
-              animation: "fade 1s ease both",
-            }}
-          >
-            <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-              <span style={kick}>Deine Karte</span>
-              <span style={h2}>Wähl dein Design.</span>
-            </div>
-            <CardPreview
-              style={st.cardSel}
-              first={st.first}
-              last={st.last}
-              username={st.username}
-            />
-            <div style={{ display: "flex", gap: 8 }}>
-              {cardStyles.map((c, i) => {
-                const on = st.cardSel === i;
-                return (
-                  <button
+            >
+              <StepHead kickLabel="Deine Karte" title="Wähl dein Design." />
+              <CardPreview
+                style={st.cardSel}
+                first={st.first}
+                last={st.last}
+                username={st.username}
+              />
+              {/* dealt hand — reveals like opening a pack */}
+              <div style={{ display: "flex", gap: 10, alignItems: "flex-end" }}>
+                {cardStyles.map((c, i) => (
+                  <DealtCard
                     key={i}
-                    onClick={() => set({ cardSel: i })}
-                    style={{
-                      flex: 1,
-                      display: "flex",
-                      flexDirection: "column",
-                      gap: 6,
-                      alignItems: "center",
-                      border: 0,
-                      background: "transparent",
-                      padding: 0,
-                    }}
-                  >
-                    <span
-                      style={{
-                        width: "100%",
-                        aspectRatio: "1.586/1",
-                        borderRadius: 10,
-                        backgroundImage: c.front,
-                        backgroundSize: "cover",
-                        backgroundPosition: "50% 45%",
-                        boxShadow: on
-                          ? "0 0 0 2px #F4F7FA, 0 8px 20px -10px rgba(0,0,0,.6)"
-                          : "inset 0 0 0 1px rgba(255,255,255,.18)",
-                        transition:
-                          "box-shadow .5s, transform .5s cubic-bezier(.22,1,.36,1)",
-                        transform: on ? "translateY(-2px)" : "none",
-                      }}
-                    />
-                    <span
-                      style={{
-                        fontSize: 10,
-                        color: on ? "#F4F7FA" : "rgba(244,247,250,.5)",
-                        transition: "color .5s",
-                      }}
-                    >
-                      {c.name}
-                    </span>
-                  </button>
-                );
-              })}
+                    c={c}
+                    i={i}
+                    on={st.cardSel === i}
+                    pick={() => set({ cardSel: i })}
+                  />
+                ))}
+              </div>
             </div>
-          </div>
-        )}
+          )}
+        </div>
 
         <button
           onClick={() => a.obNext()}

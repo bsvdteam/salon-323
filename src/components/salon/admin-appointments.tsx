@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useSalon } from "./store";
+import { EmptyState } from "./empty-state";
 import { cancelApptByEventIdAction } from "@/lib/actions";
 
 type Appt = { id: string; start: string; end: string; summary: string };
@@ -92,9 +93,18 @@ export function AdminAppointments() {
         </span>
       </div>
       {loaded && items.length === 0 && (
-        <span style={{ fontSize: 13, color: "var(--ink-60)" }}>
-          Keine Termine im Kalender.
-        </span>
+        <div
+          className="glass-light"
+          style={{ borderRadius: 28, color: "#0E141C" }}
+        >
+          <EmptyState
+            title="Keine Termine gebucht"
+            sub="Sobald ein Mitglied bucht, erscheint der Termin hier – und automatisch in deinem Google Kalender."
+            glyph="◷"
+            tone="light"
+            compact
+          />
+        </div>
       )}
       {items.length > 0 && (
         <div

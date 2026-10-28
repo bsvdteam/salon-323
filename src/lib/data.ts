@@ -63,6 +63,9 @@ export const monS = [
   "Dez",
 ];
 
+// A pool of short, broadly resonant verses — hope, strength, rest, courage,
+// new beginnings. Picked to land even for someone who isn't religious; one is
+// shown at random on each welcome (see goWelcome / store mount).
 export const verses = [
   {
     t: "Die auf den Herrn harren, kriegen neue Kraft, dass sie auffahren mit Flügeln wie Adler.",
@@ -88,6 +91,186 @@ export const verses = [
   {
     t: "Ich danke dir dafür, dass ich wunderbar gemacht bin.",
     r: "Psalm 139,14",
+  },
+  {
+    t: "Sei getrost und unverzagt; lass dir nicht grauen und entsetze dich nicht.",
+    r: "Josua 1,9",
+  },
+  {
+    t: "Fürchte dich nicht, denn ich bin bei dir; weiche nicht, denn ich bin dein Gott.",
+    r: "Jesaja 41,10",
+  },
+  {
+    t: "Alles hat seine Zeit, und jedes Vorhaben unter dem Himmel hat seine Stunde.",
+    r: "Prediger 3,1",
+  },
+  {
+    t: "Wirf dein Anliegen auf den Herrn, der wird dich versorgen.",
+    r: "Psalm 55,23",
+  },
+  {
+    t: "Der Herr ist mein Licht und mein Heil; vor wem sollte ich mich fürchten?",
+    r: "Psalm 27,1",
+  },
+  {
+    t: "Gott ist unsere Zuversicht und Stärke, eine Hilfe in den Nöten.",
+    r: "Psalm 46,2",
+  },
+  {
+    t: "Befiehl dem Herrn deine Wege und hoffe auf ihn, er wird's wohl machen.",
+    r: "Psalm 37,5",
+  },
+  {
+    t: "Alle eure Sorge werft auf ihn; denn er sorgt für euch.",
+    r: "1. Petrus 5,7",
+  },
+  {
+    t: "Dein Wort ist meines Fusses Leuchte und ein Licht auf meinem Weg.",
+    r: "Psalm 119,105",
+  },
+  {
+    t: "Siehe, ich mache alles neu.",
+    r: "Offenbarung 21,5",
+  },
+  {
+    t: "Der Herr wird für euch streiten, und ihr werdet stille sein.",
+    r: "2. Mose 14,14",
+  },
+  {
+    t: "Ich vermag alles durch den, der mich mächtig macht.",
+    r: "Philipper 4,13",
+  },
+  {
+    t: "Seid fröhlich in Hoffnung, geduldig in Trübsal, beharrlich im Gebet.",
+    r: "Römer 12,12",
+  },
+  {
+    t: "Der Herr ist nahe denen, die zerbrochenen Herzens sind.",
+    r: "Psalm 34,19",
+  },
+  {
+    t: "Vertraue auf den Herrn von ganzem Herzen und verlass dich nicht auf deinen Verstand.",
+    r: "Sprüche 3,5",
+  },
+  {
+    t: "Diese Dinge habe ich zu euch geredet, damit ihr in mir Frieden habt.",
+    r: "Johannes 16,33",
+  },
+  {
+    t: "Der Herr ist gut, eine Feste am Tag der Not, und kennt die, die auf ihn trauen.",
+    r: "Nahum 1,7",
+  },
+  {
+    t: "Das Volk, das im Finstern wandelt, sieht ein grosses Licht.",
+    r: "Jesaja 9,1",
+  },
+  {
+    t: "Harre des Herrn! Sei getrost und unverzagt, und harre des Herrn!",
+    r: "Psalm 27,14",
+  },
+  {
+    t: "Den Mühseligen gibt er Kraft und Stärke genug den Unvermögenden.",
+    r: "Jesaja 40,29",
+  },
+  {
+    t: "Du stellst meine Füsse auf weiten Raum.",
+    r: "Psalm 31,9",
+  },
+  {
+    t: "Ein fröhliches Herz tut dem Leibe wohl.",
+    r: "Sprüche 17,22",
+  },
+  {
+    t: "Freut euch im Herrn allewege, und abermals sage ich: Freut euch!",
+    r: "Philipper 4,4",
+  },
+  {
+    t: "Der Herr segne dich und behüte dich; der Herr lasse sein Angesicht leuchten über dir.",
+    r: "4. Mose 6,24–25",
+  },
+  {
+    t: "Du bist mein Gott, und meine Zeit steht in deinen Händen.",
+    r: "Psalm 31,15–16",
+  },
+  {
+    t: "Wer unter dem Schirm des Höchsten sitzt, der bleibt unter dem Schatten des Allmächtigen.",
+    r: "Psalm 91,1",
+  },
+  {
+    t: "So spricht der Herr: Ich habe dich bei deinem Namen gerufen; du bist mein.",
+    r: "Jesaja 43,1",
+  },
+  {
+    t: "Dein Reden erfreut und tröstet meine Seele.",
+    r: "Psalm 94,19",
+  },
+  {
+    t: "Weinen währt einen Abend lang, aber am Morgen ist Freude.",
+    r: "Psalm 30,6",
+  },
+  {
+    t: "Der Herr ist dein Schatten über deiner rechten Hand.",
+    r: "Psalm 121,5",
+  },
+  {
+    t: "Ich hebe meine Augen auf zu den Bergen: Woher kommt mir Hilfe?",
+    r: "Psalm 121,1",
+  },
+  {
+    t: "Schmecket und sehet, wie freundlich der Herr ist.",
+    r: "Psalm 34,9",
+  },
+  {
+    t: "Er heilt, die zerbrochenen Herzens sind, und verbindet ihre Wunden.",
+    r: "Psalm 147,3",
+  },
+  {
+    t: "Lass dich nicht vom Bösen überwinden, sondern überwinde das Böse mit Gutem.",
+    r: "Römer 12,21",
+  },
+  {
+    t: "Besser ein Wenig mit Ruhe als beide Hände voll mit Mühe.",
+    r: "Prediger 4,6",
+  },
+  {
+    t: "Die Liebe ist langmütig und freundlich, sie erträgt alles, sie hofft alles.",
+    r: "1. Korinther 13,4.7",
+  },
+  {
+    t: "Er gibt dem Müden Kraft und Stärke dem, der keine Kraft hat.",
+    r: "Jesaja 40,29",
+  },
+  {
+    t: "Ein jeglicher, wie er's im Herzen sich vornimmt – Gott liebt einen fröhlichen Geber.",
+    r: "2. Korinther 9,7",
+  },
+  {
+    t: "Dein Glaube hat dir geholfen; geh hin in Frieden.",
+    r: "Lukas 7,50",
+  },
+  {
+    t: "Gras verdorrt, Blumen verwelken – aber das Wort unseres Gottes bleibt ewig.",
+    r: "Jesaja 40,8",
+  },
+  {
+    t: "Der Herr behüte deinen Ausgang und Eingang von nun an bis in Ewigkeit.",
+    r: "Psalm 121,8",
+  },
+  {
+    t: "Hoffnung, die sich verzieht, ängstet das Herz; aber ein erfüllter Wunsch ist ein Baum des Lebens.",
+    r: "Sprüche 13,12",
+  },
+  {
+    t: "Ich will dich unterweisen und dir den Weg zeigen, den du gehen sollst.",
+    r: "Psalm 32,8",
+  },
+  {
+    t: "Still zu sein und zu hoffen – das ist gut für den, der auf den Herrn harrt.",
+    r: "Klagelieder 3,26",
+  },
+  {
+    t: "Die Frucht des Geistes aber ist Liebe, Freude, Friede, Geduld, Freundlichkeit.",
+    r: "Galater 5,22",
   },
 ];
 
@@ -680,6 +863,11 @@ export function labelOf(list: ServiceKey[], cut?: string) {
 }
 export function durOf(list: ServiceKey[]) {
   return list.length ? 30 : 0;
+}
+// Preis pro Termin: Haarschnitt CHF 15, mit Bart CHF 20.
+export function priceOf(list: ServiceKey[]) {
+  if (!list.length) return 0;
+  return list.includes("bart") ? 20 : 15;
 }
 export function fmtTime(v: number) {
   const h = Math.floor(v / 60),

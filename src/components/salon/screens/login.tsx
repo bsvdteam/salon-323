@@ -120,9 +120,15 @@ export function LoginScreen() {
   const cardScale = useCardScale();
 
   const usernameOk = st.username.trim().length > 0;
-  const modeMember = st.mode === "member";
-  const modeInvite = st.mode === "invite";
   const codeInvalid = st.code.length === 6 && !st.checking && !st.inviteOk;
+
+  // Keep the panel's inner content mounted even after it closes, so the card
+  // fades out at full size (no empty-card flash). `shown` adopts the latest
+  // open mode at render time and simply keeps it while the panel is hidden.
+  const [shown, setShown] = useState<typeof st.mode>(st.mode);
+  if (st.mode && st.mode !== shown) setShown(st.mode);
+  const modeMember = shown === "member";
+  const modeInvite = shown === "invite";
 
   // Real member count (non-barber), fetched once on mount.
   const [memberCount, setMemberCount] = useState<number | null>(null);
@@ -371,7 +377,7 @@ export function LoginScreen() {
           textTransform: "uppercase",
           opacity: ready && !panelOpen ? 1 : 0,
           pointerEvents: ready && !panelOpen ? "auto" : "none",
-          transition: `opacity 1.4s ease ${panelOpen ? "0s" : "1.2s"}`,
+          transition: `opacity 1.1s ease ${panelOpen ? "0s" : ".45s"}`,
         }}
       >
         <button
@@ -385,8 +391,9 @@ export function LoginScreen() {
             textShadow: "0 1px 14px rgba(10,16,26,.6)",
           }}
         >
-          Mitglied werden
+          Member werden
         </button>
+        {/* Ghost pill so sign-in is clearly visible against the dark base. */}
         <button
           onClick={(e) => {
             e.stopPropagation();
@@ -394,10 +401,17 @@ export function LoginScreen() {
           }}
           style={{
             ...chooserBtn,
-            padding: "10px 0",
+            marginTop: 2,
+            padding: "9px 20px",
             fontSize: 9,
-            color: "#0E141C",
-            opacity: 0.85,
+            color: "#F7F9FB",
+            opacity: 0.92,
+            borderRadius: 999,
+            border: "1px solid rgba(247,249,251,.32)",
+            background: "rgba(247,249,251,.06)",
+            textShadow: "0 1px 12px rgba(10,16,26,.55)",
+            WebkitBackdropFilter: "blur(6px)",
+            backdropFilter: "blur(6px)",
           }}
         >
           Anmelden
@@ -427,9 +441,9 @@ export function LoginScreen() {
             borderRadius: 30,
             padding: 18,
             opacity: ready && panelOpen ? 1 : 0,
-            transform: ready && panelOpen ? "none" : "translateY(18px)",
+            transform: ready && panelOpen ? "none" : "translateY(16px)",
             transition:
-              "opacity 1.6s ease, transform 1.8s cubic-bezier(.22,1,.36,1)",
+              "opacity .7s ease, transform .85s cubic-bezier(.22,1,.36,1)",
           }}
         >
           {modeMember && (

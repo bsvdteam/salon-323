@@ -7,6 +7,7 @@ import {
   dateOf,
   labelOf,
   durOf,
+  priceOf,
   svc,
   cuts as cutList,
   wdS,
@@ -233,8 +234,10 @@ export function BookTab() {
     INV.filter((i) => !i.pending).length * 5 - (st.creditUsed || 0),
   );
   const resch = st.rescheduling && st.appt;
-  const credApplied = resch ? 0 : Math.min(20, credit);
-  const price = resch ? (st.appt!.price ?? 20) : 20 - credApplied;
+  // Haarschnitt CHF 15, mit Bart CHF 20 (priceOf); Guthaben zieht davon ab.
+  const base = priceOf(st.sel) || 15;
+  const credApplied = resch ? 0 : Math.min(base, credit);
+  const price = resch ? (st.appt!.price ?? base) : base - credApplied;
   const dd = dateOf(effDay);
   const canBook = !!(st.time && st.sel.length);
   const summaryWhen = `${wdS[dd.getDay()]} ${dd.getDate()}. ${monS[dd.getMonth()]} · ${st.time || "—"}`;
@@ -259,7 +262,7 @@ export function BookTab() {
 
   const confirmBook = async () => {
     const d = dateOf(effDay);
-    const bPrice = resch ? (st.appt!.price ?? 20) : price;
+    const bPrice = resch ? (st.appt!.price ?? base) : price;
     const p2 = (n: number) => String(n).padStart(2, "0");
     const dateStr = `${d.getFullYear()}-${p2(d.getMonth() + 1)}-${p2(d.getDate())}`;
 
@@ -306,7 +309,7 @@ export function BookTab() {
         pay: "ort",
         time: st.time!,
         when: `${["Sonntag", "Montag", "Dienstag", "Mittwoch", "Donnerstag", "Freitag", "Samstag"][d.getDay()]}, ${d.getDate()}. ${["Januar", "Februar", "März", "April", "Mai", "Juni", "Juli", "August", "September", "Oktober", "November", "Dezember"][d.getMonth()]}`,
-        what: `${labelOf(st.sel, st.cut)} · ${durOf(st.sel)} min · CHF 20`,
+        what: `${labelOf(st.sel, st.cut)} · ${durOf(st.sel)} min · CHF ${bPrice}`,
         cal: calUrl,
       },
       rescheduling: false,

@@ -34,7 +34,7 @@ export type Absence = {
   a: number;
   b: number;
   why: string;
-  src: "HIER" | "CALENDLY";
+  src: "HIER" | "GOOGLE";
 };
 export type ClientRecord = {
   n: string;
@@ -253,10 +253,7 @@ function initialState(start?: StartConfig): SalonState {
     },
     dOpen: null,
     wOpen: null,
-    abs: [
-      { id: 1, a: 12, b: 12, why: "Privat", src: "HIER" },
-      { id: 2, a: 22, b: 29, why: "Ferien", src: "CALENDLY" },
-    ],
+    abs: [],
     calOn: true,
     syncing: false,
     syncAgo: "vor 2 Min",

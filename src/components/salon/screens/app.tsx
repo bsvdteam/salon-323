@@ -97,10 +97,16 @@ export function AppScreen() {
           "calc(16px + env(safe-area-inset-top)) clamp(16px,4vw,40px) calc(130px + env(safe-area-inset-bottom))",
       }}
     >
-      {state.tab === "home" && <HomeTab />}
-      {state.tab === "book" && <BookTab />}
-      {state.tab === "card" && <CardTab />}
-      {state.tab === "circle" && <CircleTab />}
+      {/* keyed on the tab so switching re-runs a clean crossfade-up entrance */}
+      <div
+        key={state.tab}
+        style={{ animation: "tabIn .62s cubic-bezier(.22,1,.36,1) both" }}
+      >
+        {state.tab === "home" && <HomeTab />}
+        {state.tab === "book" && <BookTab />}
+        {state.tab === "card" && <CardTab />}
+        {state.tab === "circle" && <CircleTab />}
+      </div>
       <TabBar />
     </div>
   );

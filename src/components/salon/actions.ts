@@ -38,8 +38,10 @@ export function useSalonActions() {
 
   const goWelcome = useCallback(() => {
     go(() => {
-      const words = verses[sref.current.verse].t.split(" ").length;
-      set({ screen: "welcome" });
+      // Fresh random verse on every welcome, so it isn't the same one each login.
+      const verse = Math.floor(Math.random() * verses.length);
+      const words = verses[verse].t.split(" ").length;
+      set({ screen: "welcome", verse });
       if (timers.current.welcome) clearTimeout(timers.current.welcome);
       timers.current.welcome = setTimeout(
         () => toApp(),
@@ -176,6 +178,7 @@ export function useSalonActions() {
         checking: false,
         flipped: false,
         barberAuthed: false,
+        sheet: null, // profile sheet must not linger open on the landing
         ...lucaState(),
       });
       startIntro();

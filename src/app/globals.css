@@ -282,6 +282,70 @@ button {
     filter: blur(0);
   }
 }
+/* Tab crossfade — content fades up as you switch home/book/card/circle. */
+@keyframes tabIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+/* Card-pack reveal — each design card deals in, rising + un-skewing. */
+@keyframes dealIn {
+  from {
+    opacity: 0;
+    transform: translateY(26px) rotate(var(--deal-rot, -6deg)) scale(0.9);
+    filter: blur(5px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) rotate(0) scale(1);
+    filter: blur(0);
+  }
+}
+/* Empty-state orbit — a slow, soft drifting ring for "nothing here yet". */
+@keyframes orbit {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+@keyframes orbitRev {
+  from {
+    transform: rotate(360deg);
+  }
+  to {
+    transform: rotate(0deg);
+  }
+}
+/* Empty-state pulse — a gentle breathing dot/halo at the centre. */
+@keyframes softPulse {
+  0%,
+  100% {
+    opacity: 0.35;
+    transform: scale(0.92);
+  }
+  50% {
+    opacity: 0.9;
+    transform: scale(1.08);
+  }
+}
+/* Panel close — used when a landing sheet dismisses, so it sinks cleanly. */
+@keyframes sink {
+  from {
+    opacity: 1;
+    transform: none;
+  }
+  to {
+    opacity: 0;
+    transform: translateY(16px);
+  }
+}
 
 /* ───────────────────────── glass surfaces (handoff §Glas) ────────────────── */
 .glass-dark {
