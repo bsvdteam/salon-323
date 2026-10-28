@@ -1,8 +1,0 @@
-<svg viewBox="0 0 640 860" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Porträt (Platzhalter)">
-  <g fill="#efe7db">
-    <path d="M70 860 C70 690 185 585 320 585 C455 585 570 690 570 860 Z"/>
-    <rect x="280" y="430" width="80" height="170" rx="34"/>
-    <ellipse cx="320" cy="300" rx="130" ry="170"/>
-  </g>
-  <path fill="#211d17" d="M190 300 A130 170 0 0 1 450 300 C425 322 402 300 362 314 C332 325 312 302 290 314 C262 329 232 300 190 314 Z"/>
-</svg>
