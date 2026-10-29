@@ -36,7 +36,10 @@ export async function GET(req: Request) {
       status: 200,
       headers: {
         "Content-Type": "application/vnd.apple.pkpass",
-        "Content-Disposition": `attachment; filename="salon15-${data.memberNo}.pkpass"`,
+        // inline, not attachment: Safari then hands the pass straight to
+        // Wallet ("Hinzufügen") like airline/booking tickets, instead of
+        // saving a file to Downloads
+        "Content-Disposition": `inline; filename="salon15-${data.memberNo}.pkpass"`,
         "Cache-Control": "no-store",
       },
     });
