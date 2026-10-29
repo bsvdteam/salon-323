@@ -8,7 +8,7 @@ import { memberPassData } from "@/lib/wallet/member-pass";
 
 export const dynamic = "force-dynamic";
 
-export async function GET() {
+export async function GET(req: Request) {
   const s = await getSession();
   if (!s || s.role !== "member") {
     return Response.json({ ok: false, error: "forbidden" }, { status: 401 });
@@ -28,7 +28,10 @@ export async function GET() {
   }
 
   try {
-    const buf = await buildMemberPass(data);
+    // featured actions link back to this deployment (vercel.app or salon15.ch)
+    const buf = await buildMemberPass(data, {
+      siteUrl: new URL(req.url).origin,
+    });
     return new Response(new Uint8Array(buf), {
       status: 200,
       headers: {

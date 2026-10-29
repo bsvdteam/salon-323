@@ -1,11 +1,15 @@
-// Builds one signed .pkpass for a member. It's a single storeCard whose face is
-// the member's chosen card design (strip photo + base colour from cardStyles),
-// like the dashboard card in src/components/salon/screens/tabs/card.tsx. With
-// no upcoming appointment it reads as the membership card (name, N°, tier);
-// with one, the same face shows the appointment (time, service, place) and
-// surfaces on the lock screen shortly before via relevantDate.
+// Builds one signed .pkpass for a member, carrying two layouts of the same card:
+//  · posterGeneric (iOS 27+): the member's card design photo full-bleed behind
+//    the whole pass face — logo, tier, name and N° laid over it like the
+//    dashboard card (src/components/salon/screens/tabs/card.tsx).
+//  · storeCard (iOS 26 and older): the photo as a strip with the same fields.
+// Wallet shows the newest layout the device understands. With an upcoming
+// appointment both read as the appointment card and surface on the lock
+// screen shortly before via relevantDate.
+// A true card-shaped face without Apple's pass layout exists only for Apple
+// Pay payment cards (card issuers), not for membership passes.
 import { createHmac } from "node:crypto";
-import { PKPass } from "passkit-generator";
+import { PKPass, PassType } from "passkit-generator";
 import { formatInTimeZone } from "date-fns-tz";
 import { de } from "date-fns/locale";
 import { salon, tiers, svcName, cardStyles, type ServiceKey } from "@/lib/data";
@@ -57,13 +61,20 @@ function authToken(memberId: string): string {
 }
 
 /** Signed .pkpass bytes for this member, ready to stream to the device. */
-export async function buildMemberPass(data: MemberPassData): Promise<Buffer> {
+type Field = PassType<"storeCard">["primaryFields"][number];
+
+export async function buildMemberPass(
+  data: MemberPassData,
+  opts: { siteUrl: string },
+): Promise<Buffer> {
   const cfg = appleWalletConfig();
   const tier = tierOf(data.cuts);
   const fullName = `${data.firstName} ${data.lastName}`.trim();
   const since = formatInTimeZone(new Date(data.memberSince), TZ, "MMM yyyy", {
     locale: de,
   });
+  // the card's own "SEIT 10·26"
+  const sinceShort = formatInTimeZone(new Date(data.memberSince), TZ, "MM·yy");
 
   const design = cardStyles[data.card] ?? cardStyles[0];
 
@@ -88,8 +99,35 @@ export async function buildMemberPass(data: MemberPassData): Promise<Buffer> {
       : {}),
   });
 
-  // No barcode: the front is the card, like a bank card in Wallet.
-  pass.type = "storeCard";
+  // iOS 27: up to two buttons under the pass
+  pass.featuredActions = [
+    {
+      identifier: "book",
+      type: "bookAppointment",
+      url: `${opts.siteUrl}/book`,
+    },
+    { identifier: "call", type: "call", url: salon.tel },
+  ];
+
+  // No barcode: the front is the card. Both layouts travel in one pass.
+  const poster = new PassType("posterGeneric");
+  const store = new PassType("storeCard");
+  pass.types.push(poster, store);
+
+  const back: Field[] = [
+    {
+      key: "adresse",
+      label: "Adresse",
+      value: `${salon.a1}, ${salon.a2}`,
+      dataDetectorTypes: ["PKDataDetectorTypeAddress"],
+    },
+    {
+      key: "telefon",
+      label: "Telefon",
+      value: salon.phone,
+      dataDetectorTypes: ["PKDataDetectorTypePhoneNumber"],
+    },
+  ];
 
   if (data.appointment) {
     const start = new Date(data.appointment.startsAt);
@@ -98,49 +136,9 @@ export async function buildMemberPass(data: MemberPassData): Promise<Buffer> {
       locale: de,
     });
     const time = formatInTimeZone(start, TZ, "HH:mm", { locale: de });
-
-    pass.headerFields.push({ key: "date", label: "TERMIN", value: dateShort });
-    pass.primaryFields.push({
-      key: "time",
-      label: dateLong,
-      value: time,
-      changeMessage: "Neuer Termin: %@",
-    });
-    pass.secondaryFields.push(
-      {
-        key: "service",
-        label: "LEISTUNG",
-        value: serviceLabel(data.appointment.services),
-      },
-      {
-        key: "no",
-        label: "N°",
-        value: data.memberNo,
-        textAlignment: "PKTextAlignmentRight",
-      },
-    );
-    pass.auxiliaryFields.push(
-      { key: "ort", label: "ORT", value: salon.a1 },
-      {
-        key: "preis",
-        label: "PREIS",
-        value: `CHF ${data.appointment.priceChf}`,
-        textAlignment: "PKTextAlignmentRight",
-      },
-    );
-    pass.backFields.push(
-      {
-        key: "adresse",
-        label: "Adresse",
-        value: `${salon.a1}, ${salon.a2}`,
-        dataDetectorTypes: ["PKDataDetectorTypeAddress"],
-      },
-      {
-        key: "telefon",
-        label: "Telefon",
-        value: salon.phone,
-        dataDetectorTypes: ["PKDataDetectorTypePhoneNumber"],
-      },
+    const service = serviceLabel(data.appointment.services);
+    const date: Field = { key: "date", label: "TERMIN", value: dateShort };
+    back.push(
       {
         key: "absage",
         label: "Absage",
@@ -154,18 +152,71 @@ export async function buildMemberPass(data: MemberPassData): Promise<Buffer> {
       },
     );
 
+    // poster: TERMIN top right, the time as the big title, place below
+    poster.headerFields.push(date);
+    poster.primaryFields.push(
+      { key: "time", value: time, changeMessage: "Neuer Termin: %@" },
+      { key: "service", label: "LEISTUNG", value: service },
+    );
+    poster.footerFields.push({
+      key: "ort",
+      value: `${salon.a1} · CHF ${data.appointment.priceChf}`.toUpperCase(),
+    });
+
+    store.headerFields.push(date);
+    store.primaryFields.push({
+      key: "time",
+      label: dateLong,
+      value: time,
+      changeMessage: "Neuer Termin: %@",
+    });
+    store.secondaryFields.push(
+      { key: "service", label: "LEISTUNG", value: service },
+      {
+        key: "no",
+        label: "N°",
+        value: data.memberNo,
+        textAlignment: "PKTextAlignmentRight",
+      },
+    );
+    store.auxiliaryFields.push(
+      { key: "ort", label: "ORT", value: salon.a1 },
+      {
+        key: "preis",
+        label: "PREIS",
+        value: `CHF ${data.appointment.priceChf}`,
+        textAlignment: "PKTextAlignmentRight",
+      },
+    );
+
     // Bring the pass to the lock screen around the appointment.
     pass.setRelevantDate(start);
   } else {
-    // Same reading order as the card front: tier top right, name over the
-    // photo, then N° · tier and SEIT.
-    pass.headerFields.push({ key: "rank", label: "STUFE", value: tier.r });
-    pass.primaryFields.push({
+    back.unshift({ key: "cuts", label: "Cuts", value: String(data.cuts) });
+    back.push({
+      key: "hinweis",
+      label: "Hinweis",
+      value: "Beim Eintreten vorzeigen.",
+    });
+    const rank: Field = { key: "rank", label: "STUFE", value: tier.r };
+
+    // poster = the card front: tier top right, name as the title, then
+    // "N° 0001 · GUEST · SEIT 10·26" in the footer
+    poster.headerFields.push(rank);
+    poster.primaryFields.push({ key: "member", value: fullName });
+    poster.footerFields.push({
+      key: "no",
+      value:
+        `N° ${data.memberNo} · ${tier.n} · seit ${sinceShort}`.toUpperCase(),
+    });
+
+    store.headerFields.push(rank);
+    store.primaryFields.push({
       key: "member",
       label: "MEMBER",
       value: fullName,
     });
-    pass.secondaryFields.push(
+    store.secondaryFields.push(
       { key: "no", label: "N°", value: data.memberNo },
       { key: "tier", label: "STUFE", value: tier.n },
       {
@@ -175,27 +226,10 @@ export async function buildMemberPass(data: MemberPassData): Promise<Buffer> {
         textAlignment: "PKTextAlignmentRight",
       },
     );
-    pass.backFields.push({
-      key: "cuts",
-      label: "Cuts",
-      value: String(data.cuts),
-    });
-    pass.backFields.push(
-      {
-        key: "adresse",
-        label: "Adresse",
-        value: `${salon.a1}, ${salon.a2}`,
-        dataDetectorTypes: ["PKDataDetectorTypeAddress"],
-      },
-      {
-        key: "telefon",
-        label: "Telefon",
-        value: salon.phone,
-        dataDetectorTypes: ["PKDataDetectorTypePhoneNumber"],
-      },
-      { key: "hinweis", label: "Hinweis", value: "Beim Eintreten vorzeigen." },
-    );
   }
+
+  poster.backFields.push(...back);
+  store.backFields.push(...back);
 
   return pass.getAsBuffer();
 }

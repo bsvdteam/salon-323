@@ -10,17 +10,24 @@ import { join } from "node:path";
 const DIR = join(process.cwd(), "src/lib/wallet/apple/assets");
 
 const SCALES = ["", "@2x", "@3x"] as const;
-const DESIGNS = 3; // strip-0 Mist · strip-1 Ember · strip-2 Moos (cardStyles)
+const DESIGNS = 3; // 0 Mist · 1 Ember · 2 Moos (cardStyles)
+// poster art is only shipped @2x/@3x — no @1x iPhone exists, saves ~200 KB
+const HIRES = ["@2x", "@3x"] as const;
 
 let cached: Record<string, Buffer> | null = null;
 
 function load(): Record<string, Buffer> {
   if (cached) return cached;
   const names = [
-    ...SCALES.flatMap((s) => [`icon${s}.png`, `logo${s}.png`]),
-    ...Array.from({ length: DESIGNS }, (_, d) =>
-      SCALES.map((s) => `strip-${d}${s}.png`),
-    ).flat(),
+    ...SCALES.flatMap((s) => [
+      `icon${s}.png`,
+      `logo${s}.png`,
+      `primaryLogo${s}.png`,
+    ]),
+    ...Array.from({ length: DESIGNS }, (_, d) => [
+      ...SCALES.map((s) => `strip-${d}${s}.png`),
+      ...HIRES.map((s) => `artwork-${d}${s}.png`),
+    ]).flat(),
   ];
   const out: Record<string, Buffer> = {};
   for (const f of names) out[f] = readFileSync(join(DIR, f));
@@ -28,8 +35,9 @@ function load(): Record<string, Buffer> {
   return out;
 }
 
-/** { "icon.png": <Buffer>, "strip@2x.png": … } for PKPass — the strip is the
- *  member's card design (0–2), so the Wallet face matches the dashboard card. */
+/** { "icon.png": <Buffer>, "artwork@2x.png": … } for PKPass — strip (storeCard)
+ *  and artwork (posterGeneric) are the member's card design (0–2), so the
+ *  Wallet face matches the dashboard card. */
 export function passImages(design: number): Record<string, Buffer> {
   const all = load();
   const d = design >= 0 && design < DESIGNS ? design : 0;
@@ -37,7 +45,9 @@ export function passImages(design: number): Record<string, Buffer> {
   for (const s of SCALES) {
     out[`icon${s}.png`] = all[`icon${s}.png`];
     out[`logo${s}.png`] = all[`logo${s}.png`];
+    out[`primaryLogo${s}.png`] = all[`primaryLogo${s}.png`];
     out[`strip${s}.png`] = all[`strip-${d}${s}.png`];
   }
+  for (const s of HIRES) out[`artwork${s}.png`] = all[`artwork-${d}${s}.png`];
   return out;
 }

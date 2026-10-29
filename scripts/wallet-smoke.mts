@@ -28,7 +28,9 @@ const appointment: MemberPassData = {
 
 const out = process.argv[2] ?? ".";
 for (const [name, data] of Object.entries({ member, appointment })) {
-  const buf = await buildMemberPass(data);
+  const buf = await buildMemberPass(data, {
+    siteUrl: "https://salon-323.vercel.app",
+  });
   const p = `${out}/salon15-${name}.pkpass`;
   writeFileSync(p, buf);
   console.log(`${name}: ${buf.length} bytes -> ${p}`);

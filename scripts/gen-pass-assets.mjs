@@ -5,6 +5,8 @@
 //
 // Apple sizes (points → @1x/@2x/@3x pixels):
 //   icon   29×29            logo  ≤160×50            strip (storeCard) 375×144
+//   artwork (posterGeneric, iOS 27) 358×448 — full-bleed, portrait
+//   primaryLogo (posterGeneric) 30 pt tall, 30–126 pt wide
 // The strip is the card's face: the member's chosen design photo (Mist / Ember /
 // Moos), framed and tinted like the dashboard card (cardStyles in lib/data.ts),
 // one set per design: strip-<index>.png. Logo and icon use the real wordmark.
@@ -45,6 +47,11 @@ function logoSVG(w, h) {
   return `<svg xmlns="http://www.w3.org/2000/svg" width="${w}" height="${h}" viewBox="-4 24 332 82">${paths(d, 11)}</svg>`;
 }
 
+/** Same wordmark, 30 pt tall — the poster pass's top-leading primary logo. */
+function primaryLogoSVG(w, h) {
+  return logoSVG(w, h);
+}
+
 /** Rounded dark tile with the "15" glyphs — the pass icon. */
 function iconSVG(px) {
   return `<svg xmlns="http://www.w3.org/2000/svg" width="${px}" height="${px}" viewBox="0 0 100 100">
@@ -58,14 +65,19 @@ function iconSVG(px) {
 const DESIGNS = [
   {
     src: "public/mist.jpg",
+    // portrait poster art: the portrait photo, framed like the phone background
+    poster: { src: "public/mist-mobile.jpg", cx: 0.5, cy: 0.5 },
     tint: ["rgba(8,12,20,.8)", "rgba(8,12,20,.25)", "rgba(255,255,255,.14)"],
   },
   {
     src: "public/cards/ember.webp",
+    // portrait window centred between client and barber
+    poster: { src: "public/cards/ember.webp", cx: 0.58, cy: 0.5 },
     tint: ["rgba(26,6,10,.72)", "rgba(26,6,10,.18)", "rgba(255,220,214,.1)"],
   },
   {
     src: "public/cards/moos.webp",
+    poster: { src: "public/cards/moos.webp", cx: 0.6, cy: 0.5 },
     tint: ["rgba(8,16,10,.74)", "rgba(8,16,10,.2)", "rgba(236,240,214,.1)"],
   },
 ];
@@ -117,6 +129,39 @@ async function strip(i, w, h, file) {
   console.log("·", file);
 }
 
+/** Full-bleed portrait poster art: the design photo with the card's tint.
+ *  Wallet itself darkens the header and lays a material strip over the
+ *  bottom, so no extra shading here. */
+async function artwork(i, w, h, file) {
+  const { poster, tint } = DESIGNS[i];
+  const meta = await sharp(join(ROOT, poster.src)).metadata();
+  const k = Math.max(w / meta.width, h / meta.height);
+  const sw = Math.round(meta.width * k);
+  const sh = Math.round(meta.height * k);
+  const clamp = (v, max) => Math.min(Math.max(Math.round(v), 0), max);
+  const left = clamp(sw * poster.cx - w / 2, sw - w);
+  const top = clamp(sh * poster.cy - h / 2, sh - h);
+  const tintOnly = overlaySVG(w, h, tint).replace(
+    /<rect width="100%" height="100%" fill="url\(#b\)"\/>/,
+    "",
+  );
+  await sharp(join(ROOT, poster.src))
+    .resize(sw, sh)
+    .extract({ left, top, width: w, height: h })
+    .composite([{ input: Buffer.from(tintOnly) }])
+    // 128 colours: the grainy photo hides it, halves the pass size
+    .png({
+      palette: true,
+      colors: 128,
+      quality: 65,
+      effort: 10,
+      dither: 1,
+      compressionLevel: 9,
+    })
+    .toFile(join(OUT, file));
+  console.log("·", file);
+}
+
 async function png(svg, file) {
   await sharp(Buffer.from(svg)).png().toFile(join(OUT, file));
   console.log("·", file);
@@ -130,8 +175,12 @@ for (const [suffix, k] of [
   await png(iconSVG(29 * k), `icon${suffix}.png`);
   // small like the card's top-left mark, not a headline
   await png(logoSVG(96 * k, 24 * k), `logo${suffix}.png`);
-  for (let i = 0; i < DESIGNS.length; i++)
+  await png(primaryLogoSVG(121 * k, 30 * k), `primaryLogo${suffix}.png`);
+  for (let i = 0; i < DESIGNS.length; i++) {
     await strip(i, 375 * k, 144 * k, `strip-${i}${suffix}.png`);
+    // poster art ships @2x/@3x only (see assets.ts)
+    if (k > 1) await artwork(i, 358 * k, 448 * k, `artwork-${i}${suffix}.png`);
+  }
 }
 
 console.log("Done →", OUT);
