@@ -428,11 +428,10 @@ export const salon = {
 
 export const impRows = [
   { k: "Betrieb", v: "Salon 15" },
-  { k: "Inhaber", v: "[Vorname Nachname]" },
+  { k: "Inhaber", v: "Laurin Girardet" },
   { k: "Adresse", v: "Steineggasse 4, 9113 Degersheim" },
   { k: "Telefon", v: "+41 79 912 91 24" },
   { k: "E-Mail", v: "cuts@salon15.ch", copy: true },
-  { k: "UID", v: "CHE-[000.000.000]" },
 ];
 export const agbFacts: [string, string][] = [
   ["24 h", "Gratis absagen bis"],
@@ -499,7 +498,7 @@ export const legalDocs: Record<string, LegalDoc> = {
       {
         t: "Geltung",
         plain: "Diese Regeln gelten für jeden Termin bei Salon 15.",
-        full: "Diese Allgemeinen Geschäftsbedingungen (AGB) gelten für sämtliche Dienstleistungen von Salon 15, [Inhaber], [Adresse] (nachfolgend «Salon»), gegenüber Mitgliedern und eingeladenen Gästen. Abweichende Vereinbarungen bedürfen der Schriftform.",
+        full: "Diese Allgemeinen Geschäftsbedingungen (AGB) gelten für sämtliche Dienstleistungen von Salon 15, Laurin Girardet, Steineggasse 4, 9113 Degersheim (nachfolgend «Salon»), gegenüber Mitgliedern und eingeladenen Gästen. Abweichende Vereinbarungen bedürfen der Schriftform.",
       },
       {
         t: "Mitgliedschaft",
@@ -543,7 +542,7 @@ export const legalDocs: Record<string, LegalDoc> = {
       {
         t: "Recht",
         plain: "Es gilt Schweizer Recht.",
-        full: "Es gilt ausschliesslich schweizerisches Recht. Gerichtsstand ist [Ort], soweit gesetzlich zulässig. Sollten einzelne Bestimmungen unwirksam sein, bleibt die Gültigkeit der übrigen Bestimmungen unberührt.",
+        full: "Es gilt ausschliesslich schweizerisches Recht. Gerichtsstand ist Degersheim, soweit gesetzlich zulässig. Sollten einzelne Bestimmungen unwirksam sein, bleibt die Gültigkeit der übrigen Bestimmungen unberührt.",
       },
     ],
   },
@@ -557,7 +556,7 @@ export const legalDocs: Record<string, LegalDoc> = {
         t: "Verantwortlich",
         plain:
           "Für deine Daten verantwortlich ist Salon 15 – ein Mensch, kein Konzern.",
-        full: "Verantwortlich für die Bearbeitung von Personendaten im Sinne des Bundesgesetzes über den Datenschutz (DSG) ist Salon 15, [Inhaber], [Adresse], cuts@salon15.ch.",
+        full: "Verantwortlich für die Bearbeitung von Personendaten im Sinne des Bundesgesetzes über den Datenschutz (DSG) ist Salon 15, Laurin Girardet, Steineggasse 4, 9113 Degersheim, cuts@salon15.ch.",
       },
       {
         t: "Welche Daten",
