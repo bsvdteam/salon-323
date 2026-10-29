@@ -1,5 +1,6 @@
 "use client";
 
+import { preload } from "react-dom";
 import { useSalon, type Tab } from "../store";
 import { useSalonActions } from "../actions";
 import { Icon } from "../icons";
@@ -7,6 +8,7 @@ import { HomeTab } from "./tabs/home";
 import { BookTab } from "./tabs/book";
 import { CardTab } from "./tabs/card";
 import { CircleTab } from "./tabs/circle";
+import { cardStyles } from "@/lib/data";
 
 const NAV: { k: Tab; label: string }[] = [
   { k: "home", label: "Start" },
@@ -91,6 +93,8 @@ export function TabBar() {
 function AppHeader() {
   const { state, set } = useSalon();
   const U = state.user;
+  // warm the member's card photo, so the Karte tab opens on the finished face
+  if (U) preload((cardStyles[U.card] ?? cardStyles[0]).img, { as: "image" });
   const initials = U ? (U.first[0] + (U.last[0] || "")).toUpperCase() : "";
   return (
     <div

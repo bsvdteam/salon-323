@@ -757,19 +757,24 @@ export type SalonUser = {
   isNew: boolean;
 };
 
-// The three member-card designs. 0 = the original photo card; 1 & 2 are
-// gradient cards (real photos come later). name shows in the card picker.
+// The three member-card designs (photos in /public, index = members.card_index).
+// The chosen design is the card's face — also while it shows an appointment.
+// base is the photo's dominant dark tone (shown until the image has loaded).
 export const cardStyles: {
   name: string;
   sub: string;
+  img: string;
   front: string;
+  base: string;
   overlay: string;
   text: string;
 }[] = [
   {
     name: "Mist",
     sub: "Das Original",
+    img: "/mist.jpg",
     front: "url(/mist.jpg)",
+    base: "#1a2230",
     overlay:
       "linear-gradient(115deg,rgba(8,12,20,.8),rgba(8,12,20,.25) 55%,rgba(255,255,255,.14))",
     text: "#F4F7FA",
@@ -777,20 +782,22 @@ export const cardStyles: {
   {
     name: "Ember",
     sub: "Warm",
-    front:
-      "radial-gradient(130% 120% at 22% 18%, #f4a69e 0%, #c76a63 34%, #4b2c2f 78%, #1d1012 100%)",
+    img: "/cards/ember.webp",
+    front: "url(/cards/ember.webp)",
+    base: "#3a1218",
     overlay:
-      "linear-gradient(120deg,rgba(14,8,10,.55),rgba(14,8,10,0) 48%,rgba(255,220,214,.18))",
+      "linear-gradient(115deg,rgba(26,6,10,.72),rgba(26,6,10,.18) 55%,rgba(255,220,214,.1))",
     text: "#FBEEEC",
   },
   {
-    name: "Slate",
-    sub: "Kühl",
-    front:
-      "radial-gradient(130% 120% at 78% 22%, #7f93ad 0%, #41526a 38%, #1c2634 78%, #0d131c 100%)",
+    name: "Moos",
+    sub: "Tief",
+    img: "/cards/moos.webp",
+    front: "url(/cards/moos.webp)",
+    base: "#18221a",
     overlay:
-      "linear-gradient(120deg,rgba(8,12,20,.55),rgba(8,12,20,0) 48%,rgba(214,228,244,.16))",
-    text: "#EAF0F7",
+      "linear-gradient(115deg,rgba(8,16,10,.74),rgba(8,16,10,.2) 55%,rgba(236,240,214,.1))",
+    text: "#F1F4EC",
   },
 ];
 

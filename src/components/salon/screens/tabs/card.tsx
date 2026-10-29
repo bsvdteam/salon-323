@@ -273,38 +273,28 @@ export function CardTab() {
                 WebkitBackfaceVisibility: "hidden",
                 borderRadius: 24,
                 overflow: "hidden",
-                background: hasAppt ? "#141b27" : "#1a2230",
-                color: "#F4F7FA",
+                background: cs.base,
+                color: cs.text,
                 boxShadow:
                   "0 44px 80px -30px rgba(10,20,40,.6),inset 0 0 0 1px rgba(255,255,255,.22)",
               }}
             >
-              {hasAppt ? (
-                <div
-                  style={{
-                    position: "absolute",
-                    inset: "-6%",
-                    background:
-                      "radial-gradient(120% 120% at 62% 40%, #2a3546, #0d1420)",
-                  }}
-                />
-              ) : (
-                <div
-                  style={{
-                    position: "absolute",
-                    inset: "-6%",
-                    backgroundImage: cs.front,
-                    backgroundSize: "cover",
-                    backgroundPosition: "48% 42%",
-                  }}
-                />
-              )}
+              {/* the chosen design stays the face — with or without a Termin */}
+              <div
+                style={{
+                  position: "absolute",
+                  inset: "-6%",
+                  backgroundImage: cs.front,
+                  backgroundSize: "cover",
+                  backgroundPosition: "48% 42%",
+                }}
+              />
               <div
                 style={{
                   position: "absolute",
                   inset: 0,
                   background: hasAppt
-                    ? "linear-gradient(180deg,rgba(8,12,20,.15) 0%,rgba(8,12,20,0) 30%,rgba(8,12,20,.35) 58%,rgba(8,12,20,.85) 100%)"
+                    ? "linear-gradient(180deg,rgba(8,12,20,.35) 0%,rgba(8,12,20,0) 30%,rgba(8,12,20,.4) 58%,rgba(8,12,20,.85) 100%)"
                     : cs.overlay,
                 }}
               />
