@@ -11,7 +11,11 @@ import {
 } from "./appointments";
 import type { AppointmentRow, MemberRow } from "@/lib/supabase/types";
 
-export type PublicMember = Omit<MemberRow, "password_hash">;
+// Secrets and login bookkeeping never leave the server.
+export type PublicMember = Omit<
+  MemberRow,
+  "password_hash" | "pin_hash" | "login_failed" | "login_locked_until"
+>;
 
 export type MemberBundle = {
   member: PublicMember;
@@ -25,6 +29,9 @@ export type MemberBundle = {
 export function toPublicMember(m: MemberRow): PublicMember {
   const copy: Partial<MemberRow> = { ...m };
   delete copy.password_hash;
+  delete copy.pin_hash;
+  delete copy.login_failed;
+  delete copy.login_locked_until;
   return copy as PublicMember;
 }
 

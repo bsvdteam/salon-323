@@ -6,7 +6,6 @@
 // src/lib/db/*; these wrappers add auth, validation and the session cookie.
 import { fromZonedTime, toZonedTime } from "date-fns-tz";
 import { getSession, setSession, clearSession } from "@/lib/auth/session";
-import { verifyPassword } from "@/lib/auth/password";
 import {
   getMemberByUsername,
   getMemberById,
@@ -15,7 +14,10 @@ import {
   setTemplate,
   setMemberNote,
   setContactEmail,
+  setPin,
+  checkSecret,
 } from "@/lib/db/members";
+import { randomInt } from "crypto";
 import {
   validateInvite,
   redeemInviteCreateMember,
@@ -82,11 +84,23 @@ export async function usernameAvailableAction(
 export type AuthResult =
   { ok: true; bundle: MemberBundle } | { ok: false; error: string };
 
-/** Returning member logs in with username only (no password yet). */
-export async function loginMemberAction(username: string): Promise<AuthResult> {
+const PIN = /^\d{6}$/;
+
+/** Returning member logs in with username + 6-digit PIN. Without a PIN the
+ *  call only says what comes next ("pin_required" / barber password). */
+export async function loginMemberAction(
+  username: string,
+  pin?: string,
+): Promise<AuthResult> {
   const member = await getMemberByUsername(username);
   if (!member) return { ok: false, error: "not_found" };
   if (member.is_barber) return { ok: false, error: "use_barber_login" };
+  if (!member.pin_hash) return { ok: false, error: "pin_missing" };
+  if (!pin) return { ok: false, error: "pin_required" };
+  if (!PIN.test(pin)) return { ok: false, error: "pin_wrong" };
+  const check = await checkSecret(member, pin, member.pin_hash);
+  if (check !== "ok")
+    return { ok: false, error: check === "locked" ? "locked" : "pin_wrong" };
   await setSession({ mid: member.id, role: "member" });
   const bundle = await loadMemberBundle(member.id);
   if (!bundle) return { ok: false, error: "not_found" };
@@ -97,6 +111,7 @@ export type OnboardArgs = {
   code: string;
   last: string;
   username: string;
+  pin: string;
   phone: string;
   email?: string;
   card: number;
@@ -110,9 +125,11 @@ export async function redeemOnboardAction(
     return { ok: false, error: "username_invalid" };
   if (args.phone.replace(/\D/g, "").length < 6)
     return { ok: false, error: "phone_invalid" };
+  if (!PIN.test(args.pin)) return { ok: false, error: "pin_invalid" };
 
   const res = await redeemInviteCreateMember(args);
   if (!res.ok) return { ok: false, error: res.error };
+  await setPin(res.member.id, args.pin);
   if (args.email && args.email.trim())
     await setContactEmail(res.member.id, args.email);
   await setSession({ mid: res.member.id, role: "member" });
@@ -129,8 +146,9 @@ export async function loginBarberAction(
   const member = await getMemberByUsername(username);
   if (!member || !member.is_barber || !member.password_hash)
     return { ok: false, error: "invalid" };
-  if (!verifyPassword(password, member.password_hash))
-    return { ok: false, error: "invalid" };
+  const check = await checkSecret(member, password, member.password_hash);
+  if (check !== "ok")
+    return { ok: false, error: check === "locked" ? "locked" : "invalid" };
   await setSession({ mid: member.id, role: "barber" });
   return { ok: true };
 }
@@ -171,6 +189,22 @@ export async function updateUsernameAction(
 ): Promise<{ ok: true } | { ok: false; error: string }> {
   const mid = await requireMember();
   return updateUsername(mid, username);
+}
+
+/** Member changes their PIN (current PIN required, same lockout as login). */
+export async function changePinAction(
+  current: string,
+  next: string,
+): Promise<{ ok: true } | { ok: false; error: string }> {
+  const mid = await requireMember();
+  if (!PIN.test(next)) return { ok: false, error: "pin_invalid" };
+  const m = await getMemberById(mid);
+  if (!m) return { ok: false, error: "not_found" };
+  const check = await checkSecret(m, current, m.pin_hash);
+  if (check !== "ok")
+    return { ok: false, error: check === "locked" ? "locked" : "pin_wrong" };
+  await setPin(mid, next);
+  return { ok: true };
 }
 
 export async function saveTemplateAction(
@@ -573,6 +607,20 @@ export async function barberGenerateInviteAction(
   if (!s || s.role !== "barber") return { ok: false, error: "unknown" };
   if (!firstName.trim()) return { ok: false, error: "unknown" };
   return generateInvite(s.mid, firstName);
+}
+
+/** Barber: a member forgot their PIN → a fresh random one, shown once to the
+ *  barber to pass on. The member can change it in their profile afterwards. */
+export async function resetMemberPinAction(
+  memberId: string,
+): Promise<{ ok: true; pin: string } | { ok: false }> {
+  const s = await getSession();
+  if (!s || s.role !== "barber") return { ok: false };
+  const m = await getMemberById(memberId);
+  if (!m || m.is_barber) return { ok: false };
+  const pin = String(randomInt(0, 1_000_000)).padStart(6, "0");
+  await setPin(memberId, pin);
+  return { ok: true, pin };
 }
 
 /** Barber: set a private note on a member. */

@@ -260,11 +260,14 @@ export type Database = {
           invited_by: string | null
           is_barber: boolean
           last_name: string
+          login_failed: number
+          login_locked_until: string | null
           member_no: string
           member_since: string
           note: string | null
           password_hash: string | null
           phone: string
+          pin_hash: string | null
           template: string[]
           username: string
         }
@@ -279,11 +282,14 @@ export type Database = {
           invited_by?: string | null
           is_barber?: boolean
           last_name?: string
+          login_failed?: number
+          login_locked_until?: string | null
           member_no: string
           member_since?: string
           note?: string | null
           password_hash?: string | null
           phone?: string
+          pin_hash?: string | null
           template?: string[]
           username: string
         }
@@ -298,11 +304,14 @@ export type Database = {
           invited_by?: string | null
           is_barber?: boolean
           last_name?: string
+          login_failed?: number
+          login_locked_until?: string | null
           member_no?: string
           member_since?: string
           note?: string | null
           password_hash?: string | null
           phone?: string
+          pin_hash?: string | null
           template?: string[]
           username?: string
         }
@@ -361,11 +370,14 @@ export type Database = {
           invited_by: string | null
           is_barber: boolean
           last_name: string
+          login_failed: number
+          login_locked_until: string | null
           member_no: string
           member_since: string
           note: string | null
           password_hash: string | null
           phone: string
+          pin_hash: string | null
           template: string[]
           username: string
         }
@@ -376,6 +388,7 @@ export type Database = {
           isSetofReturn: false
         }
       }
+      register_login_failure: { Args: { p_id: string }; Returns: boolean }
       settle_past_appointments: { Args: never; Returns: number }
       validate_invite: {
         Args: { p_code: string }

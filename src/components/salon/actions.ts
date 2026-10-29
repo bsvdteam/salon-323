@@ -52,16 +52,15 @@ export function useSalonActions() {
     });
   }, [go, set, toApp]);
 
-  // Returning member logs in with just a username — no password yet. The
-  // server verifies the username really exists; an unknown name is rejected.
-  // The barber's username asks for the password next and opens the portal.
+  // Login: username first; the server then asks for the member's 6-digit PIN
+  // or — for the barber's username — his password, which opens the portal.
   const loginUsername = useCallback(() => {
     const st = sref.current;
     const u = st.username.trim();
     if (!u || st.busy) return;
+    if (st.pwFor && !st.pw) return;
     set({ busy: true });
-    if (st.barberPw) {
-      if (!st.pw) return set({ busy: false });
+    if (st.pwFor === "barber") {
       loginBarberAction(u, st.pw).then((res) => {
         if (res.ok) {
           set({ busy: false, pw: "" });
@@ -70,29 +69,53 @@ export function useSalonActions() {
               screen: "admin",
               aTab: "today",
               barberAuthed: true,
-              barberPw: false,
+              pwFor: null,
               mode: null,
               username: "",
             }),
           );
         } else {
           set({ busy: false, pw: "" });
-          say("Passwort falsch");
+          say(
+            res.error === "locked"
+              ? "Zu viele Versuche – in 15 Min. nochmal"
+              : "Passwort falsch",
+          );
         }
       });
       return;
     }
-    loginMemberAction(u).then((res) => {
-      if (res.ok) {
-        set({ busy: false, ...bundleToState(res.bundle, false) });
-        goWelcome();
-      } else if (res.error === "use_barber_login") {
-        set({ busy: false, barberPw: true, pw: "" });
-      } else {
-        set({ busy: false });
-        say("Diesen Username gibt es nicht");
-      }
-    });
+    loginMemberAction(u, st.pwFor === "member" ? st.pw : undefined).then(
+      (res) => {
+        if (res.ok) {
+          set({
+            busy: false,
+            pw: "",
+            pwFor: null,
+            ...bundleToState(res.bundle, false),
+          });
+          goWelcome();
+          return;
+        }
+        const e = res.error;
+        if (e === "use_barber_login")
+          set({ busy: false, pwFor: "barber", pw: "" });
+        else if (e === "pin_required")
+          set({ busy: false, pwFor: "member", pw: "" });
+        else {
+          set({ busy: false, pw: "" });
+          say(
+            e === "pin_wrong"
+              ? "PIN falsch"
+              : e === "locked"
+                ? "Zu viele Versuche – in 15 Min. nochmal"
+                : e === "pin_missing"
+                  ? "Noch kein PIN – frag den Barber"
+                  : "Diesen Username gibt es nicht",
+          );
+        }
+      },
+    );
   }, [set, go, goWelcome, say]);
 
   const onCode = useCallback(
@@ -135,12 +158,14 @@ export function useSalonActions() {
         username: "",
         phone: "",
         email: "",
+        pin: "",
+        pin2: "",
         cardSel: 0,
       }),
     );
   }, [go, set]);
 
-  // Ultra-clean onboarding: 0 name → 1 username → 2 phone → 3 card.
+  // Onboarding: 0 name → 1 username → 2 PIN → 3 phone → 4 email → 5 card.
   const obNext = useCallback(() => {
     const st = sref.current;
     if (st.ob === 0 && st.first.trim()) set({ ob: 1 });
@@ -161,11 +186,13 @@ export function useSalonActions() {
                 : "Nur a–z, 0–9 und _ · 2–20 Zeichen",
           });
       });
-    } else if (st.ob === 2 && st.phone.replace(/\D/g, "").length >= 6)
+    } else if (st.ob === 2 && /^\d{6}$/.test(st.pin) && st.pin === st.pin2)
       set({ ob: 3 });
-    else if (st.ob === 3 && /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(st.email.trim()))
+    else if (st.ob === 3 && st.phone.replace(/\D/g, "").length >= 6)
       set({ ob: 4 });
-    else if (st.ob === 4) {
+    else if (st.ob === 4 && /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(st.email.trim()))
+      set({ ob: 5 });
+    else if (st.ob === 5) {
       if (st.busy) return;
       set({ busy: true });
       // Atomic on the server: redeem the invite + create the member + log in.
@@ -173,6 +200,7 @@ export function useSalonActions() {
         code: st.code,
         last: st.last.trim(),
         username: st.username.trim(),
+        pin: st.pin,
         phone: st.phone,
         email: st.email.trim(),
         card: st.cardSel,
@@ -181,6 +209,8 @@ export function useSalonActions() {
           set({
             busy: false,
             ...bundleToState(res.bundle, true),
+            pin: "",
+            pin2: "",
             appt: null,
             history: [],
             lastCode: null,
@@ -200,8 +230,11 @@ export function useSalonActions() {
                   ? "Gerade vergeben worden – wähl einen anderen"
                   : "Nur a–z, 0–9 und _ · 2–20 Zeichen",
             });
+          } else if (res.error === "pin_invalid") {
+            set({ ob: 2, pin: "", pin2: "" });
+            say("PIN: genau 6 Ziffern");
           } else if (res.error === "phone_invalid") {
-            set({ ob: 2 });
+            set({ ob: 3 });
             say("Telefonnummer prüfen");
           } else if (res.error === "invite_invalid") {
             say("Code ungültig oder abgelaufen");
@@ -233,7 +266,7 @@ export function useSalonActions() {
         code: "",
         username: "",
         pw: "",
-        barberPw: false,
+        pwFor: null,
         inviteOk: false,
         checking: false,
         flipped: false,

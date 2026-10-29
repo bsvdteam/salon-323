@@ -464,7 +464,7 @@ export function LoginScreen() {
               >
                 <span style={kicker}>Anmelden</span>
                 <button
-                  onClick={() => set({ mode: null, barberPw: false, pw: "" })}
+                  onClick={() => set({ mode: null, pwFor: null, pw: "" })}
                   style={closeBtn}
                 >
                   Schliessen
@@ -485,7 +485,7 @@ export function LoginScreen() {
                 <input
                   value={st.username}
                   onChange={(e) =>
-                    set({ username: e.target.value, barberPw: false, pw: "" })
+                    set({ username: e.target.value, pwFor: null, pw: "" })
                   }
                   onKeyDown={(e) => {
                     if (e.key === "Enter") a.loginUsername();
@@ -506,7 +506,7 @@ export function LoginScreen() {
                     letterSpacing: ".02em",
                   }}
                 />
-                {!st.barberPw && (
+                {!st.pwFor && (
                   <button
                     onClick={() => a.loginUsername()}
                     style={{
@@ -527,7 +527,7 @@ export function LoginScreen() {
                   </button>
                 )}
               </div>
-              {st.barberPw && (
+              {st.pwFor && (
                 <div
                   style={{
                     display: "flex",
@@ -542,15 +542,28 @@ export function LoginScreen() {
                   }}
                 >
                   <input
+                    key={st.pwFor}
                     value={st.pw}
-                    onChange={(e) => set({ pw: e.target.value })}
+                    onChange={(e) => {
+                      if (st.pwFor === "barber")
+                        return set({ pw: e.target.value });
+                      // member PIN: digits only; the 6th digit signs in
+                      const v = e.target.value.replace(/\D/g, "").slice(0, 6);
+                      set(
+                        { pw: v },
+                        v.length === 6 ? () => a.loginUsername() : undefined,
+                      );
+                    }}
                     onKeyDown={(e) => {
                       if (e.key === "Enter") a.loginUsername();
                     }}
                     autoFocus
                     type="password"
+                    inputMode={st.pwFor === "member" ? "numeric" : undefined}
                     autoComplete="current-password"
-                    placeholder="Passwort"
+                    placeholder={
+                      st.pwFor === "member" ? "PIN · 6 Ziffern" : "Passwort"
+                    }
                     style={{
                       flex: 1,
                       minWidth: 0,

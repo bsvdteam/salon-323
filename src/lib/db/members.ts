@@ -1,6 +1,7 @@
 // SERVER-ONLY member data access (service_role). Returns DB-shaped rows; the
 // mapping to the client's SalonUser shape happens in the wiring layer.
 import { supabaseAdmin } from "@/lib/supabase/server";
+import { hashPassword, verifyPassword } from "@/lib/auth/password";
 import type { MemberRow, ServiceKey } from "@/lib/supabase/types";
 
 export async function getMemberByUsername(
@@ -66,6 +67,45 @@ export async function setTemplate(
     .update({ template: services })
     .eq("id", id);
   if (error) throw error;
+}
+
+/** Store a member's PIN (hashed) and lift any login lock. */
+export async function setPin(id: string, pin: string): Promise<void> {
+  const sb = supabaseAdmin();
+  const { error } = await sb
+    .from("members")
+    .update({
+      pin_hash: hashPassword(pin),
+      login_failed: 0,
+      login_locked_until: null,
+    })
+    .eq("id", id);
+  if (error) throw error;
+}
+
+/** Check a PIN or password against its hash, with the lockout: 5 misses →
+ *  15 minutes locked. A success resets the counter. */
+export async function checkSecret(
+  m: MemberRow,
+  secret: string,
+  hash: string | null,
+): Promise<"ok" | "wrong" | "locked"> {
+  if (m.login_locked_until && new Date(m.login_locked_until) > new Date())
+    return "locked";
+  const sb = supabaseAdmin();
+  if (hash && verifyPassword(secret, hash)) {
+    if (m.login_failed || m.login_locked_until)
+      await sb
+        .from("members")
+        .update({ login_failed: 0, login_locked_until: null })
+        .eq("id", m.id);
+    return "ok";
+  }
+  const { data, error } = await sb.rpc("register_login_failure", {
+    p_id: m.id,
+  });
+  if (error) throw error;
+  return data ? "locked" : "wrong";
 }
 
 /** Barber's private note about a member. */

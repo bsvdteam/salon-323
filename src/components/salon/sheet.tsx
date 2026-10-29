@@ -1,9 +1,173 @@
 "use client";
 
+import { useState } from "react";
 import { useSalon } from "./store";
 import { useSalonActions } from "./actions";
 import { tiers, labelOf, mon } from "@/lib/data";
-import { updateUsernameAction } from "@/lib/actions";
+import {
+  updateUsernameAction,
+  changePinAction,
+  resetMemberPinAction,
+} from "@/lib/actions";
+
+const rowStyle: React.CSSProperties = {
+  display: "flex",
+  justifyContent: "space-between",
+  alignItems: "center",
+  gap: 12,
+  padding: "12px 0",
+  borderTop: "1px solid rgba(14,20,28,.07)",
+};
+const pillBtn: React.CSSProperties = {
+  height: 36,
+  padding: "0 16px",
+  borderRadius: 999,
+  border: "1px solid rgba(14,20,28,.14)",
+  background: "transparent",
+  color: "#0E141C",
+  fontSize: 12.5,
+  fontWeight: 500,
+};
+const pinInput: React.CSSProperties = {
+  flex: 1,
+  minWidth: 0,
+  height: 44,
+  padding: "0 16px",
+  borderRadius: 999,
+  border: "1px solid rgba(14,20,28,.12)",
+  background: "rgba(255,255,255,.6)",
+  color: "#0E141C",
+  fontSize: 16,
+  letterSpacing: ".3em",
+  fontFamily: "var(--font-urbanist)",
+};
+const digits = (v: string) => v.replace(/\D/g, "").slice(0, 6);
+
+/** Member: change the login PIN (current PIN required). */
+function PinChangeRow() {
+  const { say } = useSalon();
+  const [open, setOpen] = useState(false);
+  const [cur, setCur] = useState("");
+  const [next, setNext] = useState("");
+  const [busy, setBusy] = useState(false);
+  const ok = cur.length === 6 && next.length === 6 && !busy;
+  const save = () => {
+    if (!ok) return;
+    setBusy(true);
+    changePinAction(cur, next).then((r) => {
+      setBusy(false);
+      if (r.ok) {
+        setOpen(false);
+        setCur("");
+        setNext("");
+        say("PIN geändert");
+      } else {
+        setCur("");
+        say(
+          r.error === "locked"
+            ? "Zu viele Versuche – in 15 Min. nochmal"
+            : "Aktueller PIN falsch",
+        );
+      }
+    });
+  };
+  return (
+    <div style={{ ...rowStyle, flexWrap: "wrap" }}>
+      <span style={{ fontSize: 13, color: "rgba(14,20,28,.65)" }}>PIN</span>
+      {!open ? (
+        <button onClick={() => setOpen(true)} style={pillBtn}>
+          Ändern
+        </button>
+      ) : (
+        <div
+          style={{
+            flexBasis: "100%",
+            display: "flex",
+            flexDirection: "column",
+            gap: 8,
+            animation: "fade .6s ease both",
+          }}
+        >
+          <input
+            value={cur}
+            onChange={(e) => setCur(digits(e.target.value))}
+            type="password"
+            inputMode="numeric"
+            autoComplete="current-password"
+            placeholder="Aktueller PIN"
+            autoFocus
+            style={pinInput}
+          />
+          <div style={{ display: "flex", gap: 8 }}>
+            <input
+              value={next}
+              onChange={(e) => setNext(digits(e.target.value))}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") save();
+              }}
+              type="password"
+              inputMode="numeric"
+              autoComplete="new-password"
+              placeholder="Neuer PIN"
+              style={pinInput}
+            />
+            <button
+              onClick={save}
+              className={ok ? "glass-dark" : undefined}
+              style={{
+                ...pillBtn,
+                height: 44,
+                border: ok ? 0 : pillBtn.border,
+                opacity: ok ? 1 : 0.5,
+              }}
+            >
+              {busy ? "…" : "Speichern"}
+            </button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+/** Barber: a member forgot their PIN → generate a new one, shown once. */
+function PinResetRow({ memberId, first }: { memberId: string; first: string }) {
+  const { say } = useSalon();
+  const [pin, setPin] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+  const reset = () => {
+    if (busy) return;
+    setBusy(true);
+    resetMemberPinAction(memberId).then((r) => {
+      setBusy(false);
+      if (r.ok) setPin(r.pin);
+      else say("Ging nicht – bitte nochmal");
+    });
+  };
+  return (
+    <div style={rowStyle}>
+      <span style={{ fontSize: 13, color: "rgba(14,20,28,.65)" }}>
+        {pin ? `Neuer PIN für ${first}` : "PIN"}
+      </span>
+      {pin ? (
+        <span
+          style={{
+            fontFamily: "var(--font-geist-mono)",
+            fontSize: 18,
+            letterSpacing: ".2em",
+            animation: "fade .6s ease both",
+          }}
+        >
+          {pin}
+        </span>
+      ) : (
+        <button onClick={reset} style={pillBtn}>
+          {busy ? "…" : "Zurücksetzen"}
+        </button>
+      )}
+    </div>
+  );
+}
 
 export function Sheet() {
   const { state, set, say } = useSalon();
@@ -267,7 +431,7 @@ export function Sheet() {
                       border: 0,
                       background: "transparent",
                       color: "#0E141C",
-                      fontSize: 13,
+                      fontSize: 16,
                       fontWeight: 500,
                       fontFamily: "var(--font-urbanist)",
                     }}
@@ -318,13 +482,17 @@ export function Sheet() {
                       border: 0,
                       background: "transparent",
                       color: "#0E141C",
-                      fontSize: 13,
+                      fontSize: 16,
                       fontWeight: 500,
                       fontFamily: "var(--font-urbanist)",
                     }}
                   />
                 </div>
               ))}
+            {isProfile && <PinChangeRow />}
+            {sh.type === "client" && sh.m.id && (
+              <PinResetRow memberId={sh.m.id} first={sh.m.n.split(" ")[0]} />
+            )}
           </div>
           <div style={{ display: "flex", gap: 8 }}>
             <button

@@ -226,17 +226,21 @@ export function OnboardScreen() {
   const st = state;
   const phoneOk = st.phone.replace(/\D/g, "").length >= 6;
   const emailOk = /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(st.email.trim());
+  const pinOk = /^\d{6}$/.test(st.pin) && st.pin === st.pin2;
+  const pinMismatch = st.pin2.length === 6 && st.pin !== st.pin2;
   const obOk =
     st.ob === 0
       ? !!st.first.trim()
       : st.ob === 1
         ? st.username.trim().length >= 2 && !st.unameMsg
         : st.ob === 2
-          ? phoneOk
+          ? pinOk
           : st.ob === 3
-            ? emailOk
-            : true;
-  const obBtnLabel = st.ob === 4 ? "Mitglied werden" : "Weiter";
+            ? phoneOk
+            : st.ob === 4
+              ? emailOk
+              : true;
+  const obBtnLabel = st.ob === 5 ? "Mitglied werden" : "Weiter";
 
   return (
     <div
@@ -302,7 +306,7 @@ export function OnboardScreen() {
             ← Zurück
           </button>
           <div style={{ display: "flex", gap: 5 }}>
-            {[0, 1, 2, 3, 4].map((k) => (
+            {[0, 1, 2, 3, 4, 5].map((k) => (
               <span
                 key={k}
                 style={{
@@ -448,6 +452,66 @@ export function OnboardScreen() {
                 animation: "fade .8s ease both",
               }}
             >
+              <StepHead kickLabel="PIN" title="Dein Schlüssel." />
+              <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                <input
+                  value={st.pin}
+                  onChange={(e) =>
+                    set({ pin: e.target.value.replace(/\D/g, "").slice(0, 6) })
+                  }
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") a.obNext();
+                  }}
+                  autoFocus
+                  type="password"
+                  inputMode="numeric"
+                  autoComplete="new-password"
+                  placeholder="6 Ziffern"
+                  style={{ ...field, letterSpacing: ".3em" }}
+                />
+                <input
+                  value={st.pin2}
+                  onChange={(e) =>
+                    set({ pin2: e.target.value.replace(/\D/g, "").slice(0, 6) })
+                  }
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") a.obNext();
+                  }}
+                  type="password"
+                  inputMode="numeric"
+                  autoComplete="new-password"
+                  placeholder="Nochmal"
+                  style={{ ...field, letterSpacing: ".3em" }}
+                />
+              </div>
+              <span
+                style={{
+                  minHeight: 18,
+                  marginTop: -8,
+                  paddingLeft: 18,
+                  fontSize: 12.5,
+                  color: pinMismatch
+                    ? "rgba(244,166,158,.95)"
+                    : "rgba(244,247,250,.45)",
+                  transition: "color .6s ease",
+                }}
+              >
+                {pinMismatch
+                  ? "Die beiden PINs sind nicht gleich"
+                  : "Damit meldest du dich an · nur du kennst ihn"}
+              </span>
+            </div>
+          )}
+
+          {st.ob === 3 && (
+            <div
+              style={{
+                display: "flex",
+                flexDirection: "column",
+                gap: 18,
+                animation: "fade .8s ease both",
+              }}
+            >
               <StepHead kickLabel="Telefon" title="Deine Nummer." />
               <input
                 value={st.phone}
@@ -466,7 +530,7 @@ export function OnboardScreen() {
             </div>
           )}
 
-          {st.ob === 3 && (
+          {st.ob === 4 && (
             <div
               style={{
                 display: "flex",
@@ -496,7 +560,7 @@ export function OnboardScreen() {
             </div>
           )}
 
-          {st.ob === 4 && (
+          {st.ob === 5 && (
             <div
               key="cardstep"
               style={{

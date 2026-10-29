@@ -37,6 +37,7 @@ export type Absence = {
   src: "HIER" | "GOOGLE";
 };
 export type ClientRecord = {
+  id?: string; // member id (real members from the DB)
   n: string;
   tier: string;
   cuts: number;
@@ -81,8 +82,10 @@ export interface SalonState {
   myInviter: string; // who invited the logged-in member (for the circle tab)
   busy: boolean; // a server action is in flight (login / onboarding)
   barberAuthed: boolean; // barber session verified (server) or just logged in
-  barberPw: boolean; // landing login: username is the barber → ask password
+  pwFor: null | "member" | "barber"; // landing login, 2nd field: PIN or password
   pw: string;
+  pin: string; // onboarding: chosen PIN
+  pin2: string; // onboarding: PIN repeated
   ready: boolean; // client mounted — member/barber screens render from here on
   availLoaded: boolean; // barber hours etc. loaded from the DB
   veil: boolean;
@@ -206,8 +209,10 @@ function initialState(start?: StartConfig): SalonState {
     myInviter: "",
     busy: false,
     barberAuthed: !!start?.barber,
-    barberPw: false,
+    pwFor: null,
     pw: "",
+    pin: "",
+    pin2: "",
     ready: false,
     availLoaded: false,
     veil: false,
