@@ -4,7 +4,7 @@
 // runs as a public POST, so it authenticates via the session cookie and never
 // trusts a member id sent from the client. The heavy lifting lives in
 // src/lib/db/*; these wrappers add auth, validation and the session cookie.
-import { fromZonedTime } from "date-fns-tz";
+import { fromZonedTime, toZonedTime } from "date-fns-tz";
 import { getSession, setSession, clearSession } from "@/lib/auth/session";
 import { verifyPassword } from "@/lib/auth/password";
 import {
@@ -31,7 +31,7 @@ import {
 } from "@/lib/db/appointments";
 import { loadMemberBundle, type MemberBundle } from "@/lib/db/bundle";
 import { createEvent, wallISO, deleteEvent } from "@/lib/google/calendar";
-import { durOf, labelOf, tiers } from "@/lib/data";
+import { durOf, labelOf, priceOf, tiers } from "@/lib/data";
 import { supabaseAdmin } from "@/lib/supabase/server";
 import type { ServiceKey, PayMethod } from "@/lib/supabase/types";
 
@@ -59,8 +59,7 @@ export async function validateInviteAction(
 }
 
 export type AuthResult =
-  | { ok: true; bundle: MemberBundle }
-  | { ok: false; error: string };
+  { ok: true; bundle: MemberBundle } | { ok: false; error: string };
 
 /** Returning member logs in with username only (no password yet). */
 export async function loginMemberAction(username: string): Promise<AuthResult> {
@@ -176,16 +175,23 @@ export async function bookAppointmentAction(
 ): Promise<{ ok: true; bundle: MemberBundle } | { ok: false; error: string }> {
   const mid = await requireMember();
   if (!args.services.length) return { ok: false, error: "no_services" };
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(args.date) || !/^\d{2}:\d{2}$/.test(args.time))
+  if (
+    !/^\d{4}-\d{2}-\d{2}$/.test(args.date) ||
+    !/^\d{2}:\d{2}$/.test(args.time)
+  )
     return { ok: false, error: "bad_datetime" };
 
   const member = await getMemberById(mid);
   if (!member) return { ok: false, error: "not_found" };
 
-  // Apply available invite credit (computed server-side, never trusted from UI).
+  // Price: CHF 15 / 20 with beard; invite credit applies on top (server-computed).
+  const price = priceOf(args.services) || 15;
   const credit = await getCreditChf(mid);
-  const creditApplied = Math.min(20, credit);
-  const startsAt = fromZonedTime(`${args.date}T${args.time}:00`, TZ).toISOString();
+  const creditApplied = Math.min(price, credit);
+  const startsAt = fromZonedTime(
+    `${args.date}T${args.time}:00`,
+    TZ,
+  ).toISOString();
   const dur = durOf(args.services) || 30;
 
   // Mirror to Google Calendar — optional until the OAuth refresh token is set.
@@ -205,6 +211,8 @@ export async function bookAppointmentAction(
         .join("\n"),
       startISO: wallISO(y, m, d, startMin),
       endISO: wallISO(y, m, d, startMin + dur),
+      // Member joins as a guest → Google emails them the invitation + updates.
+      attendeeEmail: member.contact_email ?? undefined,
     });
     googleEventId = ev.id;
   } catch {
@@ -217,7 +225,7 @@ export async function bookAppointmentAction(
     durationMin: dur,
     services: args.services,
     cut: args.cut ?? null,
-    priceChf: 20,
+    priceChf: price,
     creditAppliedChf: creditApplied,
     payMethod: args.payMethod ?? "ort",
     googleEventId,
@@ -291,7 +299,9 @@ export async function listMembersAction(): Promise<AdminMember[] | null> {
   const sb = supabaseAdmin();
   const { data, error } = await sb
     .from("members")
-    .select("id, first_name, last_name, cuts, member_since, template, note, invited_by")
+    .select(
+      "id, first_name, last_name, cuts, member_since, template, note, invited_by",
+    )
     .eq("is_barber", false)
     .order("cuts", { ascending: false });
   if (error) throw error;
@@ -385,7 +395,10 @@ export async function listTodayAppointmentsAction(): Promise<
     const m = byId.get(r.member_id);
     const d = new Date(r.starts_at);
     let ti = 0;
-    if (m) tiers.forEach((t, k) => { if (m.cuts >= t.min) ti = k; });
+    if (m)
+      tiers.forEach((t, k) => {
+        if (m.cuts >= t.min) ti = k;
+      });
     const [y, mo] = (m?.member_since ?? "2026-01-01").split("-").map(Number);
     return {
       id: r.id,
@@ -407,6 +420,118 @@ export async function listTodayAppointmentsAction(): Promise<
   });
 }
 
+export type RevenueMonth = { label: string; total: number; count: number };
+export type RevenueData = {
+  today: number;
+  week: number;
+  month: number;
+  monthCount: number;
+  monthLabel: string; // z.B. "Oktober"
+  months: RevenueMonth[]; // letzte 6, alt → neu (letzter = aktueller Monat)
+};
+
+const MON_FULL = [
+  "Januar",
+  "Februar",
+  "März",
+  "April",
+  "Mai",
+  "Juni",
+  "Juli",
+  "August",
+  "September",
+  "Oktober",
+  "November",
+  "Dezember",
+];
+const MON_ABBR = [
+  "Jan",
+  "Feb",
+  "Mär",
+  "Apr",
+  "Mai",
+  "Jun",
+  "Jul",
+  "Aug",
+  "Sep",
+  "Okt",
+  "Nov",
+  "Dez",
+];
+
+/**
+ * Barber revenue, aggregated from real appointments and scalable over months.
+ * "Verdient" = erledigte Termine (status 'done'); jeder zählt mit seinem
+ * price_chf (15 / 20 mit Bart). Alle Zeitgrenzen in Salon-Zeitzone.
+ */
+export async function listRevenueAction(): Promise<RevenueData | null> {
+  const s = await getSession();
+  if (!s || s.role !== "barber") return null;
+  const sb = supabaseAdmin();
+
+  const nowZ = toZonedTime(new Date(), TZ);
+  const startMonth = new Date(nowZ.getFullYear(), nowZ.getMonth() - 5, 1);
+  const sinceISO = fromZonedTime(startMonth, TZ).toISOString();
+
+  const { data, error } = await sb
+    .from("appointments")
+    .select("starts_at, price_chf, status")
+    .eq("status", "done")
+    .gte("starts_at", sinceISO);
+  if (error) throw error;
+  const rows = data ?? [];
+
+  // last 6 month buckets (oldest → current)
+  const months: RevenueMonth[] = [];
+  const bucketIndex = new Map<string, number>();
+  for (let i = 5; i >= 0; i--) {
+    const d = new Date(nowZ.getFullYear(), nowZ.getMonth() - i, 1);
+    const key = `${d.getFullYear()}-${d.getMonth()}`;
+    bucketIndex.set(key, months.length);
+    months.push({ label: MON_ABBR[d.getMonth()], total: 0, count: 0 });
+  }
+
+  // week start (Monday 00:00, salon-local)
+  const dow = (nowZ.getDay() + 6) % 7; // 0 = Monday
+  const weekStart = new Date(
+    nowZ.getFullYear(),
+    nowZ.getMonth(),
+    nowZ.getDate() - dow,
+  );
+
+  let today = 0,
+    week = 0,
+    month = 0,
+    monthCount = 0;
+  for (const r of rows) {
+    const z = toZonedTime(new Date(r.starts_at), TZ);
+    const p = r.price_chf ?? 0;
+    const bi = bucketIndex.get(`${z.getFullYear()}-${z.getMonth()}`);
+    if (bi != null) {
+      months[bi].total += p;
+      months[bi].count += 1;
+    }
+    if (
+      z.getFullYear() === nowZ.getFullYear() &&
+      z.getMonth() === nowZ.getMonth()
+    ) {
+      month += p;
+      monthCount += 1;
+      if (z.getDate() === nowZ.getDate()) today += p;
+    }
+    if (z >= weekStart) week += p;
+  }
+
+  return {
+    today,
+    week,
+    month,
+    monthCount,
+    monthLabel: MON_FULL[nowZ.getMonth()],
+    months,
+  };
+}
+
 /** Barber marks an appointment done → status 'done' + bump the member's cuts. */
 export async function markApptDoneAction(
   appointmentId: string,
@@ -420,13 +545,20 @@ export async function markApptDoneAction(
     .eq("id", appointmentId)
     .maybeSingle();
   if (!ap || ap.status === "done") return { ok: true };
-  await sb.from("appointments").update({ status: "done" }).eq("id", appointmentId);
+  await sb
+    .from("appointments")
+    .update({ status: "done" })
+    .eq("id", appointmentId);
   const { data: m } = await sb
     .from("members")
     .select("cuts")
     .eq("id", ap.member_id)
     .maybeSingle();
-  if (m) await sb.from("members").update({ cuts: m.cuts + 1 }).eq("id", ap.member_id);
+  if (m)
+    await sb
+      .from("members")
+      .update({ cuts: m.cuts + 1 })
+      .eq("id", ap.member_id);
   return { ok: true };
 }
 

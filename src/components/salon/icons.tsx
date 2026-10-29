@@ -41,6 +41,12 @@ const P: Record<string, React.ReactNode> = {
       <path d="M4 10h16M9 14.5l2 2 4-4" />
     </>
   ),
+  cal: (
+    <>
+      <rect x={4} y={5} width={16} height={15} rx={3} />
+      <path d="M4 10h16M9 3v4M15 3v4M8 14h2M8 17h5" />
+    </>
+  ),
 };
 
 export function Icon({

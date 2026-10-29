@@ -3,7 +3,7 @@
 import { useSalon, type AdminTab } from "../store";
 import { useSalonActions } from "../actions";
 import { Icon } from "../icons";
-import { AdminAppointments } from "../admin-appointments";
+import { CalendarTab } from "../admin-calendar";
 import { AvailTab } from "../admin-avail";
 import { InviteGenerator, MemberCount } from "../invite-generator";
 import { EmptyState } from "../empty-state";
@@ -11,9 +11,11 @@ import { useEffect, useState } from "react";
 import {
   listMembersAction,
   listTodayAppointmentsAction,
+  listRevenueAction,
   markApptDoneAction,
   type AdminMember,
   type AdminTodayAppt,
+  type RevenueData,
 } from "@/lib/actions";
 import { labelOf, durOf, priceOf, dateOf, wdL, mon, fmtTime } from "@/lib/data";
 
@@ -41,6 +43,7 @@ const ini2 = (n: string) =>
 
 const A_NAV: { k: AdminTab; label: string; icon: string }[] = [
   { k: "today", label: "Heute", icon: "today" },
+  { k: "termine", label: "Termine", icon: "cal" },
   { k: "avail", label: "Zeiten", icon: "avail" },
   { k: "members", label: "Members", icon: "members" },
   { k: "revenue", label: "Umsatz", icon: "revenue" },
@@ -73,6 +76,13 @@ export function AdminScreen() {
     listTodayAppointmentsAction()
       .then((r) => setToday({ nowMin, appts: r ?? [] }))
       .catch(() => setToday({ nowMin, appts: [] }));
+  }, []);
+  // Revenue, aggregated over months (the Umsatz tab).
+  const [rev, setRev] = useState<RevenueData | null>(null);
+  useEffect(() => {
+    listRevenueAction()
+      .then((r) => setRev(r))
+      .catch(() => {});
   }, []);
 
   const todayLabel = `${wdL[dateOf(0).getDay()]}, ${dateOf(0).getDate()}. ${mon[dateOf(0).getMonth()]}`;
@@ -200,8 +210,13 @@ export function AdminScreen() {
     };
   });
 
-  // ── Revenue (real, from today's done appointments) ──
-  const doneAppts = appts.filter(isDone);
+  // ── Revenue (real, aggregated over months via listRevenueAction) ──
+  const revMonths = rev?.months ?? [];
+  const revMax = Math.max(1, ...revMonths.map((m) => m.total));
+  const rev6Total = revMonths.reduce((s, m) => s + m.total, 0);
+  const revAvg =
+    rev && rev.monthCount ? Math.round(rev.month / rev.monthCount) : null;
+  const chf = (n: number) => n.toLocaleString("de-CH");
 
   return (
     <div
@@ -291,7 +306,6 @@ export function AdminScreen() {
               {appts.length} Termine heute.
             </h1>
           </div>
-          <AdminAppointments />
           {cur || nxt ? (
             <div
               className="glass-dark"
@@ -934,11 +948,14 @@ export function AdminScreen() {
         </div>
       )}
 
+      {st.aTab === "termine" && <CalendarTab />}
+
       {st.aTab === "avail" && <AvailTab />}
 
-      {/* ── REVENUE (real: CHF 15 / 20 pro Termin, auf null gestartet) ── */}
+      {/* ── REVENUE (real, über Monate skalierbar: CHF 15 / 20 pro Termin) ── */}
       {st.aTab === "revenue" && (
         <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
+          {/* hero: this month */}
           <div
             style={{
               display: "flex",
@@ -947,7 +964,7 @@ export function AdminScreen() {
               animation: "up 1.4s cubic-bezier(.22,1,.36,1) both",
             }}
           >
-            <span style={kick}>Umsatz · heute</span>
+            <span style={kick}>Umsatz · {rev?.monthLabel ?? "Monat"}</span>
             <div style={{ display: "flex", alignItems: "baseline", gap: 10 }}>
               <span style={{ fontSize: 14, color: "var(--ink-60)" }}>CHF</span>
               <span
@@ -958,118 +975,159 @@ export function AdminScreen() {
                   lineHeight: 1,
                 }}
               >
-                {todayChf}
+                {chf(rev?.month ?? 0)}
               </span>
             </div>
             <span style={{ fontSize: 12.5, color: "rgba(14,20,28,.65)" }}>
-              {doneN} {doneN === 1 ? "Schnitt" : "Schnitte"} abgerechnet · CHF
-              15 pro Schnitt, 20 mit Bart
+              {rev?.monthCount ?? 0}{" "}
+              {rev?.monthCount === 1 ? "Schnitt" : "Schnitte"} diesen Monat ·
+              CHF 15 pro Schnitt, 20 mit Bart
             </span>
           </div>
 
-          {/* price tiles */}
-          <div
-            style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}
-          >
-            {[
-              { l: "Pro Schnitt", v: "CHF 15" },
-              { l: "Mit Bart", v: "CHF 20" },
-            ].map((t, i) => (
-              <div
-                key={i}
-                className="glass-light"
-                style={{
-                  padding: 18,
-                  borderRadius: 26,
-                  color: "#0E141C",
-                  animation: `up 1.6s cubic-bezier(.22,1,.36,1) ${0.15 + i * 0.05}s both`,
-                  display: "flex",
-                  flexDirection: "column",
-                  gap: 14,
-                }}
-              >
-                <span style={{ fontSize: 11.5, color: "var(--ink-62)" }}>
-                  {t.l}
-                </span>
-                <span style={{ fontSize: 26, fontWeight: 300 }}>{t.v}</span>
-              </div>
-            ))}
-          </div>
-
-          {/* today's breakdown, or an empty state */}
-          {doneAppts.length > 0 ? (
+          {/* 6-month trend (real) or an empty state until there's revenue */}
+          {rev6Total > 0 ? (
             <div
-              className="glass-light"
+              className="glass-dark"
               style={{
+                borderRadius: 32,
+                padding: 22,
+                animation: "up 1.6s cubic-bezier(.22,1,.36,1) .15s both",
                 display: "flex",
                 flexDirection: "column",
-                padding: "4px 18px",
-                borderRadius: 28,
-                color: "#0E141C",
-                animation: "up 1.6s cubic-bezier(.22,1,.36,1) .25s both",
+                gap: 18,
               }}
             >
-              {doneAppts.map((ap, i) => (
-                <div
-                  key={ap.id}
-                  style={{
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "space-between",
-                    gap: 12,
-                    padding: "13px 0",
-                    borderBottom:
-                      i < doneAppts.length - 1
-                        ? "1px solid rgba(14,20,28,.07)"
-                        : "none",
-                  }}
+              <div style={{ display: "flex", justifyContent: "space-between" }}>
+                <span style={kickD}>Letzte 6 Monate</span>
+                <span
+                  style={{ fontSize: 11.5, color: "rgba(244,247,250,.65)" }}
                 >
+                  CHF {chf(rev6Total)}
+                </span>
+              </div>
+              <div
+                style={{
+                  height: 150,
+                  display: "grid",
+                  gridTemplateColumns: "repeat(6,minmax(0,1fr))",
+                  gap: 10,
+                  alignItems: "end",
+                }}
+              >
+                {revMonths.map((m, i) => (
                   <div
+                    key={i}
                     style={{
+                      height: "100%",
                       display: "flex",
                       flexDirection: "column",
-                      gap: 2,
-                      minWidth: 0,
+                      justifyContent: "flex-end",
+                      alignItems: "center",
+                      gap: 8,
                     }}
                   >
-                    <span style={{ fontSize: 14, fontWeight: 500 }}>
-                      {ap.n}
+                    <span
+                      style={{
+                        fontFamily: "var(--font-geist-mono)",
+                        fontSize: 8.5,
+                        color: "rgba(244,247,250,.6)",
+                      }}
+                    >
+                      {m.total ? chf(m.total) : "—"}
                     </span>
-                    <span style={{ fontSize: 11, color: "var(--ink-60)" }}>
-                      {labelOf(ap.sv)}
+                    <div
+                      style={{
+                        width: "100%",
+                        maxWidth: 26,
+                        height: Math.max(3, (m.total / revMax) * 100) + "px",
+                        borderRadius: 999,
+                        background:
+                          i === revMonths.length - 1
+                            ? "#F4A69E"
+                            : "rgba(244,247,250,.85)",
+                        transformOrigin: "bottom",
+                        animation: "grow 1.6s cubic-bezier(.22,1,.36,1) both",
+                        animationDelay: 0.3 + i * 0.09 + "s",
+                      }}
+                    />
+                    <span
+                      style={{
+                        fontFamily: "var(--font-geist-mono)",
+                        fontSize: 8.5,
+                        letterSpacing: ".1em",
+                        color: "rgba(244,247,250,.6)",
+                      }}
+                    >
+                      {m.label}
                     </span>
                   </div>
-                  <span style={{ fontSize: 14, fontWeight: 400 }}>
-                    CHF {priceOf(ap.sv)}
-                  </span>
-                </div>
-              ))}
+                ))}
+              </div>
             </div>
           ) : (
             <div
               className="glass-dark"
               style={{
-                borderRadius: 30,
-                animation: "up 1.6s cubic-bezier(.22,1,.36,1) .25s both",
+                borderRadius: 32,
+                animation: "up 1.6s cubic-bezier(.22,1,.36,1) .15s both",
               }}
             >
               <EmptyState
-                title="Noch kein Umsatz heute"
-                sub='Sobald du im „Heute"-Tab den ersten Termin abbuchst, erscheint er hier.'
+                title="Noch kein Umsatz"
+                sub='Jeder erledigte Termin zählt mit CHF 15 (20 mit Bart). Buch den ersten im „Heute"-Tab ab – Monate und Trend bauen sich hier automatisch auf.'
                 glyph="CHF"
                 tone="dark"
               />
             </div>
           )}
 
-          <span
+          {/* today / week / avg tiles */}
+          <div
             style={{
-              padding: "0 4px",
-              fontSize: 11.5,
-              color: "var(--ink-60)",
+              display: "grid",
+              gridTemplateColumns: "repeat(3,minmax(0,1fr))",
+              gap: 10,
             }}
           >
-            Bezahlt wird vor Ort – bar oder TWINT.
+            {[
+              { l: "Heute", v: "CHF " + chf(rev?.today ?? 0) },
+              { l: "Diese Woche", v: "CHF " + chf(rev?.week ?? 0) },
+              { l: "Ø / Schnitt", v: revAvg != null ? "CHF " + revAvg : "—" },
+            ].map((t, i) => (
+              <div
+                key={i}
+                className="glass-light"
+                style={{
+                  padding: "16px 14px",
+                  borderRadius: 24,
+                  color: "#0E141C",
+                  animation: `up 1.6s cubic-bezier(.22,1,.36,1) ${0.25 + i * 0.05}s both`,
+                  display: "flex",
+                  flexDirection: "column",
+                  gap: 10,
+                }}
+              >
+                <span style={{ fontSize: 11, color: "var(--ink-62)" }}>
+                  {t.l}
+                </span>
+                <span
+                  style={{
+                    fontSize: 20,
+                    fontWeight: 300,
+                    letterSpacing: "-.02em",
+                  }}
+                >
+                  {t.v}
+                </span>
+              </div>
+            ))}
+          </div>
+
+          <span
+            style={{ padding: "0 4px", fontSize: 11.5, color: "var(--ink-60)" }}
+          >
+            Verdient = erledigte Termine · bezahlt vor Ort (bar oder TWINT).
           </span>
         </div>
       )}

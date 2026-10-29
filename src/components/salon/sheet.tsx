@@ -319,51 +319,6 @@ export function Sheet() {
                   />
                 </div>
               ))}
-            {isProfile && (
-              <button
-                onClick={() => set((p) => ({ remind: !p.remind }))}
-                style={{
-                  display: "flex",
-                  justifyContent: "space-between",
-                  alignItems: "center",
-                  gap: 12,
-                  padding: "12px 0",
-                  border: 0,
-                  borderTop: "1px solid rgba(14,20,28,.07)",
-                  background: "transparent",
-                  color: "#0E141C",
-                }}
-              >
-                <span style={{ fontSize: 13, color: "rgba(14,20,28,.65)" }}>
-                  Erinnerung 24 h vorher
-                </span>
-                <span
-                  style={{
-                    width: 46,
-                    height: 28,
-                    borderRadius: 999,
-                    padding: 3,
-                    background: state.remind ? "#0E141C" : "rgba(14,20,28,.18)",
-                    transition: "background .8s",
-                  }}
-                >
-                  <span
-                    style={{
-                      display: "block",
-                      width: 22,
-                      height: 22,
-                      borderRadius: "50%",
-                      background: "#fff",
-                      boxShadow: "0 2px 6px rgba(0,0,0,.2)",
-                      transform: state.remind
-                        ? "translateX(18px)"
-                        : "translateX(0)",
-                      transition: "transform .8s cubic-bezier(.22,1,.36,1)",
-                    }}
-                  />
-                </span>
-              </button>
-            )}
           </div>
           <div style={{ display: "flex", gap: 8 }}>
             <button

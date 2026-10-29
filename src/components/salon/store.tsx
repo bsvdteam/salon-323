@@ -49,7 +49,7 @@ export type ClientRecord = {
 
 export type Screen = "login" | "onboard" | "welcome" | "app" | "admin";
 export type Tab = "home" | "book" | "card" | "circle";
-export type AdminTab = "today" | "members" | "revenue" | "avail";
+export type AdminTab = "today" | "termine" | "members" | "revenue" | "avail";
 export type Mode = null | "member" | "invite";
 export type OverlayKind = "salon" | "cuts" | "legal" | "story";
 /** Initial state for a deep-linked route (see src/app/* pages). */
