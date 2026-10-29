@@ -21,26 +21,22 @@ export function Background() {
 
   return (
     <div
-      style={{
-        position: "fixed",
-        inset: 0,
-        zIndex: 0,
-        overflow: "hidden",
-        background: "#dfe6ee",
-        pointerEvents: "none",
-      }}
+      className="bg-bleed"
+      style={{ zIndex: 0, overflow: "hidden", pointerEvents: "none" }}
     >
-      <div
-        className="bg-photo"
-        style={{
-          position: "absolute",
-          inset: 0,
-          filter: `blur(${c[0]}px) brightness(${c[2]})`,
-          transform: `scale(${c[1]})`,
-          transition:
-            "filter 3s cubic-bezier(.22,1,.36,1), transform 3.4s cubic-bezier(.22,1,.36,1)",
-        }}
-      />
+      <div className="bg-frame">
+        <div
+          className="bg-photo"
+          style={{
+            position: "absolute",
+            inset: 0,
+            filter: `blur(${c[0]}px) brightness(${c[2]})`,
+            transform: `scale(${c[1]})`,
+            transition:
+              "filter 3s cubic-bezier(.22,1,.36,1), transform 3.4s cubic-bezier(.22,1,.36,1)",
+          }}
+        />
+      </div>
       <div
         style={{
           position: "absolute",
@@ -56,34 +52,36 @@ export function Background() {
             background: "rgba(236,241,246,.5)",
           }}
         />
-        <div
-          data-loop
-          style={{
-            position: "absolute",
-            right: "-20vw",
-            top: "10vh",
-            width: "70vw",
-            height: "70vw",
-            borderRadius: "50%",
-            background:
-              "radial-gradient(closest-side, rgba(246,176,168,.45), transparent)",
-            animation: "drift 34s ease-in-out infinite",
-          }}
-        />
-        <div
-          data-loop
-          style={{
-            position: "absolute",
-            left: "-25vw",
-            bottom: "-20vh",
-            width: "80vw",
-            height: "80vw",
-            borderRadius: "50%",
-            background:
-              "radial-gradient(closest-side, rgba(120,146,178,.35), transparent)",
-            animation: "drift2 40s ease-in-out infinite",
-          }}
-        />
+        <div className="bg-frame">
+          <div
+            data-loop
+            style={{
+              position: "absolute",
+              right: "-20vw",
+              top: "10vh",
+              width: "70vw",
+              height: "70vw",
+              borderRadius: "50%",
+              background:
+                "radial-gradient(closest-side, rgba(246,176,168,.45), transparent)",
+              animation: "drift 34s ease-in-out infinite",
+            }}
+          />
+          <div
+            data-loop
+            style={{
+              position: "absolute",
+              left: "-25vw",
+              bottom: "-20vh",
+              width: "80vw",
+              height: "80vw",
+              borderRadius: "50%",
+              background:
+                "radial-gradient(closest-side, rgba(120,146,178,.35), transparent)",
+              animation: "drift2 40s ease-in-out infinite",
+            }}
+          />
+        </div>
       </div>
       <div
         style={{
@@ -103,9 +101,8 @@ export function Veil() {
   const { state } = useSalon();
   return (
     <div
+      className="bg-bleed"
       style={{
-        position: "fixed",
-        inset: 0,
         zIndex: 90,
         pointerEvents: state.veil ? "auto" : "none",
         opacity: state.veil ? 1 : 0,
@@ -113,15 +110,17 @@ export function Veil() {
         background: "#5D6B7C",
       }}
     >
-      <div
-        className="bg-photo"
-        style={{
-          position: "absolute",
-          inset: 0,
-          filter: "blur(48px) brightness(.82)",
-          opacity: 0.6,
-        }}
-      />
+      <div className="bg-frame">
+        <div
+          className="bg-photo"
+          style={{
+            position: "absolute",
+            inset: 0,
+            filter: "blur(48px) brightness(.82)",
+            opacity: 0.6,
+          }}
+        />
+      </div>
     </div>
   );
 }

@@ -34,7 +34,9 @@ body {
   margin: 0;
   padding: 0;
   font-family: var(--font-sans);
-  background: #dfe6ee;
+  /* Canvas = the photo's lower edge, so anything iOS reveals past the page
+     (keyboard, rubber-band) is never white. The fixed .bg-bleed covers it. */
+  background: #142230;
   color: #0e141c;
   font-weight: 400;
   -webkit-font-smoothing: antialiased;
@@ -423,6 +425,32 @@ button {
     background-image: url(/mist.jpg);
     background-position: 52% 45%;
   }
+}
+
+/* The fixed background reaches a full screen past the top and bottom edge,
+   filled with the photo's own edge colours (measured from the images). iOS
+   shows that area when the keyboard pushes the page up or on rubber-band
+   overscroll — so it is always the background, never the page canvas. */
+.bg-bleed {
+  position: fixed;
+  left: 0;
+  right: 0;
+  top: -100vh;
+  bottom: -100vh;
+  background: linear-gradient(#afc4d7 50%, #142230 50%);
+}
+@media (min-aspect-ratio: 9 / 10) {
+  .bg-bleed {
+    background: linear-gradient(#ced9e2 50%, #3c4e5c 50%);
+  }
+}
+/* The visible screen inside .bg-bleed — the photo is framed exactly as before. */
+.bg-frame {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 100vh;
+  bottom: 100vh;
 }
 
 /* ─────────────── Liquid glass (intro cards) — iOS-style reflective glass ──────

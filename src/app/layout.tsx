@@ -33,7 +33,11 @@ export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
   viewportFit: "cover",
-  themeColor: "#dfe6ee",
+  // browser chrome tinted like the photo's top edge (portrait / landscape)
+  themeColor: [
+    { media: "(max-aspect-ratio: 9 / 10)", color: "#afc4d7" },
+    { media: "(min-aspect-ratio: 9 / 10)", color: "#ced9e2" },
+  ],
 };
 
 export default function RootLayout({
