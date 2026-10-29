@@ -38,7 +38,7 @@ function buildQR() {
 }
 
 export function CardTab() {
-  const { state, set, say } = useSalon();
+  const { state, set } = useSalon();
   const st = state;
   const U = st.user ?? {
     first: "Luca",
@@ -552,8 +552,8 @@ export function CardTab() {
         >
           Tippen zum Wenden
         </span>
-        <button
-          onClick={() => say("Zur Wallet hinzugefügt")}
+        <a
+          href="/api/wallet/pass"
           className="glass-dark"
           style={{
             height: 46,
@@ -565,11 +565,13 @@ export function CardTab() {
             fontSize: 12.5,
             fontWeight: 500,
             border: 0,
+            color: "inherit",
+            textDecoration: "none",
             animation: "up 1.6s cubic-bezier(.22,1,.36,1) .6s both",
           }}
         >
           {hasAppt ? "Wallet · aktualisiert sich" : "Zur Wallet hinzufügen"}
-        </button>
+        </a>
       </div>
     </div>
   );
