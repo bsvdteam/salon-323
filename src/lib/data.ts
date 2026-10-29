@@ -431,7 +431,7 @@ export const impRows = [
   { k: "Inhaber", v: "[Vorname Nachname]" },
   { k: "Adresse", v: "Steineggasse 4, 9113 Degersheim" },
   { k: "Telefon", v: "+41 79 912 91 24" },
-  { k: "E-Mail", v: "hallo@salon15.ch", copy: true },
+  { k: "E-Mail", v: "cuts@salon15.ch", copy: true },
   { k: "UID", v: "CHE-[000.000.000]" },
 ];
 export const agbFacts: [string, string][] = [
@@ -557,7 +557,7 @@ export const legalDocs: Record<string, LegalDoc> = {
         t: "Verantwortlich",
         plain:
           "Für deine Daten verantwortlich ist Salon 15 – ein Mensch, kein Konzern.",
-        full: "Verantwortlich für die Bearbeitung von Personendaten im Sinne des Bundesgesetzes über den Datenschutz (DSG) ist Salon 15, [Inhaber], [Adresse], hallo@salon15.ch.",
+        full: "Verantwortlich für die Bearbeitung von Personendaten im Sinne des Bundesgesetzes über den Datenschutz (DSG) ist Salon 15, [Inhaber], [Adresse], cuts@salon15.ch.",
       },
       {
         t: "Welche Daten",
@@ -596,7 +596,7 @@ export const legalDocs: Record<string, LegalDoc> = {
         t: "Deine Rechte",
         plain:
           "Du kannst jederzeit fragen, was wir wissen – und alles löschen lassen.",
-        full: "Du hast das Recht auf Auskunft, Berichtigung, Löschung und Herausgabe deiner Daten sowie das Recht, der Bearbeitung zu widersprechen. Anfragen richtest du an hallo@salon15.ch. Zudem steht dir eine Anzeige beim Eidgenössischen Datenschutz- und Öffentlichkeitsbeauftragten (EDÖB) offen.",
+        full: "Du hast das Recht auf Auskunft, Berichtigung, Löschung und Herausgabe deiner Daten sowie das Recht, der Bearbeitung zu widersprechen. Anfragen richtest du an cuts@salon15.ch. Zudem steht dir eine Anzeige beim Eidgenössischen Datenschutz- und Öffentlichkeitsbeauftragten (EDÖB) offen.",
       },
     ],
   },

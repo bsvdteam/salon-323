@@ -222,7 +222,7 @@ export function LegalReader() {
   };
   const copyMail = () => {
     try {
-      navigator.clipboard?.writeText("hallo@salon15.ch");
+      navigator.clipboard?.writeText("cuts@salon15.ch");
     } catch {}
     set({ mailCopied: true });
     setTimeout(() => set({ mailCopied: false }), 2000);
@@ -843,7 +843,7 @@ export function LegalReader() {
                     ))}
                   </div>
                   <a
-                    href="mailto:hallo@salon15.ch?subject=L%C3%B6schung%20meiner%20Daten"
+                    href="mailto:cuts@salon15.ch?subject=L%C3%B6schung%20meiner%20Daten"
                     style={{
                       marginTop: "auto",
                       alignSelf: "flex-start",
@@ -952,8 +952,8 @@ export function LegalReader() {
             >
               <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
                 <span style={mono9}>Fragen</span>
-                <a href="mailto:hallo@salon15.ch" style={{ fontSize: 16 }}>
-                  hallo@salon15.ch
+                <a href="mailto:cuts@salon15.ch" style={{ fontSize: 16 }}>
+                  cuts@salon15.ch
                 </a>
               </div>
               <button
