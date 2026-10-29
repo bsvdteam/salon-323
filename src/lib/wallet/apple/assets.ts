@@ -1,8 +1,13 @@
-// The pass images, read once from disk. The `new URL(..., import.meta.url)`
-// pattern lets Next's file tracing bundle these PNGs into the server output.
+// The pass images, read once from disk. They are bundled into the wallet
+// route's serverless function via outputFileTracingIncludes (next.config.ts)
+// and read from the project root — on Vercel process.cwd() is the function's
+// root with the same relative paths. (A `new URL(…, import.meta.url)` with a
+// template path got rewritten by the bundler and served one wrong file.)
 // Regenerate them with: node scripts/gen-pass-assets.mjs
 import { readFileSync } from "node:fs";
-import { fileURLToPath } from "node:url";
+import { join } from "node:path";
+
+const DIR = join(process.cwd(), "src/lib/wallet/apple/assets");
 
 const SCALES = ["", "@2x", "@3x"] as const;
 const DESIGNS = 3; // strip-0 Mist · strip-1 Ember · strip-2 Moos (cardStyles)
@@ -18,10 +23,7 @@ function load(): Record<string, Buffer> {
     ).flat(),
   ];
   const out: Record<string, Buffer> = {};
-  for (const f of names)
-    out[f] = readFileSync(
-      fileURLToPath(new URL(`./assets/${f}`, import.meta.url)),
-    );
+  for (const f of names) out[f] = readFileSync(join(DIR, f));
   cached = out;
   return out;
 }
