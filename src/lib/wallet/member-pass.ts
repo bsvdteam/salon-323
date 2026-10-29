@@ -21,6 +21,7 @@ export async function memberPassData(
     lastName: m.last_name,
     cuts: m.cuts,
     memberSince: m.member_since,
+    card: m.card_index,
     appointment: appt
       ? {
           startsAt: appt.starts_at,

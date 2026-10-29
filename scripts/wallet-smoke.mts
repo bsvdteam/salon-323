@@ -12,6 +12,7 @@ const member: MemberPassData = {
   lastName: "Meier",
   cuts: 41,
   memberSince: "2024-02-15",
+  card: Number(process.env.CARD ?? 0),
   appointment: null,
 };
 

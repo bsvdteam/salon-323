@@ -3,58 +3,135 @@
 //
 //   node scripts/gen-pass-assets.mjs
 //
-// Apple needs, at minimum, icon.png (+ @2x/@3x). We also ship a logo wordmark
-// shown top-left on the card. Sizes follow Apple's point→pixel table:
-//   icon  29×29  (@2x 58, @3x 87)      logo  up to 160×50 (@2x 320×100, @3x 480×150)
+// Apple sizes (points → @1x/@2x/@3x pixels):
+//   icon   29×29            logo  ≤160×50            strip (storeCard) 375×144
+// The strip is the card's face: the member's chosen design photo (Mist / Ember /
+// Moos), framed and tinted like the dashboard card (cardStyles in lib/data.ts),
+// one set per design: strip-<index>.png. Logo and icon use the real wordmark.
 import sharp from "sharp";
 import { mkdirSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
 
-const OUT = join(dirname(fileURLToPath(import.meta.url)), "../src/lib/wallet/apple/assets");
+const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..");
+const OUT = join(ROOT, "src/lib/wallet/apple/assets");
 mkdirSync(OUT, { recursive: true });
 
-const INK = "#0E141C"; // the brand dark
+const INK = "#0E141C";
 const LIGHT = "#F4F7FA";
 
-/** A rounded dark tile with the "15" mark — used as the pass icon. */
-function iconSVG(px) {
-  const r = Math.round(px * 0.22);
-  const fs = Math.round(px * 0.34);
-  const ls = (px * 0.012).toFixed(2);
-  return `<svg xmlns="http://www.w3.org/2000/svg" width="${px}" height="${px}" viewBox="0 0 ${px} ${px}">
-  <rect width="${px}" height="${px}" rx="${r}" ry="${r}" fill="${INK}"/>
-  <text x="50%" y="50%" dy="0.01em" text-anchor="middle" dominant-baseline="central"
-    font-family="Helvetica Neue, Helvetica, Arial, sans-serif" font-weight="500"
-    font-size="${fs}" letter-spacing="${ls}" fill="${LIGHT}">15</text>
-</svg>`;
-}
+// ── wordmark glyphs — same geometry as src/components/salon/wordmark.tsx ──
+const s = (x) =>
+  `M${x + 31} 61C${x + 28} 56.5 ${x + 22} 55 ${x + 16} 55C${x + 7} 55 ${x + 1} 59.5 ${x + 1} 65.5C${x + 1} 72 ${x + 7} 74 ${x + 16} 75C${x + 25} 76 ${x + 31} 78.5 ${x + 31} 85C${x + 31} 91 ${x + 25} 95 ${x + 16} 95C${x + 9} 95 ${x + 3} 92.5 ${x + 0.5} 88`;
+const o = (cx) => `M${cx} 54.5A20 20.5 0 1 1 ${cx - 0.01} 54.5`;
+const a = (cx) => [o(cx), `M${cx + 20} 49.5V100.5`];
+const l = (x) => `M${x} 28V100.5`;
+const n = (x) => `M${x} 100.5V49.5M${x} 73A18 18 0 0 1 ${x + 36} 73V100.5`;
+const one = (x) => `M${x + 2} 47L${x + 17} 35V95`;
+const five = (x) =>
+  `M${x + 32} 35H${x + 6}L${x + 3} 63C${x + 7} 59.5 ${x + 12} 58 ${x + 18} 58C${x + 28} 58 ${x + 35} 65.5 ${x + 35} 76.5C${x + 35} 88 ${x + 28} 95 ${x + 18} 95C${x + 10} 95 ${x + 4} 92 ${x + 1} 87`;
 
-/** The "SALON 15" wordmark on a transparent ground — the pass logo. */
+const paths = (ds, sw) =>
+  ds
+    .map(
+      (d) =>
+        `<path d="${d}" fill="none" stroke="${LIGHT}" stroke-width="${sw}" stroke-linecap="butt" stroke-linejoin="miter"/>`,
+    )
+    .join("");
+
+/** "salon 15" wordmark on transparent ground — the pass logo (top left). */
 function logoSVG(w, h) {
-  const fs = Math.round(h * 0.42);
-  const ls = (w * 0.018).toFixed(2);
-  return `<svg xmlns="http://www.w3.org/2000/svg" width="${w}" height="${h}" viewBox="0 0 ${w} ${h}">
-  <text x="0" y="50%" dominant-baseline="central"
-    font-family="Helvetica Neue, Helvetica, Arial, sans-serif" font-weight="400"
-    font-size="${fs}" letter-spacing="${ls}" fill="${LIGHT}">SALON 15</text>
+  const d = [s(5), ...a(72), l(108), o(144), n(180), one(250), five(284)];
+  return `<svg xmlns="http://www.w3.org/2000/svg" width="${w}" height="${h}" viewBox="-4 24 332 82">${paths(d, 11)}</svg>`;
+}
+
+/** Rounded dark tile with the "15" glyphs — the pass icon. */
+function iconSVG(px) {
+  return `<svg xmlns="http://www.w3.org/2000/svg" width="${px}" height="${px}" viewBox="0 0 100 100">
+  <rect width="100" height="100" rx="22" fill="${INK}"/>
+  <g transform="translate(21.6 -0.4) scale(0.8)">${paths([one(0), five(34)], 11)}</g>
 </svg>`;
 }
 
-async function png(svg, file, { trim = false } = {}) {
-  let img = sharp(Buffer.from(svg));
-  // Trim the transparent margin so the wordmark fills Apple's logo box.
-  if (trim) img = img.trim({ threshold: 1 });
-  await img.png().toFile(join(OUT, file));
+// ── strips: the three card designs ──
+// src, background-position and overlay mirror cardStyles (front / overlay).
+const DESIGNS = [
+  {
+    src: "public/mist.jpg",
+    tint: ["rgba(8,12,20,.8)", "rgba(8,12,20,.25)", "rgba(255,255,255,.14)"],
+  },
+  {
+    src: "public/cards/ember.webp",
+    tint: ["rgba(26,6,10,.72)", "rgba(26,6,10,.18)", "rgba(255,220,214,.1)"],
+  },
+  {
+    src: "public/cards/moos.webp",
+    tint: ["rgba(8,16,10,.74)", "rgba(8,16,10,.2)", "rgba(236,240,214,.1)"],
+  },
+];
+const POS = { x: 0.48, y: 0.42 }; // card: backgroundPosition "48% 42%"
+
+const rgba = (c) => {
+  const [r, g, b, al] = c.match(/[\d.]+/g).map(Number);
+  return `stop-color="rgb(${r},${g},${b})" stop-opacity="${al}"`;
+};
+
+/** Card overlay (115deg tint) + a soft bottom shade so Wallet's name reads. */
+function overlaySVG(w, h, tint) {
+  return `<svg xmlns="http://www.w3.org/2000/svg" width="${w}" height="${h}">
+  <defs>
+    <linearGradient id="t" x1="0" y1="0" x2="1" y2="0.47">
+      <stop offset="0" ${rgba(tint[0])}/><stop offset=".55" ${rgba(tint[1])}/><stop offset="1" ${rgba(tint[2])}/>
+    </linearGradient>
+    <linearGradient id="b" x1="0" y1="0" x2="0" y2="1">
+      <stop offset=".35" stop-color="rgb(8,12,20)" stop-opacity="0"/><stop offset="1" stop-color="rgb(8,12,20)" stop-opacity=".55"/>
+    </linearGradient>
+  </defs>
+  <rect width="100%" height="100%" fill="url(#t)"/><rect width="100%" height="100%" fill="url(#b)"/>
+</svg>`;
+}
+
+async function strip(i, w, h, file) {
+  const { src, tint } = DESIGNS[i];
+  const meta = await sharp(join(ROOT, src)).metadata();
+  // background-size: cover, then background-position 48% 42%
+  const k = Math.max(w / meta.width, h / meta.height);
+  const sw = Math.round(meta.width * k);
+  const sh = Math.round(meta.height * k);
+  const left = Math.round((sw - w) * POS.x);
+  const top = Math.round((sh - h) * POS.y);
+  await sharp(join(ROOT, src))
+    .resize(sw, sh)
+    .extract({ left, top, width: w, height: h })
+    .composite([{ input: Buffer.from(overlaySVG(w, h, tint)) }])
+    // quantized PNG (Wallet only takes PNG): ~5× smaller, dithered so the
+    // smoke gradients don't band
+    .png({
+      palette: true,
+      quality: 100,
+      effort: 10,
+      dither: 1,
+      compressionLevel: 9,
+    })
+    .toFile(join(OUT, file));
   console.log("·", file);
 }
 
-await png(iconSVG(29), "icon.png");
-await png(iconSVG(58), "icon@2x.png");
-await png(iconSVG(87), "icon@3x.png");
-// Render roomy, then trim to the glyphs — keeps a consistent tight wordmark.
-await png(logoSVG(360, 50), "logo.png", { trim: true });
-await png(logoSVG(720, 100), "logo@2x.png", { trim: true });
-await png(logoSVG(1080, 150), "logo@3x.png", { trim: true });
+async function png(svg, file) {
+  await sharp(Buffer.from(svg)).png().toFile(join(OUT, file));
+  console.log("·", file);
+}
+
+for (const [suffix, k] of [
+  ["", 1],
+  ["@2x", 2],
+  ["@3x", 3],
+]) {
+  await png(iconSVG(29 * k), `icon${suffix}.png`);
+  // small like the card's top-left mark, not a headline
+  await png(logoSVG(96 * k, 24 * k), `logo${suffix}.png`);
+  for (let i = 0; i < DESIGNS.length; i++)
+    await strip(i, 375 * k, 144 * k, `strip-${i}${suffix}.png`);
+}
 
 console.log("Done →", OUT);
