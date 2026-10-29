@@ -48,13 +48,19 @@ function UrlSync() {
   else if (s.cOn) path = "/cuts";
   else if (s.lmOn || s.lOn) path = "/legal";
   else if (s.story) path = "/story";
-  else if (s.screen === "admin") path = "/barber";
+  else if (s.screen === "admin") path = "/admin";
   else if (s.screen === "app") path = "/" + s.tab;
   else if (s.screen === "onboard") path = "/onboarding";
   else if (s.screen === "welcome") path = "/welcome";
   else if (s.screen === "login")
     path =
-      s.mode === "member" ? "/login" : s.mode === "invite" ? "/invite" : "/";
+      s.mode === "member"
+        ? "/login"
+        : s.mode === "invite"
+          ? "/invite"
+          : s.mode === "barber"
+            ? "/admin"
+            : "/";
 
   useEffect(() => {
     if (typeof window === "undefined") return;

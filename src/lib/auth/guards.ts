@@ -19,9 +19,11 @@ export async function memberStart(tab: Tab): Promise<StartConfig> {
   return { screen: "app", tab, member, avail };
 }
 
+/** /admin: the portal with a barber session — otherwise the barber login right
+ *  there (username + password), never a redirect to the landing. */
 export async function barberStart(): Promise<StartConfig> {
   const s = await getSession();
-  if (s?.role !== "barber") redirect("/");
+  if (s?.role !== "barber") return { screen: "login", mode: "barber" };
   const avail = await getAvailability(salonToday());
   return { screen: "admin", barber: true, avail };
 }

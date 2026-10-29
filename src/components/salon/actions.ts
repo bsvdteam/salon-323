@@ -79,7 +79,9 @@ export function useSalonActions() {
           say(
             res.error === "locked"
               ? "Zu viele Versuche – in 15 Min. nochmal"
-              : "Passwort falsch",
+              : st.mode === "barber"
+                ? "Username oder Passwort falsch"
+                : "Passwort falsch",
           );
         }
       });

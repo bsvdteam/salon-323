@@ -1,8 +1,6 @@
-import { SalonApp } from "@/components/salon/salon-app";
-import { barberStart } from "@/lib/auth/guards";
+import { redirect } from "next/navigation";
 
-// Barber only — without a barber session this redirects to the landing,
-// where the barber signs in (username, then password).
-export default async function BarberPage() {
-  return <SalonApp start={await barberStart()} />;
+// Old address of the barber portal — it lives at /admin now.
+export default function BarberPage() {
+  redirect("/admin");
 }

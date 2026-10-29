@@ -127,7 +127,9 @@ export function LoginScreen() {
   // open mode at render time and simply keeps it while the panel is hidden.
   const [shown, setShown] = useState<typeof st.mode>(st.mode);
   if (st.mode && st.mode !== shown) setShown(st.mode);
-  const modeMember = shown === "member";
+  // the barber login (/admin) is the same panel, password asked right away
+  const modeBarber = shown === "barber";
+  const modeMember = shown === "member" || modeBarber;
   const modeInvite = shown === "invite";
 
   // Real member count (non-barber), fetched once on mount.
@@ -462,7 +464,7 @@ export function LoginScreen() {
                   alignItems: "center",
                 }}
               >
-                <span style={kicker}>Anmelden</span>
+                <span style={kicker}>{modeBarber ? "Barber" : "Anmelden"}</span>
                 <button
                   onClick={() => set({ mode: null, pwFor: null, pw: "" })}
                   style={closeBtn}
@@ -485,12 +487,17 @@ export function LoginScreen() {
                 <input
                   value={st.username}
                   onChange={(e) =>
-                    set({ username: e.target.value, pwFor: null, pw: "" })
+                    set(
+                      modeBarber
+                        ? { username: e.target.value }
+                        : { username: e.target.value, pwFor: null, pw: "" },
+                    )
                   }
                   onKeyDown={(e) => {
                     if (e.key === "Enter") a.loginUsername();
                   }}
                   autoFocus
+                  autoComplete="username"
                   autoCapitalize="none"
                   autoCorrect="off"
                   spellCheck={false}
@@ -557,7 +564,7 @@ export function LoginScreen() {
                     onKeyDown={(e) => {
                       if (e.key === "Enter") a.loginUsername();
                     }}
-                    autoFocus
+                    autoFocus={!modeBarber}
                     type="password"
                     inputMode={st.pwFor === "member" ? "numeric" : undefined}
                     autoComplete="current-password"

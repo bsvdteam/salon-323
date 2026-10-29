@@ -51,7 +51,7 @@ export type ClientRecord = {
 export type Screen = "login" | "onboard" | "welcome" | "app" | "admin";
 export type Tab = "home" | "book" | "card" | "circle";
 export type AdminTab = "today" | "termine" | "members" | "revenue" | "avail";
-export type Mode = null | "member" | "invite";
+export type Mode = null | "member" | "invite" | "barber"; // barber = /admin login
 export type OverlayKind = "salon" | "cuts" | "legal" | "story";
 /** Initial state for a deep-linked route (see src/app/* pages). Member and
  *  barber routes are checked on the server, which hands over the session's
@@ -209,7 +209,8 @@ function initialState(start?: StartConfig): SalonState {
     myInviter: "",
     busy: false,
     barberAuthed: !!start?.barber,
-    pwFor: null,
+    // /admin without a barber session opens straight on username + password
+    pwFor: start?.mode === "barber" ? "barber" : null,
     pw: "",
     pin: "",
     pin2: "",
