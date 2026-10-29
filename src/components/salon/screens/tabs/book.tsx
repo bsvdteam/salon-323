@@ -181,13 +181,15 @@ export function BookTab() {
           : "rgba(255,255,255,.35)",
     };
   };
+  // grouped by time of day; empty groups are left out (e.g. evenings only)
   const slotGroups = [
-    { label: "Vormittag", slots: slotMins.filter((m) => m < PZ.s).map(mkSlot) },
+    { label: "Vormittag", slots: slotMins.filter((m) => m < 720).map(mkSlot) },
     {
       label: "Nachmittag",
-      slots: slotMins.filter((m) => m >= PZ.e).map(mkSlot),
+      slots: slotMins.filter((m) => m >= 720 && m < 1020).map(mkSlot),
     },
-  ];
+    { label: "Abend", slots: slotMins.filter((m) => m >= 1020).map(mkSlot) },
+  ].filter((g) => g.slots.length);
 
   // ── services / cut / template ──
   const services = svc.map((x) => {

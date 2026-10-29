@@ -10,20 +10,20 @@ import {
   useState,
 } from "react";
 import {
-  lucaState,
   verses,
   type Appt,
   type Invite,
   type SalonUser,
   type ServiceKey,
 } from "@/lib/data";
-import { sessionAction } from "@/lib/actions";
+import { getAvailabilityAction } from "@/lib/actions";
 import { bundleToState } from "@/lib/member-view";
+import { availToState } from "@/lib/avail-view";
+import type { MemberBundle } from "@/lib/db/bundle";
+import type { AvailConfig } from "@/lib/db/availability";
 
-/* Design tweaks (prototype props). showBarber is enabled so the barber portal
-   is testable on localhost; in production it only appears with a barber session. */
+/* Design tweaks (prototype props). */
 export const TWEAKS = {
-  showBarber: true,
   cutsView: "compare" as "compare" | "detail" | "index",
   payOnline: false,
 };
@@ -52,12 +52,17 @@ export type Tab = "home" | "book" | "card" | "circle";
 export type AdminTab = "today" | "termine" | "members" | "revenue" | "avail";
 export type Mode = null | "member" | "invite";
 export type OverlayKind = "salon" | "cuts" | "legal" | "story";
-/** Initial state for a deep-linked route (see src/app/* pages). */
+/** Initial state for a deep-linked route (see src/app/* pages). Member and
+ *  barber routes are checked on the server, which hands over the session's
+ *  data so the app renders real data at once (no demo seed, no extra fetch). */
 export type StartConfig = {
   screen: Screen;
   mode?: Mode;
   tab?: Tab;
   overlay?: OverlayKind;
+  member?: MemberBundle;
+  barber?: boolean;
+  avail?: AvailConfig;
 };
 
 export interface SalonState {
@@ -75,12 +80,17 @@ export interface SalonState {
   inviteBy: string; // inviter display name ("Marco R.")
   myInviter: string; // who invited the logged-in member (for the circle tab)
   busy: boolean; // a server action is in flight (login / onboarding)
-  barberAuthed: boolean; // barber passed the /barber username+password gate
+  barberAuthed: boolean; // barber session verified (server) or just logged in
+  barberPw: boolean; // landing login: username is the barber → ask password
+  pw: string;
+  ready: boolean; // client mounted — member/barber screens render from here on
+  availLoaded: boolean; // barber hours etc. loaded from the DB
   veil: boolean;
   ob: number;
   first: string;
   last: string;
   username: string;
+  unameMsg: string; // onboarding: why the chosen username can't be used
   cardSel: number;
   resent: boolean;
   verse: number;
@@ -195,12 +205,17 @@ function initialState(start?: StartConfig): SalonState {
     inviteBy: "",
     myInviter: "",
     busy: false,
-    barberAuthed: false,
+    barberAuthed: !!start?.barber,
+    barberPw: false,
+    pw: "",
+    ready: false,
+    availLoaded: false,
     veil: false,
     ob: 0,
     first: "",
     last: "",
     username: "",
+    unameMsg: "",
     cardSel: 0,
     resent: false,
     verse: 0,
@@ -235,22 +250,14 @@ function initialState(start?: StartConfig): SalonState {
     aTab: "today",
     q: "",
     tierF: "Alle",
-    week: {
-      0: { on: false, s: 540, e: 1080 },
-      1: { on: false, s: 540, e: 1080 },
-      2: { on: true, s: 540, e: 1080 },
-      3: { on: true, s: 540, e: 1080 },
-      4: { on: true, s: 540, e: 1170 },
-      5: { on: true, s: 540, e: 1080 },
-      6: { on: true, s: 540, e: 960 },
-    },
+    // placeholder until the DB config arrives (same as the barber's real hours)
+    week: Object.fromEntries(
+      [0, 1, 2, 3, 4, 5, 6].map((d) => [d, { on: true, s: 1140, e: 1320 }]),
+    ),
     pause: { s: 720, e: 780 },
     bufferMin: 0,
     leadHours: 2,
-    ovr: {
-      4: { on: true, s: 1020, e: 1080 },
-      7: { on: false, s: 540, e: 1080 },
-    },
+    ovr: {},
     dOpen: null,
     wOpen: null,
     abs: [],
@@ -368,24 +375,18 @@ export function SalonProvider({
     );
   }, []);
 
-  // mount: random verse, seed demo member, start intro. Client-only one-time
-  // seeding (Math.random would mismatch during SSR hydration if done earlier).
+  // mount: random verse + the session data the server handed over. Client-only
+  // (Math.random and the local-time day offsets would mismatch during SSR).
   useEffect(() => {
+    const st = startRef.current;
     setState((p) => ({
       ...p,
+      ready: true,
       verse: Math.floor(Math.random() * verses.length),
-      ...lucaState(),
-      ...(startRef.current
-        ? { screen: startRef.current.screen, intro: 3 }
-        : {}),
+      ...(st?.member ? bundleToState(st.member, false) : {}),
+      ...(st?.avail ? { ...availToState(st.avail), availLoaded: true } : {}),
     }));
-    if (!startRef.current) startIntro();
-    // If a real member session exists (cookie), replace the demo seed with
-    // their live data, so reloads and deep-links keep the logged-in member.
-    sessionAction().then((s) => {
-      if (s?.role === "member")
-        setState((p) => ({ ...p, ...bundleToState(s.bundle, false) }));
-    });
+    if (!st) startIntro();
     return () => {
       clearIntro();
       if (veilT.current) clearTimeout(veilT.current);
@@ -393,6 +394,24 @@ export function SalonProvider({
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // After an in-app login the barber's hours aren't loaded yet — fetch once.
+  const needAvail =
+    !state.availLoaded &&
+    (state.screen === "welcome" ||
+      state.screen === "app" ||
+      state.screen === "admin");
+  useEffect(() => {
+    if (!needAvail) return;
+    let live = true;
+    getAvailabilityAction().then((c) => {
+      if (live && c)
+        setState((p) => ({ ...p, ...availToState(c), availLoaded: true }));
+    });
+    return () => {
+      live = false;
+    };
+  }, [needAvail]);
 
   const value = useMemo<SalonCtx>(
     () => ({ state, set, go, say, startIntro, clearIntro }),

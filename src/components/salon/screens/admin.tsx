@@ -7,8 +7,10 @@ import { CalendarTab } from "../admin-calendar";
 import { AvailTab } from "../admin-avail";
 import { InviteGenerator, MemberCount } from "../invite-generator";
 import { EmptyState } from "../empty-state";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import { stateToAvail } from "@/lib/avail-view";
 import {
+  saveAvailabilityAction,
   listMembersAction,
   listTodayAppointmentsAction,
   listRevenueAction,
@@ -85,6 +87,39 @@ export function AdminScreen() {
       .catch(() => {});
   }, []);
 
+  // Zeiten: every change in the Zeiten tab is saved to the DB (debounced), so
+  // a reload shows it again and member booking uses the same hours. Lives
+  // here, not in the tab, so switching tabs never drops a pending save.
+  const availJson = JSON.stringify(
+    stateToAvail({
+      week: st.week,
+      pause: st.pause,
+      bufferMin: st.bufferMin,
+      leadHours: st.leadHours,
+      ovr: st.ovr,
+      abs: st.abs,
+    }),
+  );
+  const savedAvail = useRef<string | null>(null);
+  useEffect(() => {
+    if (!st.availLoaded) return;
+    if (savedAvail.current === null) {
+      savedAvail.current = availJson; // what came from the DB
+      return;
+    }
+    if (availJson === savedAvail.current) return;
+    const t = setTimeout(() => {
+      saveAvailabilityAction(JSON.parse(availJson))
+        .then((r) => {
+          if (!r.ok) throw new Error("save");
+          savedAvail.current = availJson;
+          say("Gespeichert");
+        })
+        .catch(() => say("Nicht gespeichert – bitte nochmal"));
+    }, 700);
+    return () => clearTimeout(t);
+  }, [availJson, st.availLoaded, say]);
+
   const todayLabel = `${wdL[dateOf(0).getDay()]}, ${dateOf(0).getDate()}. ${mon[dateOf(0).getMonth()]}`;
 
   // ── Today (real appointments from Supabase) ──
@@ -148,8 +183,19 @@ export function AdminScreen() {
       open: () => openClient(nxt.m),
     };
   }
+  // Timeline spans today's real opening hours (and any appointment outside).
+  const todayRule = st.ovr[0] ?? st.week[dateOf(0).getDay()];
+  const tlS =
+    Math.floor(Math.min(todayRule.s, ...appts.map((ap) => ap.start)) / 60) * 60;
+  const tlE =
+    Math.ceil(
+      Math.max(todayRule.e, ...appts.map((ap) => ap.start + ap.dur)) / 60,
+    ) * 60;
+  const tlH = Math.max(1, (tlE - tlS) / 60);
+  const showNow = nowMin >= tlS && nowMin <= tlE;
+  const showPause = todayRule.on && st.pause.s >= tlS && st.pause.e <= tlE;
   const HP = 76,
-    top = (m: number) => ((m - 540) / 60) * HP;
+    top = (m: number) => ((m - tlS) / 60) * HP;
   const blocks = appts.map((ap) => {
     const dn = isDone(ap),
       isCur = cur && cur.id === ap.id,
@@ -180,8 +226,9 @@ export function AdminScreen() {
     { l: "Offen", v: appts.length - doneN },
     { l: "Heute CHF", v: todayChf },
   ];
-  const hours = Array.from({ length: 10 }, (_, k) => ({
-    l: String(9 + k).padStart(2, "0"),
+  const hh = (m: number) => String(Math.floor(m / 60)).padStart(2, "0");
+  const hours = Array.from({ length: tlH + 1 }, (_, k) => ({
+    l: hh(tlS + k * 60),
     top: k * HP - 6 + "px",
   }));
 
@@ -580,10 +627,10 @@ export function AdminScreen() {
             >
               <span style={kick}>Tagesverlauf</span>
               <span style={{ fontSize: 11.5, color: "var(--ink-60)" }}>
-                09 – 18 Uhr
+                {hh(tlS)} – {hh(tlE)} Uhr
               </span>
             </div>
-            <div style={{ position: "relative", height: 9 * HP + 8 + "px" }}>
+            <div style={{ position: "relative", height: tlH * HP + 8 + "px" }}>
               {hours.map((h, i) => (
                 <div
                   key={i}
@@ -615,59 +662,63 @@ export function AdminScreen() {
                   />
                 </div>
               ))}
-              <div
-                style={{
-                  position: "absolute",
-                  left: 0,
-                  right: 0,
-                  top: top(nowMin) - 6 + "px",
-                  display: "flex",
-                  alignItems: "center",
-                  gap: 6,
-                  pointerEvents: "none",
-                  zIndex: 0,
-                }}
-              >
-                <span
+              {showNow && (
+                <div
                   style={{
-                    width: 38,
-                    fontFamily: "var(--font-geist-mono)",
-                    fontSize: 10,
-                    color: "#C4554B",
+                    position: "absolute",
+                    left: 0,
+                    right: 0,
+                    top: top(nowMin) - 6 + "px",
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 6,
+                    pointerEvents: "none",
+                    zIndex: 0,
                   }}
                 >
-                  {fmt(nowMin)}
-                </span>
-                <span
-                  data-loop
+                  <span
+                    style={{
+                      width: 38,
+                      fontFamily: "var(--font-geist-mono)",
+                      fontSize: 10,
+                      color: "#C4554B",
+                    }}
+                  >
+                    {fmt(nowMin)}
+                  </span>
+                  <span
+                    data-loop
+                    style={{
+                      width: 7,
+                      height: 7,
+                      borderRadius: "50%",
+                      background: "#E5776C",
+                      animation: "ping 2.6s ease-out infinite",
+                    }}
+                  />
+                </div>
+              )}
+              {showPause && (
+                <div
                   style={{
-                    width: 7,
-                    height: 7,
-                    borderRadius: "50%",
-                    background: "#E5776C",
-                    animation: "ping 2.6s ease-out infinite",
+                    position: "absolute",
+                    zIndex: 1,
+                    left: 48,
+                    right: 0,
+                    top: top(st.pause.s) + 2 + "px",
+                    height: ((st.pause.e - st.pause.s) / 60) * HP - 4 + "px",
+                    borderRadius: 14,
+                    background: "#E3E9EF",
+                    display: "flex",
+                    alignItems: "center",
+                    padding: "0 16px",
+                    fontSize: 11,
+                    color: "rgba(14,20,28,.55)",
                   }}
-                />
-              </div>
-              <div
-                style={{
-                  position: "absolute",
-                  zIndex: 1,
-                  left: 48,
-                  right: 0,
-                  top: top(720) + 2 + "px",
-                  height: HP - 4 + "px",
-                  borderRadius: 14,
-                  background: "#E3E9EF",
-                  display: "flex",
-                  alignItems: "center",
-                  padding: "0 16px",
-                  fontSize: 11,
-                  color: "rgba(14,20,28,.55)",
-                }}
-              >
-                Pause
-              </div>
+                >
+                  Pause
+                </div>
+              )}
               {blocks.map((b, i) => (
                 <button
                   key={i}

@@ -1,4 +1,5 @@
 import { exchangeCode } from "@/lib/google/calendar";
+import { getSession } from "@/lib/auth/session";
 
 /**
  * Google-Callback des Einmal-Logins. Tauscht den `code` gegen Tokens und zeigt
@@ -6,6 +7,9 @@ import { exchangeCode } from "@/lib/google/calendar";
  * eingetragen werden kann. Danach wird dieser Endpunkt nicht mehr gebraucht.
  */
 export async function GET(request: Request) {
+  const s = await getSession();
+  if (s?.role !== "barber")
+    return new Response("Nur mit Barber-Login.", { status: 403 });
   const code = new URL(request.url).searchParams.get("code");
   if (!code) {
     return new Response("Fehlender ?code-Parameter.", {
@@ -21,7 +25,10 @@ export async function GET(request: Request) {
       return new Response(
         "Kein refresh_token erhalten. Entferne den Zugriff unter " +
           "https://myaccount.google.com/permissions und rufe /api/google/auth erneut auf.",
-        { status: 400, headers: { "content-type": "text/plain; charset=utf-8" } },
+        {
+          status: 400,
+          headers: { "content-type": "text/plain; charset=utf-8" },
+        },
       );
     }
 

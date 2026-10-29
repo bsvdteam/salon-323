@@ -152,7 +152,7 @@ export function AvailTab() {
     sMinus: () => setW(selWd, { s: Math.max(420, ww.s - 30) }),
     sPlus: () => setW(selWd, { s: Math.min(ww.e - 60, ww.s + 30) }),
     eMinus: () => setW(selWd, { e: Math.max(ww.s + 60, ww.e - 30) }),
-    ePlus: () => setW(selWd, { e: Math.min(1320, ww.e + 30) }),
+    ePlus: () => setW(selWd, { e: Math.min(1440, ww.e + 30) }),
   };
 
   // ── day editor (selected override day) ──
@@ -163,7 +163,7 @@ export function AvailTab() {
     sMinus: () => setO(selDay, { s: Math.max(420, dw.s - 30) }),
     sPlus: () => setO(selDay, { s: Math.min(dw.e - 30, dw.s + 30) }),
     eMinus: () => setO(selDay, { e: Math.max(dw.s + 30, dw.e - 30) }),
-    ePlus: () => setO(selDay, { e: Math.min(1320, dw.e + 30) }),
+    ePlus: () => setO(selDay, { e: Math.min(1440, dw.e + 30) }),
     reset: () => {
       set((p) => {
         const x = { ...p.ovr };

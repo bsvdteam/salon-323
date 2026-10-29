@@ -227,7 +227,7 @@ export function CardTab() {
             letterSpacing: "-.02em",
           }}
         >
-          {hasAppt ? "Bis gleich." : "Deine Karte."}
+          {hasAppt ? "Bis bald." : "Deine Karte."}
         </h1>
       </div>
 

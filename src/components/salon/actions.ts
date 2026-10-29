@@ -2,11 +2,13 @@
 
 import { useCallback, useEffect, useRef } from "react";
 import { useSalon } from "./store";
-import { lucaState, verses, type ServiceKey } from "@/lib/data";
+import { verses, type ServiceKey } from "@/lib/data";
 import {
   loginMemberAction,
+  loginBarberAction,
   validateInviteAction,
   redeemOnboardAction,
+  usernameAvailableAction,
   logoutAction,
 } from "@/lib/actions";
 import { bundleToState } from "@/lib/member-view";
@@ -52,24 +54,46 @@ export function useSalonActions() {
 
   // Returning member logs in with just a username — no password yet. The
   // server verifies the username really exists; an unknown name is rejected.
+  // The barber's username asks for the password next and opens the portal.
   const loginUsername = useCallback(() => {
-    const u = sref.current.username.trim();
-    if (!u || sref.current.busy) return;
+    const st = sref.current;
+    const u = st.username.trim();
+    if (!u || st.busy) return;
     set({ busy: true });
+    if (st.barberPw) {
+      if (!st.pw) return set({ busy: false });
+      loginBarberAction(u, st.pw).then((res) => {
+        if (res.ok) {
+          set({ busy: false, pw: "" });
+          go(() =>
+            set({
+              screen: "admin",
+              aTab: "today",
+              barberAuthed: true,
+              barberPw: false,
+              mode: null,
+              username: "",
+            }),
+          );
+        } else {
+          set({ busy: false, pw: "" });
+          say("Passwort falsch");
+        }
+      });
+      return;
+    }
     loginMemberAction(u).then((res) => {
       if (res.ok) {
         set({ busy: false, ...bundleToState(res.bundle, false) });
         goWelcome();
+      } else if (res.error === "use_barber_login") {
+        set({ busy: false, barberPw: true, pw: "" });
       } else {
         set({ busy: false });
-        say(
-          res.error === "use_barber_login"
-            ? "Bitte über /barber anmelden"
-            : "Diesen Username gibt es nicht",
-        );
+        say("Diesen Username gibt es nicht");
       }
     });
-  }, [set, goWelcome, say]);
+  }, [set, go, goWelcome, say]);
 
   const onCode = useCallback(
     (value: string) => {
@@ -77,7 +101,13 @@ export function useSalonActions() {
         .toUpperCase()
         .replace(/[^A-Z0-9]/g, "")
         .slice(0, 6);
-      set({ code: v, inviteOk: false, inviteFirst: "", inviteBy: "", checking: v.length === 6 });
+      set({
+        code: v,
+        inviteOk: false,
+        inviteFirst: "",
+        inviteBy: "",
+        checking: v.length === 6,
+      });
       if (v.length === 6)
         // The server checks the code against the invites table (open + valid).
         validateInviteAction(v).then((match) => {
@@ -114,8 +144,24 @@ export function useSalonActions() {
   const obNext = useCallback(() => {
     const st = sref.current;
     if (st.ob === 0 && st.first.trim()) set({ ob: 1 });
-    else if (st.ob === 1 && st.username.trim()) set({ ob: 2 });
-    else if (st.ob === 2 && st.phone.replace(/\D/g, "").length >= 6)
+    else if (st.ob === 1 && st.username.trim()) {
+      // A taken username is caught here, not only at the very end.
+      if (st.busy) return;
+      set({ busy: true });
+      const u = st.username.trim();
+      usernameAvailableAction(st.code, u).then((r) => {
+        set({ busy: false });
+        if (sref.current.ob !== 1 || sref.current.username.trim() !== u) return;
+        if (r === "ok") set({ ob: 2, unameMsg: "" });
+        else
+          set({
+            unameMsg:
+              r === "taken"
+                ? "@" + u.toLowerCase() + " ist schon vergeben"
+                : "Nur a–z, 0–9 und _ · 2–20 Zeichen",
+          });
+      });
+    } else if (st.ob === 2 && st.phone.replace(/\D/g, "").length >= 6)
       set({ ob: 3 });
     else if (st.ob === 3 && /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(st.email.trim()))
       set({ ob: 4 });
@@ -142,9 +188,18 @@ export function useSalonActions() {
           goWelcome();
         } else {
           set({ busy: false });
-          if (res.error === "username_taken" || res.error === "username_invalid") {
-            set({ ob: 1 });
-            say(res.error === "username_taken" ? "Username schon vergeben" : "Ungültiger Username");
+          if (
+            res.error === "username_taken" ||
+            res.error === "username_invalid"
+          ) {
+            // taken in the meantime (race) — back to the username step
+            set({
+              ob: 1,
+              unameMsg:
+                res.error === "username_taken"
+                  ? "Gerade vergeben worden – wähl einen anderen"
+                  : "Nur a–z, 0–9 und _ · 2–20 Zeichen",
+            });
           } else if (res.error === "phone_invalid") {
             set({ ob: 2 });
             say("Telefonnummer prüfen");
@@ -166,6 +221,8 @@ export function useSalonActions() {
 
   const logout = useCallback(() => {
     logoutAction(); // clear the server session cookie
+    // The profile sheet closes at once, before the veil — never lingers.
+    set({ sheet: null });
     go(() => {
       set({
         screen: "login",
@@ -174,12 +231,21 @@ export function useSalonActions() {
         sms: "",
         phone: "",
         code: "",
+        username: "",
+        pw: "",
+        barberPw: false,
         inviteOk: false,
         checking: false,
         flipped: false,
         barberAuthed: false,
-        sheet: null, // profile sheet must not linger open on the landing
-        ...lucaState(),
+        tab: "home",
+        // drop every bit of the member's data from memory
+        user: null,
+        invites: null,
+        appt: null,
+        history: [],
+        booked: null,
+        lastCode: null,
       });
       startIntro();
     });

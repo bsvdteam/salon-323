@@ -3,7 +3,12 @@
 // the SalonState shape. Never includes password_hash.
 import { getMemberById } from "./members";
 import { getCircle, type CircleNode } from "./invites";
-import { getUpcoming, getHistory, getCreditChf } from "./appointments";
+import {
+  getUpcoming,
+  getHistory,
+  getCreditChf,
+  settlePastAppointments,
+} from "./appointments";
 import type { AppointmentRow, MemberRow } from "@/lib/supabase/types";
 
 export type PublicMember = Omit<MemberRow, "password_hash">;
@@ -26,6 +31,7 @@ export function toPublicMember(m: MemberRow): PublicMember {
 export async function loadMemberBundle(
   memberId: string,
 ): Promise<MemberBundle | null> {
+  await settlePastAppointments(); // past appointments count as cuts first
   const member = await getMemberById(memberId);
   if (!member) return null;
   const [circle, upcoming, history, creditChf, inviter] = await Promise.all([
@@ -33,7 +39,9 @@ export async function loadMemberBundle(
     getUpcoming(memberId),
     getHistory(memberId),
     getCreditChf(memberId),
-    member.invited_by ? getMemberById(member.invited_by) : Promise.resolve(null),
+    member.invited_by
+      ? getMemberById(member.invited_by)
+      : Promise.resolve(null),
   ]);
   const invitedByName = inviter
     ? `${inviter.first_name}${inviter.last_name ? " " + inviter.last_name[0] + "." : ""}`

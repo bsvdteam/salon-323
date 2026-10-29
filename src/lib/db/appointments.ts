@@ -1,7 +1,27 @@
 // SERVER-ONLY appointment data access (service_role). Supabase is the system of
 // record; the matching Google Calendar event id is stored in google_event_id.
 import { supabaseAdmin } from "@/lib/supabase/server";
-import type { AppointmentRow, PayMethod, ServiceKey } from "@/lib/supabase/types";
+import type {
+  AppointmentRow,
+  PayMethod,
+  ServiceKey,
+} from "@/lib/supabase/types";
+
+/** A cut counts once its appointment is over: flip every past 'booked' appointment
+ *  to 'done' and bump the members' cuts (atomic, idempotent). Called lazily
+ *  before anything reads cuts or revenue, so a forgotten tick never loses one. */
+export async function settlePastAppointments(): Promise<void> {
+  const { error } = await supabaseAdmin().rpc("settle_past_appointments");
+  if (error) throw error;
+}
+
+/** Barber marks one appointment done (also before its time); never twice. */
+export async function markAppointmentDone(id: string): Promise<void> {
+  const { error } = await supabaseAdmin().rpc("mark_appointment_done", {
+    p_id: id,
+  });
+  if (error) throw error;
+}
 
 /** Soonest upcoming booked appointment, or null. */
 export async function getUpcoming(
@@ -103,6 +123,9 @@ export async function getCreditChf(memberId: string): Promise<number> {
   if (e2) throw e2;
 
   const earned = (count ?? 0) * 5;
-  const used = (appts ?? []).reduce((s, a) => s + (a.credit_applied_chf ?? 0), 0);
+  const used = (appts ?? []).reduce(
+    (s, a) => s + (a.credit_applied_chf ?? 0),
+    0,
+  );
   return Math.max(0, earned - used);
 }

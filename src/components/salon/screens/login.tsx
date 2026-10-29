@@ -463,7 +463,10 @@ export function LoginScreen() {
                 }}
               >
                 <span style={kicker}>Anmelden</span>
-                <button onClick={() => set({ mode: null })} style={closeBtn}>
+                <button
+                  onClick={() => set({ mode: null, barberPw: false, pw: "" })}
+                  style={closeBtn}
+                >
                   Schliessen
                 </button>
               </div>
@@ -481,7 +484,9 @@ export function LoginScreen() {
               >
                 <input
                   value={st.username}
-                  onChange={(e) => set({ username: e.target.value })}
+                  onChange={(e) =>
+                    set({ username: e.target.value, barberPw: false, pw: "" })
+                  }
                   onKeyDown={(e) => {
                     if (e.key === "Enter") a.loginUsername();
                   }}
@@ -501,23 +506,80 @@ export function LoginScreen() {
                     letterSpacing: ".02em",
                   }}
                 />
-                <button
-                  onClick={() => a.loginUsername()}
+                {!st.barberPw && (
+                  <button
+                    onClick={() => a.loginUsername()}
+                    style={{
+                      flex: "none",
+                      width: 42,
+                      height: 42,
+                      borderRadius: "50%",
+                      border: 0,
+                      fontSize: 15,
+                      transition: "all .8s cubic-bezier(.22,1,.36,1)",
+                      background: usernameOk
+                        ? "#F4F7FA"
+                        : "rgba(255,255,255,.1)",
+                      color: usernameOk ? "#0E141C" : "rgba(244,247,250,.45)",
+                    }}
+                  >
+                    →
+                  </button>
+                )}
+              </div>
+              {st.barberPw && (
+                <div
                   style={{
-                    flex: "none",
-                    width: 42,
-                    height: 42,
-                    borderRadius: "50%",
-                    border: 0,
-                    fontSize: 15,
-                    transition: "all .8s cubic-bezier(.22,1,.36,1)",
-                    background: usernameOk ? "#F4F7FA" : "rgba(255,255,255,.1)",
-                    color: usernameOk ? "#0E141C" : "rgba(244,247,250,.45)",
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 8,
+                    height: 54,
+                    padding: "0 6px 0 18px",
+                    borderRadius: 999,
+                    background: "rgba(255,255,255,.07)",
+                    border: "1px solid rgba(255,255,255,.12)",
+                    animation: "fade .8s ease both",
                   }}
                 >
-                  →
-                </button>
-              </div>
+                  <input
+                    value={st.pw}
+                    onChange={(e) => set({ pw: e.target.value })}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") a.loginUsername();
+                    }}
+                    autoFocus
+                    type="password"
+                    autoComplete="current-password"
+                    placeholder="Passwort"
+                    style={{
+                      flex: 1,
+                      minWidth: 0,
+                      background: "transparent",
+                      border: 0,
+                      color: "#F4F7FA",
+                      fontFamily: "var(--font-urbanist)",
+                      fontSize: 16,
+                      letterSpacing: ".02em",
+                    }}
+                  />
+                  <button
+                    onClick={() => a.loginUsername()}
+                    style={{
+                      flex: "none",
+                      width: 42,
+                      height: 42,
+                      borderRadius: "50%",
+                      border: 0,
+                      fontSize: 15,
+                      transition: "all .8s cubic-bezier(.22,1,.36,1)",
+                      background: st.pw ? "#F4F7FA" : "rgba(255,255,255,.1)",
+                      color: st.pw ? "#0E141C" : "rgba(244,247,250,.45)",
+                    }}
+                  >
+                    {st.busy ? "…" : "→"}
+                  </button>
+                </div>
+              )}
             </div>
           )}
 

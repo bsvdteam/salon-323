@@ -1,5 +1,6 @@
 import { fromZonedTime } from "date-fns-tz";
 import { busyRanges } from "@/lib/google/calendar";
+import { getSession } from "@/lib/auth/session";
 
 /**
  * Liefert die belegten Zeitfenster des Salon-Kalenders für ein Datumsfenster.
@@ -9,10 +10,18 @@ import { busyRanges } from "@/lib/google/calendar";
  *   -> { ok: true, tz, busy: [{ start, end }] }  (start/end als ISO mit Offset)
  */
 export async function GET(request: Request) {
+  // Nur eingeloggte Member/Barber sehen die Belegung.
+  if (!(await getSession()))
+    return Response.json({ ok: false, error: "forbidden" }, { status: 403 });
   const sp = new URL(request.url).searchParams;
   const from = sp.get("from");
   const to = sp.get("to");
-  if (!from || !to || !/^\d{4}-\d{2}-\d{2}$/.test(from) || !/^\d{4}-\d{2}-\d{2}$/.test(to)) {
+  if (
+    !from ||
+    !to ||
+    !/^\d{4}-\d{2}-\d{2}$/.test(from) ||
+    !/^\d{4}-\d{2}-\d{2}$/.test(to)
+  ) {
     return Response.json(
       { ok: false, error: "from & to als YYYY-MM-DD nötig" },
       { status: 400 },

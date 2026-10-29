@@ -230,7 +230,7 @@ export function OnboardScreen() {
     st.ob === 0
       ? !!st.first.trim()
       : st.ob === 1
-        ? !!st.username.trim()
+        ? st.username.trim().length >= 2 && !st.unameMsg
         : st.ob === 2
           ? phoneOk
           : st.ob === 3
@@ -394,7 +394,11 @@ export function OnboardScreen() {
                   value={st.username}
                   onChange={(e) =>
                     set({
-                      username: e.target.value.replace(/\s/g, "").toLowerCase(),
+                      username: e.target.value
+                        .toLowerCase()
+                        .replace(/[^a-z0-9_]/g, "")
+                        .slice(0, 20),
+                      unameMsg: "",
                     })
                   }
                   onKeyDown={(e) => {
@@ -417,6 +421,21 @@ export function OnboardScreen() {
                   }}
                 />
               </div>
+              {/* fixed-height line: the card never jumps when a hint appears */}
+              <span
+                style={{
+                  minHeight: 18,
+                  marginTop: -8,
+                  paddingLeft: 18,
+                  fontSize: 12.5,
+                  color: st.unameMsg
+                    ? "rgba(244,166,158,.95)"
+                    : "rgba(244,247,250,.45)",
+                  transition: "color .6s ease",
+                }}
+              >
+                {st.unameMsg || (st.busy ? "Prüfe …" : "a–z, 0–9 und _")}
+              </span>
             </div>
           )}
 

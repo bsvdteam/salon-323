@@ -86,6 +86,56 @@ export function TabBar() {
   );
 }
 
+/** Wordmark + profile button — part of the shell, so the profile is one tap
+ *  away on every tab and the header never re-animates on a tab switch. */
+function AppHeader() {
+  const { state, set } = useSalon();
+  const U = state.user;
+  const initials = U ? (U.first[0] + (U.last[0] || "")).toUpperCase() : "";
+  return (
+    <div
+      style={{
+        display: "flex",
+        justifyContent: "space-between",
+        alignItems: "center",
+        paddingBottom: "clamp(22px,4.5vh,46px)",
+      }}
+    >
+      <span
+        style={{
+          fontFamily: "var(--font-geist-mono)",
+          fontSize: 9.5,
+          letterSpacing: ".32em",
+          textTransform: "uppercase",
+          animation: "fade 1.6s ease both",
+        }}
+      >
+        salon 323
+      </span>
+      <button
+        onClick={() => set({ sheet: { type: "profile" } })}
+        aria-label="Profil"
+        className="glass-light"
+        style={{
+          width: 40,
+          height: 40,
+          borderRadius: "50%",
+          display: "grid",
+          placeItems: "center",
+          fontSize: 11.5,
+          fontWeight: 600,
+          letterSpacing: ".02em",
+          border: 0,
+          color: "#0E141C",
+          animation: "up 1.4s cubic-bezier(.22,1,.36,1) both",
+        }}
+      >
+        {initials}
+      </button>
+    </div>
+  );
+}
+
 export function AppScreen() {
   const { state } = useSalon();
   return (
@@ -98,6 +148,7 @@ export function AppScreen() {
           "calc(16px + env(safe-area-inset-top)) clamp(16px,4vw,40px) calc(130px + env(safe-area-inset-bottom))",
       }}
     >
+      <AppHeader />
       {/* keyed on the tab so switching re-runs a clean crossfade-up entrance */}
       <div
         key={state.tab}

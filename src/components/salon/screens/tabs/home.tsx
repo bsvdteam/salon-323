@@ -229,7 +229,6 @@ export function HomeTab() {
   const sinceShort =
     String(U.since[0] + 1).padStart(2, "0") + "·" + String(U.since[1]).slice(2);
   const sinceLong = mon[U.since[0]] + " " + U.since[1];
-  const initials = (U.first[0] + (U.last[0] || "")).toUpperCase();
   const greeting =
     HR < 11 ? "Guten Morgen" : HR < 18 ? "Guten Tag" : "Guten Abend";
   const todayLabel = `${wdL[now.getDay()]}, ${now.getDate()}. ${mon[now.getMonth()]}`;
@@ -247,47 +246,6 @@ export function HomeTab() {
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 26 }}>
-      {/* header */}
-      <div
-        style={{
-          display: "flex",
-          justifyContent: "space-between",
-          alignItems: "center",
-          paddingBottom: "clamp(26px,5vh,52px)",
-        }}
-      >
-        <span
-          style={{
-            fontFamily: "var(--font-geist-mono)",
-            fontSize: 9.5,
-            letterSpacing: ".32em",
-            textTransform: "uppercase",
-            animation: "fade 1.6s ease both",
-          }}
-        >
-          salon 323
-        </span>
-        <button
-          onClick={() => set({ sheet: { type: "profile" } })}
-          className="glass-light"
-          style={{
-            width: 40,
-            height: 40,
-            borderRadius: "50%",
-            display: "grid",
-            placeItems: "center",
-            fontSize: 11.5,
-            fontWeight: 600,
-            letterSpacing: ".02em",
-            border: 0,
-            color: "#0E141C",
-            animation: "up 1.4s cubic-bezier(.22,1,.36,1) both",
-          }}
-        >
-          {initials}
-        </button>
-      </div>
-
       <div
         style={{
           display: "flex",

@@ -28,7 +28,15 @@ import {
   cancelAppointment,
   getCreditChf,
   getUpcoming,
+  settlePastAppointments,
+  markAppointmentDone,
 } from "@/lib/db/appointments";
+import {
+  getAvailability,
+  saveAvailability,
+  salonToday as todayZ,
+  type AvailConfig,
+} from "@/lib/db/availability";
 import { loadMemberBundle, type MemberBundle } from "@/lib/db/bundle";
 import { createEvent, wallISO, deleteEvent } from "@/lib/google/calendar";
 import { durOf, labelOf, priceOf, tiers } from "@/lib/data";
@@ -38,6 +46,7 @@ import type { ServiceKey, PayMethod } from "@/lib/supabase/types";
 const TZ = process.env.GOOGLE_TZ || "Europe/Zurich";
 
 // — internal helpers (not exported ⇒ not server actions) —
+
 async function requireMember(): Promise<string> {
   const s = await getSession();
   if (!s) throw new Error("not_authenticated");
@@ -56,6 +65,18 @@ export async function validateInviteAction(
   code: string,
 ): Promise<InviteValidation | null> {
   return validateInvite(code);
+}
+
+/** Onboarding: is this username still free? Only answers for a valid invite
+ *  code, so it can't be used to probe the member list from outside. */
+export async function usernameAvailableAction(
+  code: string,
+  username: string,
+): Promise<"ok" | "taken" | "invalid"> {
+  const u = username.trim().toLowerCase();
+  if (!/^[a-z0-9_]{2,20}$/.test(u)) return "invalid";
+  if (!(await validateInvite(code))) return "invalid";
+  return (await getMemberByUsername(u)) ? "taken" : "ok";
 }
 
 export type AuthResult =
@@ -118,25 +139,23 @@ export async function logoutAction(): Promise<void> {
   await clearSession();
 }
 
-/** Who is logged in now, for rehydrating the app on load. */
-export async function sessionAction(): Promise<
-  | { role: "member"; bundle: MemberBundle }
-  | { role: "barber"; username: string }
-  | null
-> {
-  const s = await getSession();
-  if (!s) return null;
-  if (s.role === "barber") {
-    const m = await getMemberById(s.mid);
-    if (!m || !m.is_barber) return null;
-    return { role: "barber", username: m.username };
-  }
-  const bundle = await loadMemberBundle(s.mid);
-  if (!bundle) return null;
-  return { role: "member", bundle };
+// ── member-authenticated ──────────────────────────────────────────────────
+
+/** Barber hours, overrides, absences + booking settings (member or barber). */
+export async function getAvailabilityAction(): Promise<AvailConfig | null> {
+  if (!(await getSession())) return null;
+  return getAvailability(todayZ());
 }
 
-// ── member-authenticated ──────────────────────────────────────────────────
+/** Barber saves the whole availability config (debounced from the portal). */
+export async function saveAvailabilityAction(
+  cfg: AvailConfig,
+): Promise<{ ok: boolean }> {
+  const s = await getSession();
+  if (!s || s.role !== "barber") return { ok: false };
+  await saveAvailability(cfg, todayZ());
+  return { ok: true };
+}
 
 /** Generate a pending invite the logged-in member owns (max 3). */
 export async function generateInviteAction(
@@ -296,6 +315,7 @@ export type AdminMember = {
 export async function listMembersAction(): Promise<AdminMember[] | null> {
   const s = await getSession();
   if (!s || s.role !== "barber") return null;
+  await settlePastAppointments();
   const sb = supabaseAdmin();
   const { data, error } = await sb
     .from("members")
@@ -356,11 +376,11 @@ export async function listTodayAppointmentsAction(): Promise<
 > {
   const s = await getSession();
   if (!s || s.role !== "barber") return null;
+  await settlePastAppointments();
   const sb = supabaseAdmin();
-  const dayStart = new Date();
-  dayStart.setHours(0, 0, 0, 0);
-  const dayEnd = new Date(dayStart);
-  dayEnd.setDate(dayEnd.getDate() + 1);
+  // day bounds in salon time (the server itself may run in UTC)
+  const dayStart = fromZonedTime(`${todayZ()}T00:00:00`, TZ);
+  const dayEnd = new Date(dayStart.getTime() + 86400000);
   const { data, error } = await sb
     .from("appointments")
     .select("id, starts_at, services, status, member_id")
@@ -393,7 +413,7 @@ export async function listTodayAppointmentsAction(): Promise<
 
   return rows.map((r): AdminTodayAppt => {
     const m = byId.get(r.member_id);
-    const d = new Date(r.starts_at);
+    const d = toZonedTime(new Date(r.starts_at), TZ);
     let ti = 0;
     if (m)
       tiers.forEach((t, k) => {
@@ -461,12 +481,14 @@ const MON_ABBR = [
 
 /**
  * Barber revenue, aggregated from real appointments and scalable over months.
- * "Verdient" = erledigte Termine (status 'done'); jeder zählt mit seinem
+ * "Verdient" = erledigte Termine (status 'done' — automatisch, sobald der
+ * Termin vorbei ist, oder vorher vom Barber abgehakt); jeder zählt mit seinem
  * price_chf (15 / 20 mit Bart). Alle Zeitgrenzen in Salon-Zeitzone.
  */
 export async function listRevenueAction(): Promise<RevenueData | null> {
   const s = await getSession();
   if (!s || s.role !== "barber") return null;
+  await settlePastAppointments();
   const sb = supabaseAdmin();
 
   const nowZ = toZonedTime(new Date(), TZ);
@@ -532,33 +554,14 @@ export async function listRevenueAction(): Promise<RevenueData | null> {
   };
 }
 
-/** Barber marks an appointment done → status 'done' + bump the member's cuts. */
+/** Barber marks an appointment done (also before its time) → status 'done'
+ *  + one cut for the member, atomically and never twice. */
 export async function markApptDoneAction(
   appointmentId: string,
 ): Promise<{ ok: boolean }> {
   const s = await getSession();
   if (!s || s.role !== "barber") return { ok: false };
-  const sb = supabaseAdmin();
-  const { data: ap } = await sb
-    .from("appointments")
-    .select("member_id, status")
-    .eq("id", appointmentId)
-    .maybeSingle();
-  if (!ap || ap.status === "done") return { ok: true };
-  await sb
-    .from("appointments")
-    .update({ status: "done" })
-    .eq("id", appointmentId);
-  const { data: m } = await sb
-    .from("members")
-    .select("cuts")
-    .eq("id", ap.member_id)
-    .maybeSingle();
-  if (m)
-    await sb
-      .from("members")
-      .update({ cuts: m.cuts + 1 })
-      .eq("id", ap.member_id);
+  await markAppointmentDone(appointmentId);
   return { ok: true };
 }
 

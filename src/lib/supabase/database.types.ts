@@ -166,25 +166,31 @@ export type Database = {
       }
       barber_settings: {
         Row: {
+          buffer_min: number
           calendly_connected: boolean
           cancel_hours: number
           id: boolean
+          lead_hours: number
           pause_end_min: number
           pause_start_min: number
           price_chf: number
         }
         Insert: {
+          buffer_min?: number
           calendly_connected?: boolean
           cancel_hours?: number
           id?: boolean
+          lead_hours?: number
           pause_end_min?: number
           pause_start_min?: number
           price_chf?: number
         }
         Update: {
+          buffer_min?: number
           calendly_connected?: boolean
           cancel_hours?: number
           id?: boolean
+          lead_hours?: number
           pause_end_min?: number
           pause_start_min?: number
           price_chf?: number
@@ -335,6 +341,7 @@ export type Database = {
           isSetofReturn: false
         }
       }
+      mark_appointment_done: { Args: { p_id: string }; Returns: boolean }
       redeem_invite_create_member: {
         Args: {
           p_card: number
@@ -369,6 +376,7 @@ export type Database = {
           isSetofReturn: false
         }
       }
+      settle_past_appointments: { Args: never; Returns: number }
       validate_invite: {
         Args: { p_code: string }
         Returns: {

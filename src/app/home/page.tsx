@@ -1,5 +1,7 @@
 import { SalonApp } from "@/components/salon/salon-app";
+import { memberStart } from "@/lib/auth/guards";
 
-export default function HomePage() {
-  return <SalonApp start={{ screen: "app", tab: "home" }} />;
+// Members only — checked on the server before anything renders.
+export default async function HomePage() {
+  return <SalonApp start={await memberStart("home")} />;
 }

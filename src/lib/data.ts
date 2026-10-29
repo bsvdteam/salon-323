@@ -794,57 +794,6 @@ export const cardStyles: {
   },
 ];
 
-export function lucaState() {
-  return {
-    user: {
-      first: "Luca",
-      last: "Meier",
-      username: "luca",
-      cuts: 41,
-      since: [2, 2024] as [number, number],
-      no: "0047",
-      phone: "+41 79 323 04 47",
-      email: "",
-      card: 0,
-      isNew: false,
-    } as SalonUser,
-    invites: [
-      {
-        name: "Jonas Keller",
-        meta: "Seit Mai 2025 · 9 Cuts",
-        tag: "II",
-        kids: [
-          {
-            name: "Elia Steiner",
-            meta: "Von Jonas · seit Sept. 2025",
-            tag: "I",
-          },
-        ],
-      },
-      {
-        name: "Noah",
-        meta: "Einladung offen · noch 5 Tage",
-        tag: "OFFEN",
-        pending: true,
-        code: "NH4K2P",
-      },
-    ] as Invite[],
-    appt: {
-      off: 2,
-      time: "14:30",
-      services: ["haare", "bart"] as ServiceKey[],
-    } as Appt,
-    history: [
-      { off: -21, s: ["haare", "bart"] as ServiceKey[] },
-      { off: -42, s: ["haare", "bart"] as ServiceKey[] },
-      { off: -64, s: ["haare"] as ServiceKey[] },
-      { off: -85, s: ["haare", "bart", "brauen"] as ServiceKey[] },
-      { off: -105, s: ["haare", "bart"] as ServiceKey[] },
-    ],
-    template: ["haare", "bart"] as ServiceKey[],
-  };
-}
-
 // ── helpers ──
 export function dateOf(off: number) {
   // Basis: heute (lokale Mitternacht). off 0 = heute, 1 = morgen, ...
