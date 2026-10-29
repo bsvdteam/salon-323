@@ -12,7 +12,7 @@ import { memberCountAction } from "@/lib/actions";
 const WA_CODE_REQUEST =
   salon.wa +
   "?text=" +
-  encodeURIComponent("Hoi! Ich hätte gern einen Einladungscode für Salon 323.");
+  encodeURIComponent("Hoi! Ich hätte gern einen Einladungscode für Salon 15.");
 
 type Box = { ch: string; active: boolean; bg: string; border: string };
 function boxes(str: string, n: number): Box[] {
@@ -178,7 +178,7 @@ export function LoginScreen() {
           transition: "opacity 2.4s ease",
         }}
       >
-        <span>N° 323</span>
+        <span>N° 15</span>
         {/* Member count, top-right on the landing (Supabase-backed later). */}
         <span>{memberCount !== null ? `${memberCount} ` : ""}Members</span>
       </div>

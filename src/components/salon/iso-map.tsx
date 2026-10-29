@@ -1,6 +1,6 @@
 "use client";
 
-/* Stylized isometric 3D map in the Salon 323 palette. Not geographically exact —
+/* Stylized isometric 3D map in the Salon 15 palette. Not geographically exact —
    a real provider (e.g. Mapbox with a dark custom style, our coords + token) can
    drop in later. For now this reads as "here's the spot", on-brand. */
 

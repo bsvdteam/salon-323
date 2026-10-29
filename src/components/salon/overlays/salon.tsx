@@ -35,7 +35,7 @@ export function SalonOverlay() {
         ? `Geschlossen · ${o === 1 ? "morgen" : wdL[d.getDay()]} ab ${fmt(w.s)}`
         : "Geschlossen";
   }
-  const q = encodeURIComponent(`Salon 323 ${S.a1} ${S.a2}`);
+  const q = encodeURIComponent(`Salon 15 ${S.a1} ${S.a2}`);
   const salHours = [1, 2, 3, 4, 5, 6, 0].map((wd) => {
     const w = state.week[wd],
       t = wd === twd;
@@ -56,7 +56,7 @@ export function SalonOverlay() {
     { k: "ÖV", v: "[Haltestelle X]", s: "[Tram/Bus · 2 Min zu Fuss]" },
     {
       k: "Eingang",
-      v: "Klingel «323»",
+      v: "Klingel «15»",
       s: "[Hinterhof, 1. Stock]. Wir öffnen dir.",
     },
     TWEAKS.payOnline
@@ -139,7 +139,7 @@ export function SalonOverlay() {
           WebkitBackdropFilter: "blur(10px)",
         }}
       >
-        <span>salon 323 — Salon</span>
+        <span>salon 15 — Salon</span>
         <button
           onClick={ov.closeSalon}
           style={{
@@ -188,7 +188,7 @@ export function SalonOverlay() {
             }}
           >
             <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-              <span style={kick}>N° 323 · Members only</span>
+              <span style={kick}>N° 15 · Members only</span>
               <h1
                 style={{
                   margin: 0,

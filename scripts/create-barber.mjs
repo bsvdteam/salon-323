@@ -60,7 +60,7 @@ const sb = createClient(
   { auth: { persistSession: false } },
 );
 
-console.log("\nSalon 323 · Barber/Admin anlegen\n");
+console.log("\nSalon 15 · Barber/Admin anlegen\n");
 
 // Profile can be pre-filled via env vars; otherwise we prompt. The password is
 // NEVER taken from env — it is always typed here, hidden, and only hashed.

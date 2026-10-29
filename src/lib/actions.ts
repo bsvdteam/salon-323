@@ -254,7 +254,7 @@ export async function bookAppointmentAction(
     const [hh, mm] = args.time.split(":").map(Number);
     const startMin = hh * 60 + mm;
     const ev = await createEvent({
-      summary: `Salon 323 — ${member.first_name} ${member.last_name}`.trim(),
+      summary: `Salon 15 — ${member.first_name} ${member.last_name}`.trim(),
       description: [
         `Leistung: ${labelOf(args.services, args.cut ?? undefined)}`,
         member.phone ? `Telefon: ${member.phone}` : null,

@@ -24,7 +24,7 @@ const nunito = Nunito({
 });
 
 export const metadata: Metadata = {
-  title: "Salon 323 — Members only",
+  title: "Salon 15 — Members only",
   description:
     "Ein Raum, ein Stuhl, ein Barber. Rein kommt, wer eingeladen wird.",
 };

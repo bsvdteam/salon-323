@@ -222,7 +222,7 @@ export function LegalReader() {
   };
   const copyMail = () => {
     try {
-      navigator.clipboard?.writeText("hallo@salon323.ch");
+      navigator.clipboard?.writeText("hallo@salon15.ch");
     } catch {}
     set({ mailCopied: true });
     setTimeout(() => set({ mailCopied: false }), 2000);
@@ -289,7 +289,7 @@ export function LegalReader() {
             textTransform: "uppercase",
           }}
         >
-          323
+          15
         </span>
         <div
           style={{
@@ -638,7 +638,7 @@ export function LegalReader() {
                   }}
                 >
                   <span>Visitenkarte</span>
-                  <span>N° 323</span>
+                  <span>N° 15</span>
                 </div>
                 {impRows.map((r, i) => (
                   <div
@@ -843,7 +843,7 @@ export function LegalReader() {
                     ))}
                   </div>
                   <a
-                    href="mailto:hallo@salon323.ch?subject=L%C3%B6schung%20meiner%20Daten"
+                    href="mailto:hallo@salon15.ch?subject=L%C3%B6schung%20meiner%20Daten"
                     style={{
                       marginTop: "auto",
                       alignSelf: "flex-start",
@@ -952,8 +952,8 @@ export function LegalReader() {
             >
               <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
                 <span style={mono9}>Fragen</span>
-                <a href="mailto:hallo@salon323.ch" style={{ fontSize: 16 }}>
-                  hallo@salon323.ch
+                <a href="mailto:hallo@salon15.ch" style={{ fontSize: 16 }}>
+                  hallo@salon15.ch
                 </a>
               </div>
               <button

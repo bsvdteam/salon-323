@@ -8,27 +8,19 @@ const a = (cx: number) => [o(cx), `M${cx + 20} 49.5V100.5`];
 const l = (x: number) => `M${x} 28V100.5`;
 const n = (x: number) =>
   `M${x} 100.5V49.5M${x} 73A18 18 0 0 1 ${x + 36} 73V100.5`;
-const three = (x: number) =>
-  `M${x + 2} 42C${x + 5} 37.5 ${x + 11} 35 ${x + 17.5} 35C${x + 26} 35 ${x + 32} 40.5 ${x + 32} 48C${x + 32} 56 ${x + 26} 62 ${x + 16} 62H${x + 13}M${x + 16} 62C${x + 28} 62 ${x + 35} 69 ${x + 35} 78.5C${x + 35} 88.5 ${x + 28} 95 ${x + 18} 95C${x + 10} 95 ${x + 4} 92 ${x + 1} 87`;
-const two = (x: number) =>
-  `M${x + 2} 47C${x + 2} 40 ${x + 9} 35 ${x + 18} 35C${x + 27} 35 ${x + 34} 41 ${x + 34} 49C${x + 34} 56 ${x + 30} 61 ${x + 24} 67L${x + 2} 95H${x + 35}`;
+// Digits share the cap line (35) and baseline (95) of the original 3 and 2;
+// the 1's flag meets its stem in a sharp miter, the 5 ends like the 3 did.
+const one = (x: number) => `M${x + 2} 47L${x + 17} 35V95`;
+const five = (x: number) =>
+  `M${x + 32} 35H${x + 6}L${x + 3} 63C${x + 7} 59.5 ${x + 12} 58 ${x + 18} 58C${x + 28} 58 ${x + 35} 65.5 ${x + 35} 76.5C${x + 35} 88 ${x + 28} 95 ${x + 18} 95C${x + 10} 95 ${x + 4} 92 ${x + 1} 87`;
 
 export function Wordmark({ style }: { style?: React.CSSProperties }) {
-  const paths = [
-    s(5),
-    ...a(72),
-    l(108),
-    o(144),
-    n(180),
-    three(250),
-    two(298),
-    three(348),
-  ];
+  const paths = [s(5), ...a(72), l(108), o(144), n(180), one(250), five(284)];
   return (
     <svg
-      viewBox="-4 24 396 82"
+      viewBox="-4 24 332 82"
       style={{
-        width: "clamp(148px,17.5vw,212px)",
+        width: "clamp(124px,14.7vw,178px)",
         height: "auto",
         overflow: "visible",
         ...style,
@@ -38,27 +30,7 @@ export function Wordmark({ style }: { style?: React.CSSProperties }) {
       strokeWidth={11}
       strokeLinecap="butt"
       strokeLinejoin="miter"
-      aria-label="salon 323"
-    >
-      {paths.map((d, i) => (
-        <path key={i} d={d} />
-      ))}
-    </svg>
-  );
-}
-
-export function Logo323({ style }: { style?: React.CSSProperties }) {
-  const paths = [three(0), two(44), three(88)];
-  return (
-    <svg
-      viewBox="-6 26 136 76"
-      style={{ width: 50, height: "auto", ...style }}
-      fill="none"
-      stroke="currentColor"
-      strokeWidth={10}
-      strokeLinecap="butt"
-      strokeLinejoin="miter"
-      aria-label="323"
+      aria-label="salon 15"
     >
       {paths.map((d, i) => (
         <path key={i} d={d} />

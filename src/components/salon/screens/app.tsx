@@ -114,7 +114,7 @@ function AppHeader() {
           animation: "fade 1.6s ease both",
         }}
       >
-        salon 323
+        salon 15
       </span>
       <button
         onClick={() => set({ sheet: { type: "profile" } })}

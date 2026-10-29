@@ -67,7 +67,7 @@ export function CardTab() {
   const fullName = (U.first + " " + U.last).trim();
   const sinceShort =
     String(U.since[0] + 1).padStart(2, "0") + "·" + String(U.since[1]).slice(2);
-  const q = encodeURIComponent(`Salon 323 ${salon.a1} ${salon.a2}`);
+  const q = encodeURIComponent(`Salon 15 ${salon.a1} ${salon.a2}`);
   const salAddrUpper = `${salon.a1} · ${salon.a2}`.toUpperCase();
 
   const cardRef = useRef<HTMLDivElement>(null);
@@ -175,7 +175,7 @@ export function CardTab() {
               letterSpacing: ".3em",
             }}
           >
-            SALON 323
+            SALON 15
           </span>
           <span style={{ fontSize: 20, fontWeight: 300 }}>N° {U.no}</span>
           <span
@@ -337,7 +337,7 @@ export function CardTab() {
                         letterSpacing: ".38em",
                       }}
                     >
-                      SALON 323
+                      SALON 15
                     </span>
                     {hasAppt ? (
                       <span

@@ -103,7 +103,7 @@ function CardPreview({
                 letterSpacing: ".38em",
               }}
             >
-              SALON 323
+              SALON 15
             </span>
             <span
               style={{
@@ -204,7 +204,7 @@ function DealtCard({
             opacity: 0.85,
           }}
         >
-          323
+          15
         </span>
       </span>
       <span
@@ -270,7 +270,7 @@ export function OnboardScreen() {
           mixBlendMode: "difference",
         }}
       >
-        salon 323 · Einladung
+        salon 15 · Einladung
       </div>
       <div
         className="glass-dark"
@@ -341,7 +341,7 @@ export function OnboardScreen() {
               }}
             >
               <StepHead
-                kickLabel={`Von ${st.inviteBy || "Salon 323"}`}
+                kickLabel={`Von ${st.inviteBy || "Salon 15"}`}
                 title={`Willkommen, ${st.first.trim() || "Gast"}.`}
               />
               <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>

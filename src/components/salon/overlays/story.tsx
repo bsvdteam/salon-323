@@ -252,7 +252,7 @@ export function StoryOverlay() {
           color: "#F4F7FA",
         }}
       >
-        <span>salon 323 — Story</span>
+        <span>salon 15 — Story</span>
         <button
           onClick={() => ov.closeStory()}
           style={{

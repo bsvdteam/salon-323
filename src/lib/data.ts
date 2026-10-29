@@ -1,4 +1,4 @@
-// Salon 323 — static data & helpers, transcribed 1:1 from the design prototype
+// Salon 15 — static data & helpers, transcribed 1:1 from the design prototype
 // (design_handoff_salon323/design/source). Server state (Supabase) comes later;
 // this is the demo content the interactive prototype runs on.
 
@@ -427,11 +427,11 @@ export const salon = {
 };
 
 export const impRows = [
-  { k: "Betrieb", v: "Salon 323" },
+  { k: "Betrieb", v: "Salon 15" },
   { k: "Inhaber", v: "[Vorname Nachname]" },
   { k: "Adresse", v: "Steineggasse 4, 9113 Degersheim" },
   { k: "Telefon", v: "+41 79 912 91 24" },
-  { k: "E-Mail", v: "hallo@salon323.ch", copy: true },
+  { k: "E-Mail", v: "hallo@salon15.ch", copy: true },
   { k: "UID", v: "CHE-[000.000.000]" },
 ];
 export const agbFacts: [string, string][] = [
@@ -467,26 +467,26 @@ export const legalDocs: Record<string, LegalDoc> = {
   impressum: {
     n: "01",
     title: "Impressum",
-    sub: "Wer hinter Salon 323 steht.",
+    sub: "Wer hinter Salon 15 steht.",
     lead: "Ein Raum, ein Stuhl, ein Barber. Hier steht, wer dafür geradesteht.",
     secs: [
       {
         t: "Inhalte",
         plain:
           "Wir geben uns Mühe, dass hier alles stimmt – garantieren können wir es nicht.",
-        full: "Die Inhalte dieser Seite wurden mit grösster Sorgfalt erstellt. Für die Richtigkeit, Vollständigkeit und Aktualität der Inhalte übernimmt Salon 323 jedoch keine Gewähr. Haftungsansprüche wegen Schäden materieller oder immaterieller Art, die aus dem Zugriff auf oder der Nutzung bzw. Nichtnutzung der veröffentlichten Informationen entstanden sind, werden ausgeschlossen, soweit gesetzlich zulässig.",
+        full: "Die Inhalte dieser Seite wurden mit grösster Sorgfalt erstellt. Für die Richtigkeit, Vollständigkeit und Aktualität der Inhalte übernimmt Salon 15 jedoch keine Gewähr. Haftungsansprüche wegen Schäden materieller oder immaterieller Art, die aus dem Zugriff auf oder der Nutzung bzw. Nichtnutzung der veröffentlichten Informationen entstanden sind, werden ausgeschlossen, soweit gesetzlich zulässig.",
       },
       {
         t: "Links",
         plain:
           "Verweisen wir auf andere Seiten, sind diese für ihren Inhalt selbst verantwortlich.",
-        full: "Verweise und Links auf Webseiten Dritter liegen ausserhalb unseres Verantwortungsbereichs. Der Zugriff und die Nutzung solcher Webseiten erfolgen auf eigene Gefahr des Nutzers. Salon 323 hat keinerlei Einfluss auf die Gestaltung, die Inhalte und die Angebote der verknüpften Seiten.",
+        full: "Verweise und Links auf Webseiten Dritter liegen ausserhalb unseres Verantwortungsbereichs. Der Zugriff und die Nutzung solcher Webseiten erfolgen auf eigene Gefahr des Nutzers. Salon 15 hat keinerlei Einfluss auf die Gestaltung, die Inhalte und die Angebote der verknüpften Seiten.",
       },
       {
         t: "Bilder & Urheberrecht",
         plain:
           "Jedes Foto eines Cuts zeigt ein Mitglied, das ja gesagt hat. Bitte nicht kopieren.",
-        full: "Die Urheber- und alle anderen Rechte an Inhalten, Bildern, Fotos und Dateien auf dieser Website gehören ausschliesslich Salon 323 oder den speziell genannten Rechteinhabern. Fotografien von Mitgliedern werden nur mit deren ausdrücklicher Einwilligung veröffentlicht und auf Wunsch jederzeit entfernt. Für die Reproduktion jeglicher Elemente ist die schriftliche Zustimmung im Voraus einzuholen.",
+        full: "Die Urheber- und alle anderen Rechte an Inhalten, Bildern, Fotos und Dateien auf dieser Website gehören ausschliesslich Salon 15 oder den speziell genannten Rechteinhabern. Fotografien von Mitgliedern werden nur mit deren ausdrücklicher Einwilligung veröffentlicht und auf Wunsch jederzeit entfernt. Für die Reproduktion jeglicher Elemente ist die schriftliche Zustimmung im Voraus einzuholen.",
       },
     ],
   },
@@ -498,8 +498,8 @@ export const legalDocs: Record<string, LegalDoc> = {
     secs: [
       {
         t: "Geltung",
-        plain: "Diese Regeln gelten für jeden Termin bei Salon 323.",
-        full: "Diese Allgemeinen Geschäftsbedingungen (AGB) gelten für sämtliche Dienstleistungen von Salon 323, [Inhaber], [Adresse] (nachfolgend «Salon»), gegenüber Mitgliedern und eingeladenen Gästen. Abweichende Vereinbarungen bedürfen der Schriftform.",
+        plain: "Diese Regeln gelten für jeden Termin bei Salon 15.",
+        full: "Diese Allgemeinen Geschäftsbedingungen (AGB) gelten für sämtliche Dienstleistungen von Salon 15, [Inhaber], [Adresse] (nachfolgend «Salon»), gegenüber Mitgliedern und eingeladenen Gästen. Abweichende Vereinbarungen bedürfen der Schriftform.",
       },
       {
         t: "Mitgliedschaft",
@@ -556,8 +556,8 @@ export const legalDocs: Record<string, LegalDoc> = {
       {
         t: "Verantwortlich",
         plain:
-          "Für deine Daten verantwortlich ist Salon 323 – ein Mensch, kein Konzern.",
-        full: "Verantwortlich für die Bearbeitung von Personendaten im Sinne des Bundesgesetzes über den Datenschutz (DSG) ist Salon 323, [Inhaber], [Adresse], hallo@salon323.ch.",
+          "Für deine Daten verantwortlich ist Salon 15 – ein Mensch, kein Konzern.",
+        full: "Verantwortlich für die Bearbeitung von Personendaten im Sinne des Bundesgesetzes über den Datenschutz (DSG) ist Salon 15, [Inhaber], [Adresse], hallo@salon15.ch.",
       },
       {
         t: "Welche Daten",
@@ -596,7 +596,7 @@ export const legalDocs: Record<string, LegalDoc> = {
         t: "Deine Rechte",
         plain:
           "Du kannst jederzeit fragen, was wir wissen – und alles löschen lassen.",
-        full: "Du hast das Recht auf Auskunft, Berichtigung, Löschung und Herausgabe deiner Daten sowie das Recht, der Bearbeitung zu widersprechen. Anfragen richtest du an hallo@salon323.ch. Zudem steht dir eine Anzeige beim Eidgenössischen Datenschutz- und Öffentlichkeitsbeauftragten (EDÖB) offen.",
+        full: "Du hast das Recht auf Auskunft, Berichtigung, Löschung und Herausgabe deiner Daten sowie das Recht, der Bearbeitung zu widersprechen. Anfragen richtest du an hallo@salon15.ch. Zudem steht dir eine Anzeige beim Eidgenössischen Datenschutz- und Öffentlichkeitsbeauftragten (EDÖB) offen.",
       },
     ],
   },

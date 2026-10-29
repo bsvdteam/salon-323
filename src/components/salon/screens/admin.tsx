@@ -293,7 +293,7 @@ export function AdminScreen() {
               textTransform: "uppercase",
             }}
           >
-            salon 323
+            salon 15
           </span>
           <span
             className="glass-dark"

@@ -274,7 +274,7 @@ export function BookTab() {
     const gcal = (mins: number) =>
       `${d.getFullYear()}${p2(d.getMonth() + 1)}${p2(d.getDate())}T${p2(Math.floor(mins / 60))}${p2(mins % 60)}00`;
     const calUrl = `https://calendar.google.com/calendar/render?action=TEMPLATE&text=${encodeURIComponent(
-      `Salon 323 — ${labelOf(st.sel, st.cut)}`,
+      `Salon 15 — ${labelOf(st.sel, st.cut)}`,
     )}&dates=${gcal(bStart)}/${gcal(bStart + 30)}&ctz=Europe/Zurich`;
 
     // System of record = Supabase. Die Action legt den Termin in der DB an UND

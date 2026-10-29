@@ -1,5 +1,5 @@
 // ───────────────────────────────────────────────────────────────────────────
-// SALON 323 · ZUGANGSCODES (Einladungscodes)
+// SALON 15 · ZUGANGSCODES (Einladungscodes)
 // ───────────────────────────────────────────────────────────────────────────
 //
 // Hier trägst du die gültigen Einladungscodes ein. Wer auf der Landing
