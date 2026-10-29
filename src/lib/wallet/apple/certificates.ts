@@ -1,12 +1,13 @@
 // Loads the Apple signing material and hands passkit-generator the three PEMs
 // it needs: the WWDR intermediate, the Pass Type ID certificate, and its private
 // key. The signer cert + key are extracted from a single .p12 (as exported from
-// Keychain) with node-forge, so there are no manual openssl steps. Everything is
-// read from APPLE_WALLET_CERT_DIR (outside the repo) and cached per process.
+// Keychain) with node-forge, so there are no manual openssl steps. The raw bytes
+// come either from APPLE_WALLET_CERT_DIR (local dev) or from base64 env vars
+// (serverless/Vercel). Cached per process.
 import { readFileSync, existsSync, readdirSync } from "node:fs";
 import { join } from "node:path";
 import forge from "node-forge";
-import { appleWalletConfig } from "./config";
+import { appleWalletConfig, type AppleWalletConfig } from "./config";
 
 // Matches passkit-generator's CertificatesSchema (not exported from the package);
 // structurally compatible with what `new PKPass(_, certificates, _)` expects.
@@ -34,14 +35,28 @@ function pick(dir: string, names: string[], exts: string[]): string {
   );
 }
 
+/** Raw .p12 and WWDR bytes — from base64 env (serverless) or the cert dir. */
+function loadMaterial(cfg: AppleWalletConfig): { p12: Buffer; wwdr: Buffer } {
+  if (cfg.signerP12Base64 && cfg.wwdrBase64) {
+    return {
+      p12: Buffer.from(cfg.signerP12Base64, "base64"),
+      wwdr: Buffer.from(cfg.wwdrBase64, "base64"),
+    };
+  }
+  const dir = cfg.certDir!;
+  return {
+    p12: readFileSync(pick(dir, ["signerCert.p12", "signer.p12"], [".p12"])),
+    wwdr: readFileSync(pick(dir, ["wwdr.pem", "wwdr.cer"], [".pem", ".cer"])),
+  };
+}
+
 /** Split a Keychain-exported .p12 into leaf-cert PEM + private-key PEM. */
-function splitP12(p12Path: string, password: string): {
-  signerCert: string;
-  signerKey: string;
-} {
-  const der = readFileSync(p12Path).toString("binary");
+function splitP12(
+  der: Buffer,
+  password: string,
+): { signerCert: string; signerKey: string } {
   const p12 = forge.pkcs12.pkcs12FromAsn1(
-    forge.asn1.fromDer(der),
+    forge.asn1.fromDer(der.toString("binary")),
     password,
   );
 
@@ -79,9 +94,8 @@ function splitP12(p12Path: string, password: string): {
   };
 }
 
-/** Read the WWDR intermediate; accept PEM as-is, convert DER (.cer) to PEM. */
-function readWwdr(path: string): string {
-  const buf = readFileSync(path);
+/** Normalize the WWDR cert to PEM; accept PEM as-is, convert DER (.cer). */
+function wwdrToPem(buf: Buffer): string {
   const text = buf.toString("utf8");
   if (text.includes("BEGIN CERTIFICATE")) return text;
   const cert = forge.pki.certificateFromAsn1(
@@ -94,11 +108,8 @@ function readWwdr(path: string): string {
 export function appleCertificates(): AppleCerts {
   if (cached) return cached;
   const cfg = appleWalletConfig();
-
-  const p12Path = pick(cfg.certDir, ["signerCert.p12", "signer.p12"], [".p12"]);
-  const wwdrPath = pick(cfg.certDir, ["wwdr.pem", "wwdr.cer"], [".pem", ".cer"]);
-
-  const { signerCert, signerKey } = splitP12(p12Path, cfg.certPassword);
-  cached = { wwdr: readWwdr(wwdrPath), signerCert, signerKey };
+  const { p12, wwdr } = loadMaterial(cfg);
+  const { signerCert, signerKey } = splitP12(p12, cfg.certPassword);
+  cached = { wwdr: wwdrToPem(wwdr), signerCert, signerKey };
   return cached;
 }
