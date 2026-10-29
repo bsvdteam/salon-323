@@ -38,16 +38,20 @@ function load(): Record<string, Buffer> {
 /** { "icon.png": <Buffer>, "artwork@2x.png": … } for PKPass — strip (storeCard)
  *  and artwork (posterGeneric) are the member's card design (0–2), so the
  *  Wallet face matches the dashboard card. */
-export function passImages(design: number): Record<string, Buffer> {
+export function passImages(
+  design: number,
+  poster: boolean,
+): Record<string, Buffer> {
   const all = load();
   const d = design >= 0 && design < DESIGNS ? design : 0;
   const out: Record<string, Buffer> = {};
   for (const s of SCALES) {
     out[`icon${s}.png`] = all[`icon${s}.png`];
     out[`logo${s}.png`] = all[`logo${s}.png`];
-    out[`primaryLogo${s}.png`] = all[`primaryLogo${s}.png`];
-    out[`strip${s}.png`] = all[`strip-${d}${s}.png`];
+    if (poster) out[`primaryLogo${s}.png`] = all[`primaryLogo${s}.png`];
+    else out[`strip${s}.png`] = all[`strip-${d}${s}.png`];
   }
-  for (const s of HIRES) out[`artwork${s}.png`] = all[`artwork-${d}${s}.png`];
+  if (poster)
+    for (const s of HIRES) out[`artwork${s}.png`] = all[`artwork-${d}${s}.png`];
   return out;
 }

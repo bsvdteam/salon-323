@@ -64,6 +64,7 @@ export type StartConfig = {
   member?: MemberBundle;
   barber?: boolean;
   avail?: AvailConfig;
+  code?: string; // invite link /i/CODE — prefilled and checked on load
 };
 
 export interface SalonState {
@@ -122,14 +123,11 @@ export interface SalonState {
   cut: string;
 
   // circle
-  newInv: string;
-  lastCode: { code: string; name: string } | null;
-  copied: boolean;
+  refCode: string; // the member's personal invite code (up to 5 people)
   circleSel: string | null;
 
   // booking
   slideDone: boolean;
-  creditUsed: number;
   pay: string;
   remind: boolean;
 
@@ -201,7 +199,7 @@ function initialState(start?: StartConfig): SalonState {
     phone: "",
     email: "",
     sms: "",
-    code: "",
+    code: start?.code ?? "",
     checking: false,
     inviteOk: false,
     inviteFirst: "",
@@ -240,12 +238,9 @@ function initialState(start?: StartConfig): SalonState {
     booked: null,
     flipped: false,
     cut: "Mid",
-    newInv: "",
-    lastCode: null,
-    copied: false,
+    refCode: "",
     circleSel: null,
     slideDone: false,
-    creditUsed: 0,
     pay: "twint",
     remind: true,
     sheet: null,

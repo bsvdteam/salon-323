@@ -21,14 +21,11 @@ import { randomInt } from "crypto";
 import {
   validateInvite,
   redeemInviteCreateMember,
-  generateInvite,
   type InviteValidation,
-  type GenerateResult,
 } from "@/lib/db/invites";
 import {
   createAppointment,
   cancelAppointment,
-  getCreditChf,
   getUpcoming,
   settlePastAppointments,
   markAppointmentDone,
@@ -109,6 +106,7 @@ export async function loginMemberAction(
 
 export type OnboardArgs = {
   code: string;
+  first: string;
   last: string;
   username: string;
   pin: string;
@@ -121,6 +119,9 @@ export type OnboardArgs = {
 export async function redeemOnboardAction(
   args: OnboardArgs,
 ): Promise<AuthResult> {
+  const first = args.first.trim();
+  if (first.length < 1 || first.length > 40)
+    return { ok: false, error: "first_invalid" };
   if (!/^[a-z0-9_]{2,20}$/.test(args.username.trim().toLowerCase()))
     return { ok: false, error: "username_invalid" };
   if (args.phone.replace(/\D/g, "").length < 6)
@@ -173,15 +174,6 @@ export async function saveAvailabilityAction(
   if (!s || s.role !== "barber") return { ok: false };
   await saveAvailability(cfg, todayZ());
   return { ok: true };
-}
-
-/** Generate a pending invite the logged-in member owns (max 3). */
-export async function generateInviteAction(
-  firstName: string,
-): Promise<GenerateResult> {
-  const mid = await requireMember();
-  if (!firstName.trim()) return { ok: false, error: "unknown" };
-  return generateInvite(mid, firstName);
 }
 
 export async function updateUsernameAction(
@@ -237,10 +229,8 @@ export async function bookAppointmentAction(
   const member = await getMemberById(mid);
   if (!member) return { ok: false, error: "not_found" };
 
-  // Price: CHF 15 / 20 with beard; invite credit applies on top (server-computed).
+  // Price: CHF 15 / 20 with beard (server-computed).
   const price = priceOf(args.services) || 15;
-  const credit = await getCreditChf(mid);
-  const creditApplied = Math.min(price, credit);
   const startsAt = fromZonedTime(
     `${args.date}T${args.time}:00`,
     TZ,
@@ -279,7 +269,6 @@ export async function bookAppointmentAction(
     services: args.services,
     cut: args.cut ?? null,
     priceChf: price,
-    creditAppliedChf: creditApplied,
     payMethod: args.payMethod ?? "ort",
     googleEventId,
   });
@@ -599,14 +588,12 @@ export async function markApptDoneAction(
   return { ok: true };
 }
 
-/** Barber: generate an invite code for a first member (inviter = the barber). */
-export async function barberGenerateInviteAction(
-  firstName: string,
-): Promise<GenerateResult> {
+/** Barber: his own invite code (no use limit) for the invite card. */
+export async function barberInviteCodeAction(): Promise<string | null> {
   const s = await getSession();
-  if (!s || s.role !== "barber") return { ok: false, error: "unknown" };
-  if (!firstName.trim()) return { ok: false, error: "unknown" };
-  return generateInvite(s.mid, firstName);
+  if (!s || s.role !== "barber") return null;
+  const m = await getMemberById(s.mid);
+  return m?.ref_code ?? null;
 }
 
 /** Barber: a member forgot their PIN → a fresh random one, shown once to the

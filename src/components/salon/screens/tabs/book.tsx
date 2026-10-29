@@ -229,17 +229,11 @@ export function BookTab() {
   const tplSame =
     st.sel.slice().sort().join() === st.template.slice().sort().join();
 
-  // ── credit / price / summary ──
-  const INV = st.invites ?? [];
-  const credit = Math.max(
-    0,
-    INV.filter((i) => !i.pending).length * 5 - (st.creditUsed || 0),
-  );
+  // ── price / summary ──
   const resch = st.rescheduling && st.appt;
-  // Haarschnitt CHF 15, mit Bart CHF 20 (priceOf); Guthaben zieht davon ab.
+  // Haarschnitt CHF 15, mit Bart CHF 20 (priceOf).
   const base = priceOf(st.sel) || 15;
-  const credApplied = resch ? 0 : Math.min(base, credit);
-  const price = resch ? (st.appt!.price ?? base) : base - credApplied;
+  const price = resch ? (st.appt!.price ?? base) : base;
   const dd = dateOf(effDay);
   const canBook = !!(st.time && st.sel.length);
   const summaryWhen = `${wdS[dd.getDay()]} ${dd.getDate()}. ${monS[dd.getMonth()]} · ${st.time || "—"}`;
@@ -306,7 +300,6 @@ export function BookTab() {
         pay: "ort",
         eventId: res.bundle.upcoming?.google_event_id ?? undefined,
       },
-      creditUsed: (st.creditUsed || 0) + (resch ? 0 : credApplied),
       booked: {
         pay: "ort",
         time: st.time!,
@@ -870,15 +863,6 @@ export function BookTab() {
               }}
             >
               <span>{st.sel.length ? `CHF ${price}` : "—"}</span>
-              <span
-                style={{
-                  fontSize: 10,
-                  color: "#F4A69E",
-                  opacity: st.sel.length && credApplied ? 1 : 0,
-                }}
-              >
-                {st.sel.length && credApplied ? `−${credApplied} Guthaben` : ""}
-              </span>
             </span>
           </div>
           <span

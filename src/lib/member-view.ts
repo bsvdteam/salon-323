@@ -32,10 +32,6 @@ function monthLabel(dateStr: string): string {
   return `${monS[(m || 1) - 1]} ${y}`;
 }
 
-function daysUntil(iso: string): number {
-  return Math.max(0, Math.ceil((new Date(iso).getTime() - Date.now()) / 86400000));
-}
-
 /** Day offset from today (0 = today) for a timestamp, matching Appt.off. */
 function offsetOf(iso: string): number {
   const d = new Date(iso);
@@ -61,32 +57,22 @@ function apptFromRow(r: AppointmentRow | null): Appt | null {
 }
 
 function circleToInvites(circle: CircleNode[]): Invite[] {
-  return circle.map((n): Invite => {
-    if (n.kind === "member") {
-      return {
-        name: `${n.first} ${n.last}`.trim(),
-        meta: `Seit ${monthLabel(n.since)} · ${n.cuts} Cuts`,
-        tag: tierRoman(n.cuts),
-        kids: n.kids.map((k) => ({
-          name: `${k.first} ${k.last}`.trim(),
-          meta: `Von ${n.first} · seit ${monthLabel(k.since)}`,
-          tag: tierRoman(k.cuts),
-        })),
-      };
-    }
-    return {
-      name: n.first,
-      meta: `Einladung offen · noch ${daysUntil(n.expiresAt)} Tage`,
-      tag: "OFFEN",
-      pending: true,
-      code: n.code,
-    };
-  });
+  return circle.map((n): Invite => ({
+    name: `${n.first} ${n.last}`.trim(),
+    meta: `Seit ${monthLabel(n.since)} · ${n.cuts} Cuts`,
+    tag: tierRoman(n.cuts),
+    kids: n.kids.map((k) => ({
+      name: `${k.first} ${k.last}`.trim(),
+      meta: `Von ${n.first} · seit ${monthLabel(k.since)}`,
+      tag: tierRoman(k.cuts),
+    })),
+  }));
 }
 
 export type MemberStatePatch = {
   user: SalonUser;
   invites: Invite[];
+  refCode: string; // the member's personal invite code
   template: ServiceKey[];
   myInviter: string;
   appt: Appt | null;
@@ -95,7 +81,10 @@ export type MemberStatePatch = {
 
 /** The identity slice of SalonState for a logged-in member. Booking state
  *  (appt/history) is intentionally left to the existing flow. */
-export function bundleToState(b: MemberBundle, isNew: boolean): MemberStatePatch {
+export function bundleToState(
+  b: MemberBundle,
+  isNew: boolean,
+): MemberStatePatch {
   const m = b.member;
   return {
     user: {
@@ -111,6 +100,7 @@ export function bundleToState(b: MemberBundle, isNew: boolean): MemberStatePatch
       isNew,
     },
     invites: circleToInvites(b.circle),
+    refCode: m.ref_code,
     template: (m.template as ServiceKey[]) ?? ["haare", "bart"],
     myInviter: b.invitedByName ?? "",
     appt: apptFromRow(b.upcoming),

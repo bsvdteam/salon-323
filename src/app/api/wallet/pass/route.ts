@@ -28,9 +28,14 @@ export async function GET(req: Request) {
   }
 
   try {
-    // featured actions link back to this deployment (vercel.app or salon15.ch)
+    // The poster layout only for iOS 27+, everything else gets the proven
+    // storeCard. Links point back to this deployment (salon15.ch).
+    const ios = /(?:iPhone|iPad|iPod).*? OS (\d+)_/.exec(
+      req.headers.get("user-agent") ?? "",
+    );
     const buf = await buildMemberPass(data, {
       siteUrl: new URL(req.url).origin,
+      poster: !!ios && Number(ios[1]) >= 27,
     });
     return new Response(new Uint8Array(buf), {
       status: 200,

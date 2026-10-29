@@ -268,6 +268,7 @@ export type Database = {
           password_hash: string | null
           phone: string
           pin_hash: string | null
+          ref_code: string
           template: string[]
           username: string
         }
@@ -290,6 +291,7 @@ export type Database = {
           password_hash?: string | null
           phone?: string
           pin_hash?: string | null
+          ref_code: string
           template?: string[]
           username: string
         }
@@ -312,6 +314,7 @@ export type Database = {
           password_hash?: string | null
           phone?: string
           pin_hash?: string | null
+          ref_code?: string
           template?: string[]
           username?: string
         }
@@ -351,6 +354,46 @@ export type Database = {
         }
       }
       mark_appointment_done: { Args: { p_id: string }; Returns: boolean }
+      new_ref_code: { Args: never; Returns: string }
+      redeem_code_create_member: {
+        Args: {
+          p_card: number
+          p_code: string
+          p_first: string
+          p_last: string
+          p_phone: string
+          p_username: string
+        }
+        Returns: {
+          card_index: number
+          contact_email: string | null
+          created_at: string
+          cut: string
+          cuts: number
+          first_name: string
+          id: string
+          invited_by: string | null
+          is_barber: boolean
+          last_name: string
+          login_failed: number
+          login_locked_until: string | null
+          member_no: string
+          member_since: string
+          note: string | null
+          password_hash: string | null
+          phone: string
+          pin_hash: string | null
+          ref_code: string
+          template: string[]
+          username: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "members"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
       redeem_invite_create_member: {
         Args: {
           p_card: number
@@ -378,6 +421,7 @@ export type Database = {
           password_hash: string | null
           phone: string
           pin_hash: string | null
+          ref_code: string
           template: string[]
           username: string
         }
@@ -390,6 +434,14 @@ export type Database = {
       }
       register_login_failure: { Args: { p_id: string }; Returns: boolean }
       settle_past_appointments: { Args: never; Returns: number }
+      validate_code: {
+        Args: { p_code: string }
+        Returns: {
+          first_name: string
+          inviter_name: string
+          kind: string
+        }[]
+      }
       validate_invite: {
         Args: { p_code: string }
         Returns: {

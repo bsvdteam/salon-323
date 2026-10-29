@@ -36,7 +36,7 @@ export function HomeTab() {
   const TN = tiers[ti + 1];
   const INV = st.invites ?? [];
   const used = INV.length;
-  const free = 3 - used;
+  const free = Math.max(0, 5 - used); // one code, up to 5 people
   const now = dateOf(0);
 
   // hold-to-release refs
@@ -1022,7 +1022,7 @@ export function HomeTab() {
         }}
       >
         <span style={{ display: "flex", gap: 4 }}>
-          {[0, 1, 2].map((k) => (
+          {[0, 1, 2, 3, 4].map((k) => (
             <span
               key={k}
               style={{

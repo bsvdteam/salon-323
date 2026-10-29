@@ -66,7 +66,6 @@ export type NewAppointment = {
   services: ServiceKey[];
   cut?: string | null;
   priceChf?: number;
-  creditAppliedChf?: number;
   payMethod?: PayMethod;
   googleEventId?: string | null;
   note?: string | null;
@@ -85,7 +84,6 @@ export async function createAppointment(
       services: a.services,
       cut: a.cut ?? null,
       price_chf: a.priceChf ?? 20,
-      credit_applied_chf: a.creditAppliedChf ?? 0,
       pay_method: a.payMethod ?? "ort",
       google_event_id: a.googleEventId ?? null,
       note: a.note ?? null,
@@ -103,29 +101,4 @@ export async function cancelAppointment(id: string): Promise<void> {
     .update({ status: "cancelled" })
     .eq("id", id);
   if (error) throw error;
-}
-
-/** Remaining invite credit in CHF: 5 per redeemed invite minus credit used. */
-export async function getCreditChf(memberId: string): Promise<number> {
-  const sb = supabaseAdmin();
-  const { count, error } = await sb
-    .from("invites")
-    .select("*", { count: "exact", head: true })
-    .eq("inviter_id", memberId)
-    .eq("status", "redeemed");
-  if (error) throw error;
-
-  const { data: appts, error: e2 } = await sb
-    .from("appointments")
-    .select("credit_applied_chf")
-    .eq("member_id", memberId)
-    .neq("status", "cancelled");
-  if (e2) throw e2;
-
-  const earned = (count ?? 0) * 5;
-  const used = (appts ?? []).reduce(
-    (s, a) => s + (a.credit_applied_chf ?? 0),
-    0,
-  );
-  return Math.max(0, earned - used);
 }

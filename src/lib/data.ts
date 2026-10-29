@@ -436,7 +436,7 @@ export const impRows = [
 export const agbFacts: [string, string][] = [
   ["24 h", "Gratis absagen bis"],
   ["CHF 20", "Pro Besuch"],
-  ["3", "Einladungen pro Mitglied"],
+  ["5", "Einladungen pro Mitglied"],
 ];
 export const dsKeep = [
   "Vor- & Nachname",
@@ -503,8 +503,8 @@ export const legalDocs: Record<string, LegalDoc> = {
       {
         t: "Mitgliedschaft",
         plain:
-          "Rein kommt nur, wer eingeladen wird. Jedes Mitglied hat drei Einladungen – und bürgt dafür.",
-        full: "Die Mitgliedschaft ist persönlich und nicht übertragbar. Ein Zugang entsteht ausschliesslich über einen persönlichen Einladungscode eines bestehenden Mitglieds. Jedes Mitglied verfügt über höchstens drei Einladungen. Der Salon kann Einladungen ohne Angabe von Gründen ablehnen und Mitgliedschaften bei wiederholten Verstössen gegen diese AGB beenden.",
+          "Rein kommt nur, wer eingeladen wird. Jedes Mitglied hat einen Code für fünf Leute – und bürgt für sie.",
+        full: "Die Mitgliedschaft ist persönlich und nicht übertragbar. Ein Zugang entsteht ausschliesslich über einen persönlichen Einladungscode eines bestehenden Mitglieds. Jedes Mitglied verfügt über einen persönlichen Code, mit dem höchstens fünf Personen beitreten können. Der Salon kann Einladungen ohne Angabe von Gründen ablehnen und Mitgliedschaften bei wiederholten Verstössen gegen diese AGB beenden.",
       },
       {
         t: "Termine",
@@ -739,8 +739,6 @@ export type Invite = {
   name: string;
   meta: string;
   tag: string;
-  pending?: boolean;
-  code?: string;
   kids?: { name: string; meta: string; tag: string }[];
 };
 export type SalonUser = {

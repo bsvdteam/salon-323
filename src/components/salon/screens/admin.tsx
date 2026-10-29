@@ -882,7 +882,7 @@ export function AdminScreen() {
             >
               <EmptyState
                 title="Noch keine Mitglieder"
-                sub="Erzeuge oben einen Einladungscode – deine ersten Member erscheinen hier, sobald sie beitreten."
+                sub="Teil oben deinen Einladungscode – deine ersten Member erscheinen hier, sobald sie beitreten."
                 glyph="✦"
                 tone="light"
               />

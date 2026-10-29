@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { barberGenerateInviteAction, memberCountAction } from "@/lib/actions";
+import { barberInviteCodeAction, memberCountAction } from "@/lib/actions";
+import { copyText, inviteMessage, inviteUrl, shareText } from "@/lib/share";
 
 /** Real member count (non-barber) for the barber portal heading. */
 export function MemberCount() {
@@ -14,40 +15,39 @@ export function MemberCount() {
   return <>{n ?? "·"} Mitglieder</>;
 }
 
-/** Barber tool: generate an invite code with a fixed first name for a new member. */
+/** Barber's invite card: his personal code (no use limit) to share. Copy and
+ *  share run straight in the tap handler so iOS allows them. */
 export function InviteGenerator() {
-  const [name, setName] = useState("");
-  const [busy, setBusy] = useState(false);
-  const [result, setResult] = useState<{ code: string; name: string } | null>(null);
-  const [err, setErr] = useState<string | null>(null);
-  const [copied, setCopied] = useState(false);
+  const [code, setCode] = useState<string | null>(null);
+  const [done, setDone] = useState<"" | "link" | "code">("");
+  const [msg, setMsg] = useState<string | null>(null);
+  useEffect(() => {
+    barberInviteCodeAction()
+      .then(setCode)
+      .catch(() => {});
+  }, []);
 
-  const gen = () => {
-    const n = name.trim();
-    if (!n || busy) return;
-    setBusy(true);
-    setErr(null);
-    setResult(null);
-    barberGenerateInviteAction(n).then((res) => {
-      setBusy(false);
-      if (res.ok) {
-        setResult({ code: res.code, name: n });
-        setName("");
-      } else {
-        setErr(res.error === "limit" ? "Einladungs-Limit erreicht (max. 3 offen)" : "Fehler – nochmal versuchen");
-      }
-    });
+  const flash = (what: "link" | "code") => {
+    setDone(what);
+    setTimeout(() => setDone(""), 2200);
   };
-
-  const copy = () => {
-    if (!result) return;
-    navigator.clipboard?.writeText(result.code).then(
-      () => {
-        setCopied(true);
-        setTimeout(() => setCopied(false), 1500);
-      },
-      () => {},
-    );
+  const copy = (what: "link" | "code") => {
+    if (!code) return;
+    if (copyText(what === "link" ? inviteUrl(code) : code)) flash(what);
+    else setMsg("Kopieren ging nicht – bitte von Hand abschreiben.");
+  };
+  const share = () => {
+    if (!code) return;
+    shareText({
+      title: "Einladung zu Salon 15",
+      text: inviteMessage(code),
+      url: inviteUrl(code),
+    }).then((r) => {
+      if (r === "copied") setMsg("Einladung kopiert – jetzt einfügen.");
+      else if (r === "failed")
+        setMsg("Kopieren ging nicht – bitte von Hand abschreiben.");
+      else setMsg(null);
+    });
   };
 
   return (
@@ -72,93 +72,63 @@ export function InviteGenerator() {
             color: "rgba(244,247,250,.6)",
           }}
         >
-          Neues Mitglied einladen
+          Dein Einladungscode
         </span>
         <span style={{ fontSize: 12.5, color: "rgba(244,247,250,.6)" }}>
-          Vorname festlegen → Code erzeugen → weitergeben.
+          Ohne Limit. Wer ihn nutzt, erfasst Name und alles Weitere selbst.
         </span>
       </div>
 
-      <div style={{ display: "flex", gap: 8 }}>
-        <input
-          value={name}
-          onChange={(e) => setName(e.target.value)}
-          onKeyDown={(e) => {
-            if (e.key === "Enter") gen();
-          }}
-          placeholder="Vorname des Gasts"
-          style={{
-            flex: 1,
-            minWidth: 0,
-            height: 50,
-            padding: "0 18px",
-            borderRadius: 999,
-            background: "rgba(255,255,255,.07)",
-            border: "1px solid rgba(255,255,255,.12)",
-            color: "#F4F7FA",
-            fontFamily: "var(--font-urbanist)",
-            fontSize: 16,
-          }}
-        />
-        <button
-          onClick={gen}
-          style={{
-            flex: "none",
-            height: 50,
-            padding: "0 20px",
-            borderRadius: 999,
-            border: 0,
-            fontSize: 14,
-            fontFamily: "var(--font-urbanist)",
-            transition: "all .7s cubic-bezier(.22,1,.36,1)",
-            background: name.trim() ? "#F4F7FA" : "rgba(255,255,255,.1)",
-            color: name.trim() ? "#0E141C" : "rgba(244,247,250,.45)",
-          }}
-        >
-          {busy ? "…" : "Code"}
+      <span
+        style={{
+          fontFamily: "var(--font-geist-mono)",
+          fontSize: 26,
+          letterSpacing: ".22em",
+          color: "#F7F9FB",
+        }}
+      >
+        {code ?? "······"}
+      </span>
+
+      <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+        <button onClick={share} style={primaryBtn}>
+          Einladung teilen
+        </button>
+        <button onClick={() => copy("link")} style={ghostBtn}>
+          {done === "link" ? "Link kopiert ✓" : "Link kopieren"}
+        </button>
+        <button onClick={() => copy("code")} style={ghostBtn}>
+          {done === "code" ? "Code kopiert ✓" : "Code kopieren"}
         </button>
       </div>
 
-      {err && (
-        <span style={{ color: "rgba(244,166,158,.9)", fontSize: 12.5 }}>{err}</span>
-      )}
-
-      {result && (
-        <button
-          onClick={copy}
-          style={{
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "space-between",
-            gap: 10,
-            padding: "14px 18px",
-            borderRadius: 18,
-            border: "1px solid rgba(244,166,158,.5)",
-            background: "rgba(244,166,158,.1)",
-            cursor: "pointer",
-            animation: "fade .8s ease both",
-          }}
-        >
-          <span style={{ display: "flex", flexDirection: "column", gap: 2, textAlign: "left" }}>
-            <span style={{ fontSize: 11, color: "rgba(244,247,250,.6)" }}>
-              Für {result.name}
-            </span>
-            <span
-              style={{
-                fontFamily: "var(--font-geist-mono)",
-                fontSize: 22,
-                letterSpacing: ".18em",
-                color: "#F7F9FB",
-              }}
-            >
-              {result.code}
-            </span>
-          </span>
-          <span style={{ fontSize: 11.5, color: "rgba(244,247,250,.75)" }}>
-            {copied ? "Kopiert ✓" : "Kopieren"}
-          </span>
-        </button>
+      {msg && (
+        <span style={{ color: "rgba(244,166,158,.9)", fontSize: 12.5 }}>
+          {msg}
+        </span>
       )}
     </div>
   );
 }
+
+const primaryBtn: React.CSSProperties = {
+  height: 44,
+  padding: "0 20px",
+  borderRadius: 999,
+  border: 0,
+  background: "#F4F7FA",
+  color: "#0E141C",
+  fontSize: 12.5,
+  fontWeight: 600,
+  fontFamily: "var(--font-urbanist)",
+};
+const ghostBtn: React.CSSProperties = {
+  height: 44,
+  padding: "0 18px",
+  borderRadius: 999,
+  border: "1px solid rgba(255,255,255,.18)",
+  background: "transparent",
+  color: "#F4F7FA",
+  fontSize: 12,
+  fontFamily: "var(--font-urbanist)",
+};

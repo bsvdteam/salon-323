@@ -132,6 +132,13 @@ export function LoginScreen() {
   const modeMember = shown === "member" || modeBarber;
   const modeInvite = shown === "invite";
 
+  // Invite link (/i/CODE): the code arrives prefilled — check it once.
+  useEffect(() => {
+    if (st.mode === "invite" && st.code.length === 6 && !st.inviteOk)
+      a.onCode(st.code);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   // Real member count (non-barber), fetched once on mount.
   const [memberCount, setMemberCount] = useState<number | null>(null);
   useEffect(() => {
@@ -721,7 +728,7 @@ export function LoginScreen() {
                       <span>Wird geprüft</span>
                     </>
                   )}
-                  {st.inviteOk && st.inviteFirst && (
+                  {st.inviteOk && (
                     <span
                       style={{
                         display: "flex",
@@ -738,7 +745,8 @@ export function LoginScreen() {
                           background: "#F4A69E",
                         }}
                       />
-                      Von {st.inviteBy} · für {st.inviteFirst}
+                      Einladung von {st.inviteBy}
+                      {st.inviteFirst ? ` · für ${st.inviteFirst}` : ""}
                     </span>
                   )}
                   {codeInvalid && (

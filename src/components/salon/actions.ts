@@ -149,8 +149,8 @@ export function useSalonActions() {
   );
 
   const redeem = useCallback(() => {
-    if (!sref.current.inviteOk || !sref.current.inviteFirst) return;
-    // The inviter set the first name with the code — it's fixed for the invitee.
+    if (!sref.current.inviteOk) return;
+    // The invitee types their own name; an old per-person invite prefills it.
     go(() =>
       set({
         screen: "onboard",
@@ -200,6 +200,7 @@ export function useSalonActions() {
       // Atomic on the server: redeem the invite + create the member + log in.
       redeemOnboardAction({
         code: st.code,
+        first: st.first.trim(),
         last: st.last.trim(),
         username: st.username.trim(),
         pin: st.pin,
@@ -215,7 +216,6 @@ export function useSalonActions() {
             pin2: "",
             appt: null,
             history: [],
-            lastCode: null,
           });
           goWelcome();
         } else {
@@ -238,6 +238,11 @@ export function useSalonActions() {
           } else if (res.error === "phone_invalid") {
             set({ ob: 3 });
             say("Telefonnummer prüfen");
+          } else if (res.error === "first_invalid") {
+            set({ ob: 0 });
+            say("Bitte deinen Vornamen eingeben");
+          } else if (res.error === "code_full") {
+            say("Dieser Code ist schon 5× genutzt worden");
           } else if (res.error === "invite_invalid") {
             say("Code ungültig oder abgelaufen");
           } else {
@@ -280,7 +285,7 @@ export function useSalonActions() {
         appt: null,
         history: [],
         booked: null,
-        lastCode: null,
+        refCode: "",
       });
       startIntro();
     });

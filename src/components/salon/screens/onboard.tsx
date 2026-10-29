@@ -345,27 +345,24 @@ export function OnboardScreen() {
                 title={`Willkommen, ${st.first.trim() || "Gast"}.`}
               />
               <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-                <div
-                  style={{
-                    ...field,
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "space-between",
-                    color: "rgba(244,247,250,.55)",
-                  }}
-                >
-                  <span style={{ color: "#F4F7FA" }}>{st.first}</span>
-                  <span style={{ fontSize: 11, letterSpacing: ".04em" }}>
-                    Vom Code · fix
-                  </span>
-                </div>
                 <input
-                  value={st.last}
-                  onChange={(e) => set({ last: e.target.value })}
+                  value={st.first}
+                  onChange={(e) => set({ first: e.target.value.slice(0, 40) })}
                   onKeyDown={(e) => {
                     if (e.key === "Enter") a.obNext();
                   }}
                   autoFocus
+                  autoComplete="given-name"
+                  placeholder="Vorname"
+                  style={field}
+                />
+                <input
+                  value={st.last}
+                  onChange={(e) => set({ last: e.target.value.slice(0, 40) })}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") a.obNext();
+                  }}
+                  autoComplete="family-name"
                   placeholder="Nachname"
                   style={field}
                 />

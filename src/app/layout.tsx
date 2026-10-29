@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import { Urbanist, Geist_Mono, Nunito } from "next/font/google";
 import "./globals.css";
+import { OG_IMAGE } from "@/lib/site";
 
 const urbanist = Urbanist({
   subsets: ["latin"],
@@ -23,10 +24,24 @@ const nunito = Nunito({
   display: "swap",
 });
 
+const description =
+  "Ein Raum, ein Stuhl, ein Barber. Rein kommt, wer eingeladen wird.";
+
 export const metadata: Metadata = {
+  metadataBase: new URL(
+    process.env.NEXT_PUBLIC_SITE_URL ?? "https://www.salon15.ch",
+  ),
   title: "Salon 15 — Members only",
-  description:
-    "Ein Raum, ein Stuhl, ein Barber. Rein kommt, wer eingeladen wird.",
+  description,
+  openGraph: {
+    type: "website",
+    siteName: "Salon 15",
+    locale: "de_CH",
+    title: "Salon 15 — Members only",
+    description,
+    images: [OG_IMAGE],
+  },
+  twitter: { card: "summary_large_image" },
 };
 
 export const viewport: Viewport = {

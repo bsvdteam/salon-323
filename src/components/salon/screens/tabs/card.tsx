@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useRef } from "react";
+import { copyText } from "@/lib/share";
 import { useSalon } from "../../store";
 import {
   salon,
@@ -38,7 +39,7 @@ function buildQR() {
 }
 
 export function CardTab() {
-  const { state, set } = useSalon();
+  const { state, set, say } = useSalon();
   const st = state;
   const U = st.user ?? {
     first: "Luca",
@@ -554,6 +555,26 @@ export function CardTab() {
         </span>
         <a
           href="/api/wallet/pass"
+          onClick={(e) => {
+            // Only Safari hands a pass straight to Wallet on iPhone; Chrome &
+            // in-app browsers save it as a download instead.
+            const ua = navigator.userAgent;
+            const iOS = /iPhone|iPad|iPod/.test(ua);
+            if (
+              iOS &&
+              /CriOS|FxiOS|EdgiOS|OPiOS|GSA\/|Instagram|FBAN|FBAV|Line\/|DuckDuckGo|Snapchat|musical_ly/.test(
+                ua,
+              )
+            ) {
+              e.preventDefault();
+              const url = window.location.origin + "/card";
+              say(
+                copyText(url)
+                  ? "Bitte in Safari öffnen – Link ist kopiert"
+                  : "Bitte salon15.ch in Safari öffnen",
+              );
+            }
+          }}
           className="glass-dark"
           style={{
             height: 46,
@@ -570,7 +591,7 @@ export function CardTab() {
             animation: "up 1.6s cubic-bezier(.22,1,.36,1) .6s both",
           }}
         >
-          {hasAppt ? "Wallet · aktualisiert sich" : "Zur Wallet hinzufügen"}
+          Zur Wallet hinzufügen
         </a>
       </div>
     </div>
