@@ -709,7 +709,8 @@ export function LoginScreen() {
               letterSpacing: ".22em",
               textTransform: "uppercase",
               textDecoration: "none",
-              padding: "2px 0",
+              padding: "14px 16px",
+              margin: "-12px 0",
               opacity: ready && panelOpen ? 0.78 : 0,
               transition: "opacity 1.6s ease .2s",
             }}
@@ -831,10 +832,12 @@ const kicker: React.CSSProperties = {
   textTransform: "uppercase",
   color: "rgba(244,247,250,.62)",
 };
+// Generous invisible hit area (≈44px) without shifting the visual layout.
 const closeBtn: React.CSSProperties = {
   border: 0,
   background: "transparent",
   color: "rgba(244,247,250,.6)",
   fontSize: 12,
-  padding: "6px 0",
+  padding: "14px 10px",
+  margin: "-14px -10px",
 };

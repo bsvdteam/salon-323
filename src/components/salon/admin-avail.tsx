@@ -445,9 +445,9 @@ export function AvailTab() {
               <>
                 <div
                   style={{
-                    display: "grid",
-                    gridTemplateColumns: "1fr 1fr",
-                    gap: 10,
+                    display: "flex",
+                    flexDirection: "column",
+                    gap: 8,
                   }}
                 >
                   <TimeBox
@@ -733,9 +733,9 @@ export function AvailTab() {
                 {dw.on && (
                   <div
                     style={{
-                      display: "grid",
-                      gridTemplateColumns: "1fr 1fr",
-                      gap: 10,
+                      display: "flex",
+                      flexDirection: "column",
+                      gap: 8,
                     }}
                   >
                     <TimeBox
@@ -1087,35 +1087,53 @@ function SettingRow({
   last?: boolean;
 }) {
   return (
+    // wraps: the stepper sits right when there's room, below on narrow phones
     <div
       style={{
         display: "flex",
         alignItems: "center",
         justifyContent: "space-between",
-        gap: 12,
+        flexWrap: "wrap",
+        gap: "8px 10px",
         minHeight: 62,
+        padding: "10px 0",
         borderBottom: last ? "none" : "1px solid rgba(14,20,28,.07)",
       }}
     >
-      <div style={{ display: "flex", flexDirection: "column", gap: 3 }}>
+      <div
+        style={{
+          display: "flex",
+          flexDirection: "column",
+          gap: 3,
+          minWidth: 0,
+        }}
+      >
         <span style={{ fontSize: 14, fontWeight: 500 }}>{title}</span>
         <span style={{ fontSize: 11, color: "var(--ink-60)" }}>{sub}</span>
       </div>
-      <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-        <button onClick={minus} style={stepBtn}>
+      <div
+        style={{
+          display: "flex",
+          alignItems: "center",
+          gap: 4,
+          marginLeft: "auto",
+        }}
+      >
+        <button onClick={minus} style={stepBtnSm} aria-label="weniger">
           −
         </button>
         <span
           style={{
-            minWidth: 96,
+            minWidth: 92,
             textAlign: "center",
+            whiteSpace: "nowrap",
             fontFamily: "var(--font-geist-mono)",
             fontSize: 11.5,
           }}
         >
           {value}
         </span>
-        <button onClick={plus} style={stepBtn}>
+        <button onClick={plus} style={stepBtnSm} aria-label="mehr">
           +
         </button>
       </div>
@@ -1136,25 +1154,29 @@ function TimeBox({
   minus: () => void;
   plus: () => void;
 }) {
+  // full-width row (label left, stepper right) — never squeezed into a narrow
+  // column; wraps below the label only on the very narrowest phones
   return (
     <div
       style={{
         display: "flex",
-        flexDirection: "column",
-        gap: 8,
-        padding: 12,
-        borderRadius: 20,
+        alignItems: "center",
+        justifyContent: "space-between",
+        flexWrap: "wrap",
+        gap: "6px 8px",
+        padding: "8px 8px 8px 16px",
+        borderRadius: 18,
         background: "rgba(255,255,255,.45)",
         minWidth: 0,
       }}
     >
-      <span style={{ fontSize: 11, color: "var(--ink-62)" }}>{label}</span>
+      <span style={{ fontSize: 12.5, color: "var(--ink-62)" }}>{label}</span>
       <div
         style={{
           display: "flex",
           alignItems: "center",
-          justifyContent: "space-between",
           gap: 4,
+          marginLeft: "auto",
         }}
       >
         <button onClick={minus} style={stepBtnSm} aria-label="früher">
@@ -1162,8 +1184,7 @@ function TimeBox({
         </button>
         <span
           style={{
-            flex: 1,
-            minWidth: 0,
+            width: 58,
             textAlign: "center",
             fontFamily: "var(--font-geist-mono)",
             fontSize: 15,
@@ -1185,15 +1206,6 @@ const kick: React.CSSProperties = {
   letterSpacing: ".22em",
   textTransform: "uppercase",
   color: "var(--ink-62)",
-};
-const stepBtn: React.CSSProperties = {
-  width: 44,
-  height: 44,
-  borderRadius: "50%",
-  border: "1px solid rgba(14,20,28,.1)",
-  background: "rgba(255,255,255,.6)",
-  color: "#0E141C",
-  fontSize: 17,
 };
 const stepBtnSm: React.CSSProperties = {
   flex: "none",

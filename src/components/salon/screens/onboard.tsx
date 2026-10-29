@@ -295,7 +295,8 @@ export function OnboardScreen() {
               background: "transparent",
               color: "rgba(244,247,250,.65)",
               fontSize: 12,
-              padding: "6px 0",
+              padding: "14px 12px",
+              margin: "-14px -12px",
             }}
           >
             ← Zurück

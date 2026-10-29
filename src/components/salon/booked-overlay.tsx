@@ -42,7 +42,8 @@ export function BookedOverlay() {
           zIndex: 106,
           display: "grid",
           placeItems: "center",
-          padding: 20,
+          padding:
+            "calc(20px + env(safe-area-inset-top)) 20px calc(20px + env(safe-area-inset-bottom))",
           pointerEvents: "none",
         }}
       >
@@ -50,6 +51,9 @@ export function BookedOverlay() {
           style={{
             pointerEvents: "auto",
             width: "min(340px,100%)",
+            maxHeight: "100%",
+            overflowY: "auto",
+            overscrollBehavior: "contain",
             borderRadius: 40,
             padding: "34px 24px 22px",
             background: "linear-gradient(160deg,#151c28,#273141)",

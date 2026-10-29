@@ -241,7 +241,7 @@ export function CardTab() {
           perspective: "1200px",
           cursor: "pointer",
           animation: hasAppt
-            ? "cardMorph 1.8s cubic-bezier(.22,1,.36,1) .1s both"
+            ? "cardIn 1.8s cubic-bezier(.22,1,.36,1) .1s both"
             : "up 1.8s cubic-bezier(.22,1,.36,1) .15s both",
         }}
       >

@@ -319,7 +319,9 @@ export function BookTab() {
     const [hh, mm] = (st.time || "0:0").split(":").map(Number);
     const startMs = slotStartMs(effDay, hh * 60 + mm);
     setAvail((aa) =>
-      aa ? { ...aa, busy: [...aa.busy, { s: startMs, e: startMs + 30 * 60000 }] } : aa,
+      aa
+        ? { ...aa, busy: [...aa.busy, { s: startMs, e: startMs + 30 * 60000 }] }
+        : aa,
     );
   };
 
@@ -818,12 +820,16 @@ export function BookTab() {
           style={{
             pointerEvents: "auto",
             width: "min(440px,100%)",
-            borderRadius: 32,
-            padding: 14,
+            borderRadius: 30,
+            padding: 12,
+            // more opaque than the standard glass: the slots scroll underneath
+            // this bar, and their text must not bleed through the summary
+            background:
+              "linear-gradient(115deg,rgba(9,13,22,.94),rgba(22,30,44,.9) 52%,rgba(30,40,58,.86))",
             animation: "up 1.4s cubic-bezier(.22,1,.36,1) .3s both",
             display: "flex",
             flexDirection: "column",
-            gap: 12,
+            gap: 8,
           }}
         >
           <div
@@ -861,19 +867,20 @@ export function BookTab() {
                 color: "rgba(244,247,250,.75)",
               }}
             >
-              <span>CHF {price}</span>
+              <span>{st.sel.length ? `CHF ${price}` : "—"}</span>
               <span
                 style={{
                   fontSize: 10,
                   color: "#F4A69E",
-                  opacity: credApplied ? 1 : 0,
+                  opacity: st.sel.length && credApplied ? 1 : 0,
                 }}
               >
-                {credApplied ? `−${credApplied} Guthaben` : ""}
+                {st.sel.length && credApplied ? `−${credApplied} Guthaben` : ""}
               </span>
             </span>
           </div>
           <span
+            className="hide-short"
             style={{
               padding: "0 6px",
               fontSize: 10.5,

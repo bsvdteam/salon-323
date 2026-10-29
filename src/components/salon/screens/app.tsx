@@ -50,8 +50,9 @@ export function TabBar() {
               onClick={() => a.goTab(n.k)}
               style={{
                 height: 50,
-                minWidth: 50,
-                padding: "0 16px",
+                // shrinks on very narrow phones (320px) so the bar never overflows
+                minWidth: "clamp(42px, 12vw, 50px)",
+                padding: "0 clamp(10px, 3.6vw, 16px)",
                 borderRadius: 999,
                 display: "flex",
                 alignItems: "center",

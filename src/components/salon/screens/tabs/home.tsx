@@ -1057,7 +1057,8 @@ export function HomeTab() {
           border: 0,
           background: "transparent",
           color: "rgba(14,20,28,.72)",
-          padding: "6px 0",
+          padding: "14px 0",
+          margin: "-8px 0",
           fontSize: 12.5,
           animation: "fade 1.6s ease .7s both",
         }}

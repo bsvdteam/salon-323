@@ -98,6 +98,12 @@ export function Sheet() {
           style={{
             pointerEvents: "auto",
             width: "min(520px,100%)",
+            // never taller than the screen; scrolls inside on short phones or
+            // when the keyboard is up while editing a field
+            maxHeight: "calc(100dvh - 20px - env(safe-area-inset-top))",
+            overflowY: "auto",
+            overscrollBehavior: "contain",
+            WebkitOverflowScrolling: "touch",
             borderRadius: "36px 36px 0 0",
             padding: "12px 22px calc(28px + env(safe-area-inset-bottom))",
             background:

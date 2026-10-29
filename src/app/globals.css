@@ -267,7 +267,21 @@ button {
   to {
     opacity: 1;
     transform: none;
-    filter: blur(0);
+    /* "none", not blur(0): a lingering filter keeps a compositing group */
+    filter: none;
+  }
+}
+/* 3D flip-card entrance — deliberately WITHOUT filter: any filter on an
+   ancestor of a backface-visibility:hidden face makes Chromium/WebKit drop
+   the face entirely (the Karte tab rendered an empty gap). */
+@keyframes cardIn {
+  from {
+    opacity: 0;
+    transform: rotateY(-70deg) scale(0.9);
+  }
+  to {
+    opacity: 1;
+    transform: none;
   }
 }
 @keyframes tileIn {
@@ -282,15 +296,16 @@ button {
     filter: blur(0);
   }
 }
-/* Tab crossfade — content fades up as you switch home/book/card/circle. */
+/* Tab crossfade — content fades in as you switch home/book/card/circle.
+   Opacity only on purpose: a transform on this wrapper would become the
+   containing block for position:fixed children (e.g. the booking slider)
+   and pin them to the bottom of the content instead of the screen. */
 @keyframes tabIn {
   from {
     opacity: 0;
-    transform: translateY(10px);
   }
   to {
     opacity: 1;
-    transform: none;
   }
 }
 /* Card-pack reveal — each design card deals in, rising + un-skewing. */
@@ -460,6 +475,14 @@ button {
       rgba(236, 242, 248, 0.26) 50%,
       rgba(255, 255, 255, 0.34)
     );
+  }
+}
+
+/* Secondary info that is dropped on very short phones (iPhone SE 1st gen,
+   landscape) so fixed bars don't eat half the screen. */
+@media (max-height: 620px) {
+  .hide-short {
+    display: none !important;
   }
 }
 
