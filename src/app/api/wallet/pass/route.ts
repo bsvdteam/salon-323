@@ -5,6 +5,7 @@ import { getSession } from "@/lib/auth/session";
 import { isAppleWalletConfigured } from "@/lib/wallet/apple/config";
 import { buildMemberPass } from "@/lib/wallet/apple/pass";
 import { memberPassData } from "@/lib/wallet/member-pass";
+import { setPassLayout } from "@/lib/wallet/apple/registrations";
 
 export const dynamic = "force-dynamic";
 
@@ -40,9 +41,12 @@ export async function GET(req: Request) {
   try {
     // The poster layout only for iOS 27+, everything else gets the proven
     // storeCard. Links point back to this deployment (salon15.ch).
+    const poster = iosMajor(req.headers.get("user-agent") ?? "") >= 27;
+    // background updates later get the same layout
+    await setPassLayout(s.mid, poster);
     const buf = await buildMemberPass(data, {
       siteUrl: new URL(req.url).origin,
-      poster: iosMajor(req.headers.get("user-agent") ?? "") >= 27,
+      poster,
     });
     return new Response(new Uint8Array(buf), {
       status: 200,

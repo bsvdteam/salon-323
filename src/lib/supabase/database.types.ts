@@ -265,6 +265,8 @@ export type Database = {
           member_no: string
           member_since: string
           note: string | null
+          pass_poster: boolean
+          pass_updated_at: string
           password_hash: string | null
           phone: string
           pin_hash: string | null
@@ -288,6 +290,8 @@ export type Database = {
           member_no: string
           member_since?: string
           note?: string | null
+          pass_poster?: boolean
+          pass_updated_at?: string
           password_hash?: string | null
           phone?: string
           pin_hash?: string | null
@@ -311,6 +315,8 @@ export type Database = {
           member_no?: string
           member_since?: string
           note?: string | null
+          pass_poster?: boolean
+          pass_updated_at?: string
           password_hash?: string | null
           phone?: string
           pin_hash?: string | null
@@ -322,6 +328,38 @@ export type Database = {
           {
             foreignKeyName: "members_invited_by_fkey"
             columns: ["invited_by"]
+            isOneToOne: false
+            referencedRelation: "members"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      wallet_registrations: {
+        Row: {
+          created_at: string
+          device_library_id: string
+          push_token: string
+          serial_number: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          device_library_id: string
+          push_token: string
+          serial_number: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          device_library_id?: string
+          push_token?: string
+          serial_number?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "wallet_registrations_serial_number_fkey"
+            columns: ["serial_number"]
             isOneToOne: false
             referencedRelation: "members"
             referencedColumns: ["id"]
@@ -380,6 +418,8 @@ export type Database = {
           member_no: string
           member_since: string
           note: string | null
+          pass_poster: boolean
+          pass_updated_at: string
           password_hash: string | null
           phone: string
           pin_hash: string | null
@@ -418,6 +458,8 @@ export type Database = {
           member_no: string
           member_since: string
           note: string | null
+          pass_poster: boolean
+          pass_updated_at: string
           password_hash: string | null
           phone: string
           pin_hash: string | null

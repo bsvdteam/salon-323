@@ -5,6 +5,8 @@
 // trusts a member id sent from the client. The heavy lifting lives in
 // src/lib/db/*; these wrappers add auth, validation and the session cookie.
 import { fromZonedTime, toZonedTime } from "date-fns-tz";
+import { after } from "next/server";
+import { notifyPassChanged } from "@/lib/wallet/apple/push";
 import { getSession, setSession, clearSession } from "@/lib/auth/session";
 import {
   getMemberByUsername,
@@ -272,6 +274,8 @@ export async function bookAppointmentAction(
     payMethod: args.payMethod ?? "ort",
     googleEventId,
   });
+  // the Wallet card becomes the appointment card
+  after(() => notifyPassChanged(mid));
 
   const bundle = await loadMemberBundle(mid);
   if (!bundle) return { ok: false, error: "unknown" };
@@ -286,6 +290,7 @@ export async function cancelAppointmentAction(
   const up = await getUpcoming(mid);
   if (!up || up.id !== appointmentId) return { ok: false, error: "not_found" };
   await cancelAppointment(appointmentId);
+  after(() => notifyPassChanged(mid));
   const bundle = await loadMemberBundle(mid);
   if (!bundle) return { ok: false, error: "unknown" };
   return { ok: true, bundle };
@@ -298,6 +303,7 @@ export async function cancelUpcomingAction(): Promise<{ ok: boolean }> {
   const up = await getUpcoming(mid);
   if (!up) return { ok: true };
   await cancelAppointment(up.id);
+  after(() => notifyPassChanged(mid));
   if (up.google_event_id) {
     try {
       await deleteEvent(up.google_event_id);
@@ -315,10 +321,12 @@ export async function cancelApptByEventIdAction(
   const s = await getSession();
   if (!s || s.role !== "barber") return { ok: false };
   const sb = supabaseAdmin();
-  await sb
+  const { data } = await sb
     .from("appointments")
     .update({ status: "cancelled" })
-    .eq("google_event_id", eventId);
+    .eq("google_event_id", eventId)
+    .select("member_id");
+  for (const r of data ?? []) after(() => notifyPassChanged(r.member_id));
   return { ok: true };
 }
 
@@ -585,6 +593,13 @@ export async function markApptDoneAction(
   const s = await getSession();
   if (!s || s.role !== "barber") return { ok: false };
   await markAppointmentDone(appointmentId);
+  const { data } = await supabaseAdmin()
+    .from("appointments")
+    .select("member_id")
+    .eq("id", appointmentId)
+    .maybeSingle();
+  // cuts +1, back to the membership card
+  if (data) after(() => notifyPassChanged(data.member_id));
   return { ok: true };
 }
 

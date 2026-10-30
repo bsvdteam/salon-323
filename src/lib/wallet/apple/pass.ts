@@ -10,7 +10,6 @@
 // screen shortly before via relevantDate.
 // A true card-shaped face without Apple's pass layout exists only for Apple
 // Pay payment cards (card issuers), not for membership passes.
-import { createHmac } from "node:crypto";
 import { PKPass, PassType } from "passkit-generator";
 import { formatInTimeZone } from "date-fns-tz";
 import { de } from "date-fns/locale";
@@ -18,6 +17,7 @@ import { salon, tiers, svcName, cardStyles, type ServiceKey } from "@/lib/data";
 import { appleWalletConfig } from "./config";
 import { appleCertificates } from "./certificates";
 import { passImages } from "./assets";
+import { authToken } from "./token";
 
 const TZ = process.env.GOOGLE_TZ || "Europe/Zurich";
 
@@ -54,14 +54,6 @@ function rgb(hex: string): string {
   return `rgb(${(n >> 16) & 255}, ${(n >> 8) & 255}, ${n & 255})`;
 }
 
-/** Phase-2 web-service token: stable per member, verifiable server-side. */
-function authToken(memberId: string): string {
-  const secret = process.env.SESSION_SECRET ?? "";
-  return createHmac("sha256", secret)
-    .update(`wallet:${memberId}`)
-    .digest("base64url");
-}
-
 /** Signed .pkpass bytes for this member, ready to stream to the device. */
 type Field = PassType<"storeCard">["primaryFields"][number];
 
@@ -79,6 +71,8 @@ export async function buildMemberPass(
   const sinceShort = formatInTimeZone(new Date(data.memberSince), TZ, "MM·yy");
 
   const design = cardStyles[data.card] ?? cardStyles[0];
+  const base = cfg.webServiceURL ?? opts.siteUrl;
+  const webService = base.startsWith("https://") ? base : null;
 
   const pass = new PKPass(
     passImages(data.card, opts.poster),
@@ -98,9 +92,11 @@ export async function buildMemberPass(
         : "rgb(200, 208, 218)",
       // Phase 2: only emit a web service when it's actually configured, so the
       // device registers for push updates instead of staying static.
-      ...(cfg.webServiceURL
+      // Wallet registers with our web service and fetches updates from it
+      // (it appends /v1/… itself). Needs https — skipped on localhost.
+      ...(webService
         ? {
-            webServiceURL: `${cfg.webServiceURL}/api/wallet/v1`,
+            webServiceURL: `${webService}/api/wallet`,
             authenticationToken: authToken(data.memberId),
           }
         : {}),
