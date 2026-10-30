@@ -8,6 +8,16 @@ import { memberPassData } from "@/lib/wallet/member-pass";
 
 export const dynamic = "force-dynamic";
 
+/** iOS major version of the requesting iPhone, 0 if not iOS. Safari 26+
+ *  freezes the OS token at 18_x on purpose; its own `Version/NN` token is the
+ *  real iOS version, so the higher of both wins. */
+function iosMajor(ua: string): number {
+  if (!/iPhone|iPad|iPod/.test(ua)) return 0;
+  const os = Number(/ OS (\d+)_/.exec(ua)?.[1] ?? 0);
+  const safari = Number(/ Version\/(\d+)/.exec(ua)?.[1] ?? 0);
+  return Math.max(os, safari);
+}
+
 export async function GET(req: Request) {
   const s = await getSession();
   if (!s || s.role !== "member") {
@@ -30,12 +40,9 @@ export async function GET(req: Request) {
   try {
     // The poster layout only for iOS 27+, everything else gets the proven
     // storeCard. Links point back to this deployment (salon15.ch).
-    const ios = /(?:iPhone|iPad|iPod).*? OS (\d+)_/.exec(
-      req.headers.get("user-agent") ?? "",
-    );
     const buf = await buildMemberPass(data, {
       siteUrl: new URL(req.url).origin,
-      poster: !!ios && Number(ios[1]) >= 27,
+      poster: iosMajor(req.headers.get("user-agent") ?? "") >= 27,
     });
     return new Response(new Uint8Array(buf), {
       status: 200,
