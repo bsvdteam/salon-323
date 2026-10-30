@@ -25,6 +25,9 @@ import {
 import { appleWalletConfig } from "./config";
 import { appleCertificates } from "./certificates";
 import { passImages } from "./assets";
+// per-design background = the photo's edge tone (scripts/gen-pass-assets.mjs),
+// so the strip melts into the card instead of sitting on a colour block
+import passColors from "./assets/colors.json";
 import { authToken } from "./token";
 
 const TZ = process.env.GOOGLE_TZ || "Europe/Zurich";
@@ -92,7 +95,7 @@ export async function buildMemberPass(
       serialNumber: data.memberId,
       description: "Salon 15 Karte",
       sharingProhibited: true, // a personal membership card
-      backgroundColor: rgb(design.base),
+      backgroundColor: rgb(passColors[data.card] ?? passColors[0]),
       foregroundColor: rgb(design.text),
       labelColor: "rgb(200, 208, 218)", // the card's muted white
       // Wallet registers with our web service and fetches updates from it

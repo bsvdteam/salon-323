@@ -11,7 +11,7 @@
 // Moos), framed and tinted like the dashboard card (cardStyles in lib/data.ts),
 // one set per design: strip-<index>.png. Logo and icon use the real wordmark.
 import sharp from "sharp";
-import { mkdirSync } from "node:fs";
+import { mkdirSync, writeFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
 
@@ -103,19 +103,76 @@ function overlaySVG(w, h, tint) {
 </svg>`;
 }
 
-async function strip(i, w, h, file) {
+/** The design photo framed like the card (cover, 48% 42%) with its tint. */
+async function tinted(i, w, h) {
   const { src, tint } = DESIGNS[i];
   const meta = await sharp(join(ROOT, src)).metadata();
-  // background-size: cover, then background-position 48% 42%
   const k = Math.max(w / meta.width, h / meta.height);
   const sw = Math.round(meta.width * k);
   const sh = Math.round(meta.height * k);
   const left = Math.round((sw - w) * POS.x);
   const top = Math.round((sh - h) * POS.y);
-  await sharp(join(ROOT, src))
-    .resize(sw, sh)
-    .extract({ left, top, width: w, height: h })
-    .composite([{ input: Buffer.from(overlaySVG(w, h, tint)) }])
+  return sharp(
+    await sharp(join(ROOT, src))
+      .resize(sw, sh)
+      .extract({ left, top, width: w, height: h })
+      .composite([{ input: Buffer.from(overlaySVG(w, h, tint)) }])
+      .png()
+      .toBuffer(),
+  );
+}
+
+/** The photo's own dark tone (mean of its top and bottom edge rows): the
+ *  pass background, so the strip can fade into it without a visible band. */
+async function edgeColor(i) {
+  const w = 375,
+    h = 144,
+    band = 10;
+  const { data } = await (
+    await tinted(i, w, h)
+  )
+    .removeAlpha()
+    .raw()
+    .toBuffer({ resolveWithObject: true });
+  let r = 0,
+    g = 0,
+    b = 0,
+    n = 0;
+  for (let y = 0; y < h; y++) {
+    if (y >= band && y < h - band) continue;
+    for (let x = 0; x < w; x++) {
+      const p = (y * w + x) * 3;
+      r += data[p];
+      g += data[p + 1];
+      b += data[p + 2];
+      n++;
+    }
+  }
+  const hex = (v) =>
+    Math.round((v / n) * 0.85)
+      .toString(16)
+      .padStart(2, "0");
+  return `#${hex(r)}${hex(g)}${hex(b)}`;
+}
+
+/** Top and bottom of the strip melt into the pass background colour. */
+function fadeSVG(w, h, color) {
+  return `<svg xmlns="http://www.w3.org/2000/svg" width="${w}" height="${h}">
+  <defs><linearGradient id="f" x1="0" y1="0" x2="0" y2="1">
+    <stop offset="0" stop-color="${color}" stop-opacity="1"/>
+    <stop offset=".3" stop-color="${color}" stop-opacity="0"/>
+    <stop offset=".55" stop-color="${color}" stop-opacity="0"/>
+    <stop offset="1" stop-color="${color}" stop-opacity="1"/>
+  </linearGradient></defs>
+  <rect width="100%" height="100%" fill="url(#f)"/>
+</svg>`;
+}
+
+async function strip(i, w, h, file, color) {
+  await (
+    await tinted(i, w, h)
+  )
+    .composite([{ input: Buffer.from(fadeSVG(w, h, color)) }])
     // quantized PNG (Wallet only takes PNG): ~5× smaller, dithered so the
     // smoke gradients don't band
     .png({
@@ -167,6 +224,12 @@ async function png(svg, file) {
   console.log("·", file);
 }
 
+// per-design pass background = the photo's edge tone (read by pass.ts)
+const colors = [];
+for (let i = 0; i < DESIGNS.length; i++) colors.push(await edgeColor(i));
+writeFileSync(join(OUT, "colors.json"), JSON.stringify(colors) + "\n");
+console.log("· colors.json", colors.join(" "));
+
 for (const [suffix, k] of [
   ["", 1],
   ["@2x", 2],
@@ -177,7 +240,7 @@ for (const [suffix, k] of [
   await png(logoSVG(96 * k, 24 * k), `logo${suffix}.png`);
   await png(primaryLogoSVG(121 * k, 30 * k), `primaryLogo${suffix}.png`);
   for (let i = 0; i < DESIGNS.length; i++) {
-    await strip(i, 375 * k, 144 * k, `strip-${i}${suffix}.png`);
+    await strip(i, 375 * k, 144 * k, `strip-${i}${suffix}.png`, colors[i]);
     // poster art ships @2x/@3x only (see assets.ts)
     if (k > 1) await artwork(i, 358 * k, 448 * k, `artwork-${i}${suffix}.png`);
   }
