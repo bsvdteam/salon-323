@@ -124,6 +124,7 @@ export interface SalonState {
 
   // circle
   refCode: string; // the member's personal invite code (up to 5 people)
+  walletToken: string; // signed link to the Wallet pass (works without cookie)
   circleSel: string | null;
 
   // booking
@@ -239,6 +240,7 @@ function initialState(start?: StartConfig): SalonState {
     flipped: false,
     cut: "Mid",
     refCode: "",
+    walletToken: "",
     circleSel: null,
     slideDone: false,
     pay: "twint",

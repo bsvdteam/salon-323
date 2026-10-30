@@ -73,6 +73,7 @@ export type MemberStatePatch = {
   user: SalonUser;
   invites: Invite[];
   refCode: string; // the member's personal invite code
+  walletToken: string; // signed link to the Wallet pass
   template: ServiceKey[];
   myInviter: string;
   appt: Appt | null;
@@ -101,6 +102,7 @@ export function bundleToState(
     },
     invites: circleToInvites(b.circle),
     refCode: m.ref_code,
+    walletToken: b.walletToken,
     template: (m.template as ServiceKey[]) ?? ["haare", "bart"],
     myInviter: b.invitedByName ?? "",
     appt: apptFromRow(b.upcoming),

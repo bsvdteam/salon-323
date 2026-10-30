@@ -95,7 +95,12 @@ export async function buildMemberPass(
       serialNumber: data.memberId,
       description: "Salon 15 Karte",
       sharingProhibited: true, // a personal membership card
-      backgroundColor: rgb(passColors[data.card] ?? passColors[0]),
+      // the photo's own tone: the poster's text strip / the storeCard around
+      // the strip take it, so they read as part of the picture
+      backgroundColor: rgb(
+        (opts.poster ? passColors.poster : passColors.strip)[data.card] ??
+          (opts.poster ? passColors.poster : passColors.strip)[0],
+      ),
       foregroundColor: rgb(design.text),
       labelColor: "rgb(200, 208, 218)", // the card's muted white
       // Wallet registers with our web service and fetches updates from it

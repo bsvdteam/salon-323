@@ -9,6 +9,7 @@ import {
   settlePastAppointments,
 } from "./appointments";
 import type { AppointmentRow, MemberRow } from "@/lib/supabase/types";
+import { walletLinkToken } from "@/lib/wallet/link-token";
 
 // Secrets and login bookkeeping never leave the server.
 export type PublicMember = Omit<
@@ -22,6 +23,7 @@ export type MemberBundle = {
   upcoming: AppointmentRow | null;
   history: AppointmentRow[];
   invitedByName: string | null; // display name of who invited this member
+  walletToken: string; // signed 24 h link to the Wallet pass (no cookie needed)
 };
 
 export function toPublicMember(m: MemberRow): PublicMember {
@@ -56,5 +58,6 @@ export async function loadMemberBundle(
     upcoming,
     history,
     invitedByName,
+    walletToken: walletLinkToken(member.id),
   };
 }

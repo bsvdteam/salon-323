@@ -2,6 +2,7 @@
 // served as a .pkpass. On iOS, opening this URL shows the "Add to Wallet" sheet.
 // Backs the "Zur Wallet hinzufügen" button on the card tab.
 import { getSession } from "@/lib/auth/session";
+import { verifyWalletLinkToken } from "@/lib/wallet/link-token";
 import { isAppleWalletConfigured } from "@/lib/wallet/apple/config";
 import { buildMemberPass } from "@/lib/wallet/apple/pass";
 import { memberPassData } from "@/lib/wallet/member-pass";
@@ -20,8 +21,14 @@ function iosMajor(ua: string): number {
 }
 
 export async function GET(req: Request) {
+  // the member: logged-in session, or the signed link (?t=…) from the card
+  // button — that one works in any browser and when iOS hands it to Safari
   const s = await getSession();
-  if (!s || s.role !== "member") {
+  const linked = verifyWalletLinkToken(
+    new URL(req.url).searchParams.get("t") ?? "",
+  );
+  const mid = s?.role === "member" ? s.mid : linked;
+  if (!mid) {
     return Response.json({ ok: false, error: "forbidden" }, { status: 401 });
   }
 
@@ -33,7 +40,7 @@ export async function GET(req: Request) {
     );
   }
 
-  const data = await memberPassData(s.mid);
+  const data = await memberPassData(mid);
   if (!data) {
     return Response.json({ ok: false, error: "not_found" }, { status: 404 });
   }
@@ -43,7 +50,7 @@ export async function GET(req: Request) {
     // storeCard. Links point back to this deployment (salon15.ch).
     const poster = iosMajor(req.headers.get("user-agent") ?? "") >= 27;
     // background updates later get the same layout
-    await setPassLayout(s.mid, poster);
+    await setPassLayout(mid, poster);
     const buf = await buildMemberPass(data, {
       siteUrl: new URL(req.url).origin,
       poster,

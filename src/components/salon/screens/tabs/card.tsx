@@ -1,7 +1,6 @@
 "use client";
 
-import { useMemo, useRef } from "react";
-import { copyText } from "@/lib/share";
+import { useMemo, useRef, useState } from "react";
 import { useSalon } from "../../store";
 import {
   salon,
@@ -39,7 +38,7 @@ function buildQR() {
 }
 
 export function CardTab() {
-  const { state, set, say } = useSalon();
+  const { state, set } = useSalon();
   const st = state;
   const U = st.user ?? {
     first: "Luca",
@@ -56,6 +55,21 @@ export function CardTab() {
   const T = tiers[ti];
   const cs = cardStyles[U.card] ?? cardStyles[0];
   const qr = useMemo(() => buildQR(), []);
+
+  // Wallet: the signed link works in any browser (no login cookie needed).
+  const passHref = st.walletToken
+    ? `/api/wallet/pass?t=${encodeURIComponent(st.walletToken)}`
+    : "/api/wallet/pass";
+  // iPhone browser other than Safari → also offer the hand-over to Safari.
+  // (The app tabs only render on the client, so navigator is there.)
+  const [otherBrowser] = useState(
+    () =>
+      typeof navigator !== "undefined" &&
+      /iPhone|iPad|iPod/.test(navigator.userAgent) &&
+      /CriOS|FxiOS|EdgiOS|OPiOS|GSA\/|Instagram|FBAN|FBAV|Line\/|DuckDuckGo|Snapchat|musical_ly/.test(
+        navigator.userAgent,
+      ),
+  );
 
   const hasAppt = !!st.appt;
   const d = st.appt ? dateOf(st.appt.off) : null;
@@ -554,27 +568,7 @@ export function CardTab() {
           Tippen zum Wenden
         </span>
         <a
-          href="/api/wallet/pass"
-          onClick={(e) => {
-            // Only Safari hands a pass straight to Wallet on iPhone; Chrome &
-            // in-app browsers save it as a download instead.
-            const ua = navigator.userAgent;
-            const iOS = /iPhone|iPad|iPod/.test(ua);
-            if (
-              iOS &&
-              /CriOS|FxiOS|EdgiOS|OPiOS|GSA\/|Instagram|FBAN|FBAV|Line\/|DuckDuckGo|Snapchat|musical_ly/.test(
-                ua,
-              )
-            ) {
-              e.preventDefault();
-              const url = window.location.origin + "/card";
-              say(
-                copyText(url)
-                  ? "Bitte in Safari öffnen – Link ist kopiert"
-                  : "Bitte salon15.ch in Safari öffnen",
-              );
-            }
-          }}
+          href={passHref}
           className="glass-dark"
           style={{
             height: 46,
@@ -593,6 +587,22 @@ export function CardTab() {
         >
           Zur Wallet hinzufügen
         </a>
+        {/* Chrome & in-app browsers: if they can't hand the pass to Wallet,
+            this opens the same signed link in Safari (no login needed) */}
+        {otherBrowser && (
+          <a
+            href={`x-safari-https://${window.location.host}${passHref}`}
+            style={{
+              fontSize: 11.5,
+              color: "var(--ink-60)",
+              textDecoration: "underline",
+              textUnderlineOffset: 3,
+              animation: "fade 1.6s ease .8s both",
+            }}
+          >
+            Klappt nicht? In Safari öffnen
+          </a>
+        )}
       </div>
     </div>
   );

@@ -189,7 +189,8 @@ async function strip(i, w, h, file, color) {
 /** Full-bleed portrait poster art: the design photo with the card's tint.
  *  Wallet itself darkens the header and lays a material strip over the
  *  bottom, so no extra shading here. */
-async function artwork(i, w, h, file) {
+/** Poster art framed portrait, with the card's tint. */
+async function posterBase(i, w, h) {
   const { poster, tint } = DESIGNS[i];
   const meta = await sharp(join(ROOT, poster.src)).metadata();
   const k = Math.max(w / meta.width, h / meta.height);
@@ -202,10 +203,64 @@ async function artwork(i, w, h, file) {
     /<rect width="100%" height="100%" fill="url\(#b\)"\/>/,
     "",
   );
-  await sharp(join(ROOT, poster.src))
-    .resize(sw, sh)
-    .extract({ left, top, width: w, height: h })
-    .composite([{ input: Buffer.from(tintOnly) }])
+  return sharp(
+    await sharp(join(ROOT, poster.src))
+      .resize(sw, sh)
+      .extract({ left, top, width: w, height: h })
+      .composite([{ input: Buffer.from(tintOnly) }])
+      .png()
+      .toBuffer(),
+  );
+}
+
+/** Wallet lays an opaque strip in the pass background colour over the
+ *  bottom of the poster (for name/time/footer). Its colour = the art's own
+ *  lower tone, and the art fades into it — the strip reads as part of the
+ *  photo instead of a block. */
+async function posterColor(i) {
+  const w = 358,
+    h = 448,
+    from = Math.round(h * 0.7);
+  const { data } = await (
+    await posterBase(i, w, h)
+  )
+    .removeAlpha()
+    .raw()
+    .toBuffer({ resolveWithObject: true });
+  let r = 0,
+    g = 0,
+    b = 0,
+    n = 0;
+  for (let y = from; y < h; y++)
+    for (let x = 0; x < w; x++) {
+      const p = (y * w + x) * 3;
+      r += data[p];
+      g += data[p + 1];
+      b += data[p + 2];
+      n++;
+    }
+  const hex = (v) =>
+    Math.round((v / n) * 0.8)
+      .toString(16)
+      .padStart(2, "0");
+  return `#${hex(r)}${hex(g)}${hex(b)}`;
+}
+
+function posterFadeSVG(w, h, color) {
+  return `<svg xmlns="http://www.w3.org/2000/svg" width="${w}" height="${h}">
+  <defs><linearGradient id="f" x1="0" y1="0" x2="0" y2="1">
+    <stop offset=".55" stop-color="${color}" stop-opacity="0"/>
+    <stop offset=".8" stop-color="${color}" stop-opacity="1"/>
+  </linearGradient></defs>
+  <rect width="100%" height="100%" fill="url(#f)"/>
+</svg>`;
+}
+
+async function artwork(i, w, h, file, color) {
+  await (
+    await posterBase(i, w, h)
+  )
+    .composite([{ input: Buffer.from(posterFadeSVG(w, h, color)) }])
     // 128 colours: the grainy photo hides it, halves the pass size
     .png({
       palette: true,
@@ -224,11 +279,15 @@ async function png(svg, file) {
   console.log("·", file);
 }
 
-// per-design pass background = the photo's edge tone (read by pass.ts)
-const colors = [];
-for (let i = 0; i < DESIGNS.length; i++) colors.push(await edgeColor(i));
+// per-design pass background = the photo's own tone (read by pass.ts):
+// strip → storeCard (iOS ≤ 26), poster → posterGeneric (iOS 27+)
+const colors = { strip: [], poster: [] };
+for (let i = 0; i < DESIGNS.length; i++) {
+  colors.strip.push(await edgeColor(i));
+  colors.poster.push(await posterColor(i));
+}
 writeFileSync(join(OUT, "colors.json"), JSON.stringify(colors) + "\n");
-console.log("· colors.json", colors.join(" "));
+console.log("· colors.json", JSON.stringify(colors));
 
 for (const [suffix, k] of [
   ["", 1],
@@ -240,9 +299,22 @@ for (const [suffix, k] of [
   await png(logoSVG(96 * k, 24 * k), `logo${suffix}.png`);
   await png(primaryLogoSVG(121 * k, 30 * k), `primaryLogo${suffix}.png`);
   for (let i = 0; i < DESIGNS.length; i++) {
-    await strip(i, 375 * k, 144 * k, `strip-${i}${suffix}.png`, colors[i]);
+    await strip(
+      i,
+      375 * k,
+      144 * k,
+      `strip-${i}${suffix}.png`,
+      colors.strip[i],
+    );
     // poster art ships @2x/@3x only (see assets.ts)
-    if (k > 1) await artwork(i, 358 * k, 448 * k, `artwork-${i}${suffix}.png`);
+    if (k > 1)
+      await artwork(
+        i,
+        358 * k,
+        448 * k,
+        `artwork-${i}${suffix}.png`,
+        colors.poster[i],
+      );
   }
 }
 
