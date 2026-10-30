@@ -11,9 +11,17 @@
 // A true card-shaped face without Apple's pass layout exists only for Apple
 // Pay payment cards (card issuers), not for membership passes.
 import { PKPass, PassType } from "passkit-generator";
-import { formatInTimeZone } from "date-fns-tz";
+import { formatInTimeZone, toZonedTime } from "date-fns-tz";
 import { de } from "date-fns/locale";
-import { salon, tiers, svcName, cardStyles, type ServiceKey } from "@/lib/data";
+import {
+  salon,
+  tiers,
+  svcName,
+  cardStyles,
+  wdS,
+  monS,
+  type ServiceKey,
+} from "@/lib/data";
 import { appleWalletConfig } from "./config";
 import { appleCertificates } from "./certificates";
 import { passImages } from "./assets";
@@ -86,12 +94,7 @@ export async function buildMemberPass(
       sharingProhibited: true, // a personal membership card
       backgroundColor: rgb(design.base),
       foregroundColor: rgb(design.text),
-      // coral like the card's TERMIN badge; otherwise the card's muted white
-      labelColor: data.appointment
-        ? "rgb(244, 166, 158)"
-        : "rgb(200, 208, 218)",
-      // Phase 2: only emit a web service when it's actually configured, so the
-      // device registers for push updates instead of staying static.
+      labelColor: "rgb(200, 208, 218)", // the card's muted white
       // Wallet registers with our web service and fetches updates from it
       // (it appends /v1/… itself). Needs https — skipped on localhost.
       ...(webService
@@ -138,14 +141,28 @@ export async function buildMemberPass(
 
   if (data.appointment) {
     const start = new Date(data.appointment.startsAt);
-    const dateShort = formatInTimeZone(start, TZ, "EEE d. MMM", { locale: de });
+    // same short date as the dashboard card ("FR 30. OKT")
+    const z = toZonedTime(start, TZ);
+    const dateShort = `${wdS[z.getDay()]} ${z.getDate()}. ${monS[z.getMonth()]}`;
     const dateLong = formatInTimeZone(start, TZ, "EEEE, d. MMMM", {
       locale: de,
     });
     const time = formatInTimeZone(start, TZ, "HH:mm", { locale: de });
-    const service = serviceLabel(data.appointment.services);
-    const date: Field = { key: "date", label: "TERMIN", value: dateShort };
+    const service = `${serviceLabel(data.appointment.services)} · ${data.appointment.durationMin} min`;
+    const where = `${salon.a1} · ${salon.a2}`.toUpperCase();
+    // like the dashboard's Terminkarte: date top right, the time big over
+    // the photo, then service and address — no labels, no extra numbers
+    const date: Field = {
+      key: "date",
+      label: "TERMIN",
+      value: dateShort.toUpperCase(),
+    };
     back.push(
+      {
+        key: "wann",
+        label: "Termin",
+        value: `${dateLong}, ${time} Uhr · CHF ${data.appointment.priceChf}`,
+      },
       {
         key: "absage",
         label: "Absage",
@@ -159,42 +176,21 @@ export async function buildMemberPass(
       },
     );
 
-    // poster: TERMIN top right, the time as the big title, place below
     poster.headerFields.push(date);
     poster.primaryFields.push(
       { key: "time", value: time, changeMessage: "Neuer Termin: %@" },
-      { key: "service", label: "LEISTUNG", value: service },
+      { key: "service", value: service },
     );
-    poster.footerFields.push({
-      key: "ort",
-      value: `${salon.a1} · CHF ${data.appointment.priceChf}`.toUpperCase(),
-    });
+    poster.footerFields.push({ key: "ort", value: where });
 
     store.headerFields.push(date);
     store.primaryFields.push({
       key: "time",
-      label: dateLong,
       value: time,
       changeMessage: "Neuer Termin: %@",
     });
-    store.secondaryFields.push(
-      { key: "service", label: "LEISTUNG", value: service },
-      {
-        key: "no",
-        label: "N°",
-        value: data.memberNo,
-        textAlignment: "PKTextAlignmentRight",
-      },
-    );
-    store.auxiliaryFields.push(
-      { key: "ort", label: "ORT", value: salon.a1 },
-      {
-        key: "preis",
-        label: "PREIS",
-        value: `CHF ${data.appointment.priceChf}`,
-        textAlignment: "PKTextAlignmentRight",
-      },
-    );
+    store.secondaryFields.push({ key: "service", value: service });
+    store.auxiliaryFields.push({ key: "ort", value: where });
 
     // Bring the pass to the lock screen around the appointment.
     pass.setRelevantDate(start);
@@ -205,17 +201,16 @@ export async function buildMemberPass(
       label: "Hinweis",
       value: "Beim Eintreten vorzeigen.",
     });
-    const rank: Field = { key: "rank", label: "STUFE", value: tier.r };
+    // like the dashboard card: tier top right, name over the photo, then
+    // "N° 0001 · GUEST" and "SEIT 10·26" — no labels
+    const rank: Field = { key: "rank", value: tier.r };
+    const no = `N° ${data.memberNo} · ${tier.n}`.toUpperCase();
+    const seit = `SEIT ${sinceShort}`;
+    back.unshift({ key: "seit", label: "Mitglied seit", value: since });
 
-    // poster = the card front: tier top right, name as the title, then
-    // "N° 0001 · GUEST · SEIT 10·26" in the footer
     poster.headerFields.push(rank);
     poster.primaryFields.push({ key: "member", value: fullName });
-    poster.footerFields.push({
-      key: "no",
-      value:
-        `N° ${data.memberNo} · ${tier.n} · seit ${sinceShort}`.toUpperCase(),
-    });
+    poster.footerFields.push({ key: "no", value: `${no} · ${seit}` });
 
     store.headerFields.push(rank);
     store.primaryFields.push({
@@ -224,14 +219,8 @@ export async function buildMemberPass(
       value: fullName,
     });
     store.secondaryFields.push(
-      { key: "no", label: "N°", value: data.memberNo },
-      { key: "tier", label: "STUFE", value: tier.n },
-      {
-        key: "since",
-        label: "SEIT",
-        value: since,
-        textAlignment: "PKTextAlignmentRight",
-      },
+      { key: "no", value: no },
+      { key: "since", value: seit, textAlignment: "PKTextAlignmentRight" },
     );
   }
 
