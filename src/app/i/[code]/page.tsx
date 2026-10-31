@@ -25,6 +25,9 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   return {
     title,
     description,
+    // Crawlable for link previews (WhatsApp, iMessage …) but never indexed —
+    // invite codes don't belong in Google.
+    robots: { index: false, follow: false },
     openGraph: {
       type: "website",
       siteName: "Salon 15",

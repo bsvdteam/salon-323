@@ -24,20 +24,22 @@ const nunito = Nunito({
   display: "swap",
 });
 
+const title = "Salon 15 — Coiffeur & Barber in Degersheim";
 const description =
-  "Ein Raum, ein Stuhl, ein Barber. Rein kommt, wer eingeladen wird.";
+  "Coiffeur und Barber in Degersheim: Haarschnitt, Bart und Augenbrauen bei " +
+  "Salon 15. Ein Raum, ein Stuhl, ein Barber — Zutritt auf Einladung.";
 
 export const metadata: Metadata = {
   metadataBase: new URL(
     process.env.NEXT_PUBLIC_SITE_URL ?? "https://www.salon15.ch",
   ),
-  title: "Salon 15 — Members only",
+  title,
   description,
   openGraph: {
     type: "website",
     siteName: "Salon 15",
     locale: "de_CH",
-    title: "Salon 15 — Members only",
+    title,
     description,
     images: [OG_IMAGE],
   },
