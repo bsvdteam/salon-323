@@ -197,6 +197,27 @@ export type Database = {
         }
         Relationships: []
       }
+      google_connection: {
+        Row: {
+          account_email: string | null
+          connected_at: string
+          id: number
+          refresh_token: string
+        }
+        Insert: {
+          account_email?: string | null
+          connected_at?: string
+          id?: number
+          refresh_token: string
+        }
+        Update: {
+          account_email?: string | null
+          connected_at?: string
+          id?: number
+          refresh_token?: string
+        }
+        Relationships: []
+      }
       invites: {
         Row: {
           code: string

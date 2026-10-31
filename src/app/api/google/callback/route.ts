@@ -1,63 +1,72 @@
-import { exchangeCode } from "@/lib/google/calendar";
+import {
+  exchangeCode,
+  accessToken,
+  accountEmail,
+  saveConnection,
+} from "@/lib/google/calendar";
 import { getSession } from "@/lib/auth/session";
 
 /**
- * Google-Callback des Einmal-Logins. Tauscht den `code` gegen Tokens und zeigt
- * den Refresh-Token an, damit er einmalig in .env.local (GOOGLE_REFRESH_TOKEN)
- * eingetragen werden kann. Danach wird dieser Endpunkt nicht mehr gebraucht.
+ * Google-Callback von "Mit Google verbinden" (/admin → /api/google/auth).
+ * Tauscht den `code` gegen Tokens und speichert den Refresh-Token in der DB
+ * (google_connection) — ab sofort laufen alle Buchungen über dieses Konto,
+ * ohne Env-Änderung oder Redeploy. Der Token wird nie angezeigt.
  */
+function page(ok: boolean, title: string, text: string): Response {
+  const html = `<!doctype html>
+<html lang="de"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>${title}</title>
+<style>
+  body{font:16px/1.6 system-ui,sans-serif;max-width:560px;margin:64px auto;padding:0 22px;color:#0E141C;background:#f4f7fa}
+  .t{font-weight:600;color:${ok ? "#0a7f32" : "#b3261e"}}
+  a{display:inline-block;margin-top:18px;padding:12px 20px;border-radius:999px;background:#0E141C;color:#fff;text-decoration:none}
+</style></head><body>
+  <p class="t">${title}</p>
+  <p>${text}</p>
+  <a href="/admin">Zurück zum Admin</a>
+</body></html>`;
+  return new Response(html, {
+    status: ok ? 200 : 400,
+    headers: { "content-type": "text/html; charset=utf-8" },
+  });
+}
+
+const esc = (s: string) =>
+  s.replace(/[&<>"]/g, (c) => `&#${c.charCodeAt(0)};`);
+
 export async function GET(request: Request) {
   const s = await getSession();
   if (s?.role !== "barber")
     return new Response("Nur mit Barber-Login.", { status: 403 });
-  const code = new URL(request.url).searchParams.get("code");
-  if (!code) {
-    return new Response("Fehlender ?code-Parameter.", {
-      status: 400,
-      headers: { "content-type": "text/plain; charset=utf-8" },
-    });
-  }
+  const sp = new URL(request.url).searchParams;
+  const code = sp.get("code");
+  if (!code)
+    return page(
+      false,
+      "Nicht verbunden",
+      sp.get("error") === "access_denied"
+        ? "Der Zugriff wurde bei Google abgelehnt."
+        : "Google hat keinen Code zurückgegeben.",
+    );
 
   try {
     const tokens = await exchangeCode(code);
-
-    if (!tokens.refresh_token) {
-      return new Response(
-        "Kein refresh_token erhalten. Entferne den Zugriff unter " +
-          "https://myaccount.google.com/permissions und rufe /api/google/auth erneut auf.",
-        {
-          status: 400,
-          headers: { "content-type": "text/plain; charset=utf-8" },
-        },
+    if (!tokens.refresh_token)
+      return page(
+        false,
+        "Kein dauerhafter Zugang erhalten",
+        "Unter myaccount.google.com/permissions den Zugriff von Salon 15 " +
+          "entfernen und in /admin erneut verbinden.",
       );
-    }
-
-    // Einfache Seite zum Kopieren. Nur lokal/einmalig – kein Styling nötig.
-    const html = `<!doctype html>
-<html lang="de"><head><meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Google-Kalender verbunden</title>
-<style>
-  body{font:16px/1.6 system-ui,sans-serif;max-width:640px;margin:48px auto;padding:0 20px;color:#0E141C}
-  code{background:#f1f1f1;padding:2px 6px;border-radius:6px}
-  .tok{display:block;background:#0E141C;color:#9ef;word-break:break-all;padding:14px;border-radius:10px;margin:12px 0;font-family:ui-monospace,monospace}
-  .ok{color:#0a7f32;font-weight:600}
-</style></head><body>
-  <p class="ok">✓ Kalender verbunden.</p>
-  <p>Kopiere diese Zeile in deine <code>.env.local</code>:</p>
-  <div class="tok">GOOGLE_REFRESH_TOKEN=${tokens.refresh_token}</div>
-  <p>Danach den Dev-Server <strong>neu starten</strong> und
-  <code>/api/google/test</code> aufrufen — es sollte ein Test-Termin im Kalender erscheinen.</p>
-  <p style="color:#888">Diesen Token wie ein Passwort behandeln: nicht committen, nicht teilen.</p>
-</body></html>`;
-
-    return new Response(html, {
-      headers: { "content-type": "text/html; charset=utf-8" },
-    });
+    const email = await accountEmail(await accessToken(tokens.refresh_token));
+    await saveConnection(tokens.refresh_token, email);
+    return page(
+      true,
+      "✓ Google Kalender verbunden",
+      `Buchungen landen ab jetzt im Kalender von <b>${esc(email ?? "diesem Konto")}</b>.`,
+    );
   } catch (e) {
-    return new Response(String(e), {
-      status: 500,
-      headers: { "content-type": "text/plain; charset=utf-8" },
-    });
+    return page(false, "Verbinden fehlgeschlagen", esc(String(e)));
   }
 }

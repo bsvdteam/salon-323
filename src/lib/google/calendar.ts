@@ -9,8 +9,11 @@
  *
  * Nötige Env-Variablen (siehe .env.example):
  *   GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET, GOOGLE_OAUTH_REDIRECT_URI,
- *   GOOGLE_REFRESH_TOKEN (nach dem Einmal-Login), GOOGLE_CALENDAR_ID, GOOGLE_TZ
+ *   GOOGLE_CALENDAR_ID, GOOGLE_TZ
+ * Der Refresh-Token kommt aus der Tabelle google_connection (gesetzt durch
+ * "Mit Google verbinden" in /admin); GOOGLE_REFRESH_TOKEN ist nur noch Rückfall.
  */
+import { supabaseAdmin } from "@/lib/supabase/server";
 
 const TOKEN_URL = "https://oauth2.googleapis.com/token";
 const CAL_BASE = "https://www.googleapis.com/calendar/v3";
@@ -40,7 +43,8 @@ export function authUrl(): string {
     response_type: "code",
     scope: GOOGLE_SCOPE,
     access_type: "offline", // nötig, damit Google einen Refresh-Token ausgibt
-    prompt: "consent", // erzwingt den Refresh-Token auch bei erneutem Login
+    // Konto wählen lassen (nicht still das eingeloggte nehmen) + Refresh-Token erzwingen
+    prompt: "select_account consent",
   });
   return `https://accounts.google.com/o/oauth2/v2/auth?${p.toString()}`;
 }
@@ -69,21 +73,55 @@ export async function exchangeCode(code: string): Promise<TokenResponse> {
   return (await res.json()) as TokenResponse;
 }
 
+/** Refresh-Token des verbundenen Kontos: DB (Verbinden in /admin), sonst Env. */
+async function refreshToken(): Promise<string> {
+  const { data } = await supabaseAdmin()
+    .from("google_connection")
+    .select("refresh_token")
+    .eq("id", 1)
+    .maybeSingle();
+  return data?.refresh_token ?? env("GOOGLE_REFRESH_TOKEN");
+}
+
+/** Speichert die neue Verbindung (ersetzt die alte). */
+export async function saveConnection(
+  token: string,
+  email: string | null,
+): Promise<void> {
+  const { error } = await supabaseAdmin().from("google_connection").upsert({
+    id: 1,
+    refresh_token: token,
+    account_email: email,
+    connected_at: new Date().toISOString(),
+  });
+  if (error) throw new Error(`Verbindung speichern fehlgeschlagen: ${error.message}`);
+}
+
 /** Holt mit dem gespeicherten Refresh-Token ein frisches Access-Token. */
-async function accessToken(): Promise<string> {
+export async function accessToken(token?: string): Promise<string> {
   const res = await fetch(TOKEN_URL, {
     method: "POST",
     headers: { "Content-Type": "application/x-www-form-urlencoded" },
     body: new URLSearchParams({
       client_id: env("GOOGLE_CLIENT_ID"),
       client_secret: env("GOOGLE_CLIENT_SECRET"),
-      refresh_token: env("GOOGLE_REFRESH_TOKEN"),
+      refresh_token: token ?? (await refreshToken()),
       grant_type: "refresh_token",
     }).toString(),
   });
   if (!res.ok) throw new Error(`Token-Refresh fehlgeschlagen: ${await res.text()}`);
   const j = (await res.json()) as TokenResponse;
   return j.access_token;
+}
+
+/** E-Mail des verbundenen Kontos (= ID seines Hauptkalenders). */
+export async function accountEmail(access: string): Promise<string | null> {
+  const res = await fetch(`${CAL_BASE}/calendars/primary`, {
+    headers: { Authorization: `Bearer ${access}` },
+  });
+  if (!res.ok) return null;
+  const j = (await res.json()) as { id?: string };
+  return j.id ?? null;
 }
 
 /** Wandelt Wanduhrzeit-Teile in einen lokalen ISO-String (ohne Zeitzonen-Suffix). */

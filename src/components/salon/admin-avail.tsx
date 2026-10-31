@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useSalon, type DayHours } from "./store";
 import { EmptyState } from "./empty-state";
 import { dateOf, wdL, wdS, monS, mon, fmtTime } from "@/lib/data";
@@ -21,6 +21,17 @@ export function AvailTab() {
   const [view, setView] = useState<"week" | "soon" | "away">("week");
   const [selWd, setSelWd] = useState(() => 2);
   const [selDay, setSelDay] = useState(1);
+
+  // real Google Calendar connection (which account, reachable at all)
+  const [gcal, setGcal] = useState<{ ok: boolean; email?: string | null }>();
+  useEffect(() => {
+    fetch("/api/google/status")
+      .then((r) => r.json())
+      .then(setGcal)
+      .catch(() => setGcal({ ok: false }));
+  }, []);
+  const gOk = gcal?.ok === true;
+  const gDot = !gcal ? "#9AA6B2" : gOk ? "#7FD4A6" : "#F08A80";
 
   // ── slot math ──
   const PZ = st.pause;
@@ -226,9 +237,9 @@ export function AvailTab() {
               width: 9,
               height: 9,
               borderRadius: "50%",
-              background: "#7FD4A6",
+              background: gDot,
               boxShadow: "0 0 0 0 rgba(127,212,166,.5)",
-              animation: "ping 3s ease-out infinite",
+              animation: gOk ? "ping 3s ease-out infinite" : undefined,
             }}
           />
           <div
@@ -242,12 +253,26 @@ export function AvailTab() {
             <span style={{ fontSize: 15, fontWeight: 500 }}>
               Google Kalender
             </span>
-            <span style={{ fontSize: 11.5, color: "rgba(244,247,250,.62)" }}>
-              Verbunden · Buchungen landen automatisch hier
+            <span
+              style={{
+                fontSize: 11.5,
+                color: "rgba(244,247,250,.62)",
+                overflow: "hidden",
+                textOverflow: "ellipsis",
+                whiteSpace: "nowrap",
+              }}
+            >
+              {!gcal
+                ? "Verbindung wird geprüft …"
+                : gOk
+                  ? `${gcal.email} · Buchungen landen hier`
+                  : "Nicht verbunden · Buchungen erreichen keinen Kalender"}
             </span>
           </div>
         </div>
-        <span
+        {/* one-click (re)connect: Google login → token saved server-side */}
+        <a
+          href="/api/google/auth"
           style={{
             flex: "none",
             fontFamily: "var(--font-geist-mono)",
@@ -255,12 +280,13 @@ export function AvailTab() {
             letterSpacing: ".18em",
             padding: "6px 11px",
             borderRadius: 999,
-            background: "rgba(127,212,166,.16)",
-            color: "#9BE4C0",
+            textDecoration: "none",
+            background: gOk ? "rgba(127,212,166,.16)" : "rgba(240,138,128,.18)",
+            color: gOk ? "#9BE4C0" : "#F6B3AB",
           }}
         >
-          AKTIV
-        </span>
+          {gOk ? "WECHSELN" : "VERBINDEN"}
+        </a>
       </div>
 
       {/* segmented sub-nav */}
