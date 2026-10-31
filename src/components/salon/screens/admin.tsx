@@ -65,7 +65,7 @@ export function AdminScreen() {
         if (r) setRealMem(r);
       })
       .catch(() => {});
-  }, []);
+  }, [st.adminTick]);
   // Today's real appointments + the current time (captured in the effect, never
   // during render — Date.now() in render is an impure call).
   const [today, setToday] = useState<{
@@ -78,14 +78,14 @@ export function AdminScreen() {
     listTodayAppointmentsAction()
       .then((r) => setToday({ nowMin, appts: r ?? [] }))
       .catch(() => setToday({ nowMin, appts: [] }));
-  }, []);
+  }, [st.adminTick]);
   // Revenue, aggregated over months (the Umsatz tab).
   const [rev, setRev] = useState<RevenueData | null>(null);
   useEffect(() => {
     listRevenueAction()
       .then((r) => setRev(r))
       .catch(() => {});
-  }, []);
+  }, [st.adminTick]);
 
   // Zeiten: every change in the Zeiten tab is saved to the DB (debounced), so
   // a reload shows it again and member booking uses the same hours. Lives
@@ -342,16 +342,44 @@ export function AdminScreen() {
               {todayLabel}
               {today ? ` · ${fmt(nowMin)}` : ""}
             </span>
-            <h1
+            <div
               style={{
-                margin: 0,
-                fontSize: "clamp(28px,6vw,38px)",
-                fontWeight: 300,
-                letterSpacing: "-.025em",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "space-between",
+                gap: 12,
               }}
             >
-              {appts.length} Termine heute.
-            </h1>
+              <h1
+                style={{
+                  margin: 0,
+                  fontSize: "clamp(28px,6vw,38px)",
+                  fontWeight: 300,
+                  letterSpacing: "-.025em",
+                }}
+              >
+                {appts.length} Termine heute.
+              </h1>
+              {/* walk-in: pick the member, then "Sponti" in their profile */}
+              <button
+                onClick={() => {
+                  set({ aTab: "members" });
+                  say("Mitglied antippen → Sponti");
+                }}
+                className="glass-dark"
+                style={{
+                  flex: "none",
+                  height: 40,
+                  padding: "0 16px",
+                  borderRadius: 999,
+                  border: 0,
+                  fontSize: 12.5,
+                  fontWeight: 600,
+                }}
+              >
+                + Sponti
+              </button>
+            </div>
           </div>
           {cur || nxt ? (
             <div

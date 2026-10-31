@@ -3,11 +3,12 @@
 import { useState } from "react";
 import { useSalon } from "./store";
 import { useSalonActions } from "./actions";
-import { tiers, labelOf, mon } from "@/lib/data";
+import { tiers, labelOf, mon, svc, priceOf, type ServiceKey } from "@/lib/data";
 import {
   updateUsernameAction,
   changePinAction,
   resetMemberPinAction,
+  walkInAction,
 } from "@/lib/actions";
 
 const rowStyle: React.CSSProperties = {
@@ -164,6 +165,111 @@ function PinResetRow({ memberId, first }: { memberId: string; first: string }) {
         <button onClick={reset} style={pillBtn}>
           {busy ? "…" : "Zurücksetzen"}
         </button>
+      )}
+    </div>
+  );
+}
+
+/** Barber: a member walks in unannounced ("Sponti") → book it on the spot.
+ *  Now (or a past time today) counts at once: cut, revenue, Wallet card. */
+function WalkInRow({ memberId, first }: { memberId: string; first: string }) {
+  const { set, say } = useSalon();
+  const [open, setOpen] = useState(false);
+  const [sv, setSv] = useState<ServiceKey[]>(["haare"]);
+  const [time, setTime] = useState("");
+  const [busy, setBusy] = useState(false);
+  const price = priceOf(sv);
+  const start = () => {
+    const n = new Date();
+    const m = n.getHours() * 60 + Math.floor(n.getMinutes() / 5) * 5;
+    setTime(
+      `${String(Math.floor(m / 60)).padStart(2, "0")}:${String(m % 60).padStart(2, "0")}`,
+    );
+    setOpen(true);
+  };
+  const toggle = (k: ServiceKey) =>
+    setSv((p) => (p.includes(k) ? p.filter((x) => x !== k) : [...p, k]));
+  const ok = sv.length > 0 && /^\d{2}:\d{2}$/.test(time) && !busy;
+  const save = () => {
+    if (!ok) return;
+    setBusy(true);
+    walkInAction({ memberId, services: sv, time }).then((r) => {
+      setBusy(false);
+      if (!r.ok) return say("Ging nicht – bitte nochmal");
+      say(
+        r.done
+          ? `${first} · CHF ${r.price} abgebucht`
+          : `${first} · heute ${time} eingetragen`,
+      );
+      set((p) => ({ sheet: null, adminTick: p.adminTick + 1 }));
+    });
+  };
+  return (
+    <div style={{ ...rowStyle, flexWrap: "wrap" }}>
+      <span style={{ fontSize: 13, color: "rgba(14,20,28,.65)" }}>Sponti</span>
+      {!open ? (
+        <button onClick={start} style={pillBtn}>
+          Jetzt eintragen
+        </button>
+      ) : (
+        <div
+          style={{
+            flexBasis: "100%",
+            display: "flex",
+            flexDirection: "column",
+            gap: 10,
+            animation: "fade .6s ease both",
+          }}
+        >
+          <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+            {svc.map((x) => {
+              const on = sv.includes(x.k);
+              return (
+                <button
+                  key={x.k}
+                  onClick={() => toggle(x.k)}
+                  className={on ? "glass-dark" : undefined}
+                  style={{
+                    ...pillBtn,
+                    border: on ? 0 : pillBtn.border,
+                    fontWeight: on ? 600 : 500,
+                  }}
+                >
+                  {x.name}
+                </button>
+              );
+            })}
+          </div>
+          <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+            <input
+              type="time"
+              step={300}
+              value={time}
+              onChange={(e) => setTime(e.target.value)}
+              aria-label="Uhrzeit heute"
+              style={{
+                ...pinInput,
+                flex: "none",
+                width: 120,
+                letterSpacing: ".04em",
+              }}
+            />
+            <button
+              onClick={save}
+              className={ok ? "glass-dark" : undefined}
+              style={{
+                ...pillBtn,
+                flex: 1,
+                height: 44,
+                border: ok ? 0 : pillBtn.border,
+                opacity: ok ? 1 : 0.5,
+                fontWeight: 600,
+              }}
+            >
+              {busy ? "…" : `Abbuchen · CHF ${price}`}
+            </button>
+          </div>
+        </div>
       )}
     </div>
   );
@@ -490,6 +596,9 @@ export function Sheet() {
                 </div>
               ))}
             {isProfile && <PinChangeRow />}
+            {sh.type === "client" && sh.m.id && (
+              <WalkInRow memberId={sh.m.id} first={sh.m.n.split(" ")[0]} />
+            )}
             {sh.type === "client" && sh.m.id && (
               <PinResetRow memberId={sh.m.id} first={sh.m.n.split(" ")[0]} />
             )}

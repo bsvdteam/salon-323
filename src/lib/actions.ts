@@ -603,6 +603,63 @@ export async function markApptDoneAction(
   return { ok: true };
 }
 
+/** Barber: a walk-in ("Sponti") for a member — booked right in the shop.
+ *  Today at `time` (salon time); if that is now or past it counts at once
+ *  (status done, +1 cut, revenue), a later time stays booked like any other.
+ *  Mirrored into the Google Calendar without a guest invite, so the slot is
+ *  blocked and the member gets no mail. */
+export async function walkInAction(args: {
+  memberId: string;
+  services: ServiceKey[];
+  time: string; // "HH:MM", today
+}): Promise<{ ok: true; done: boolean; price: number } | { ok: false }> {
+  const s = await getSession();
+  if (!s || s.role !== "barber") return { ok: false };
+  if (!args.services.length || !/^\d{2}:\d{2}$/.test(args.time))
+    return { ok: false };
+  const member = await getMemberById(args.memberId);
+  if (!member || member.is_barber) return { ok: false };
+
+  const day = todayZ();
+  const start = fromZonedTime(`${day}T${args.time}:00`, TZ);
+  const dur = durOf(args.services) || 30;
+  const price = priceOf(args.services) || 15;
+
+  let googleEventId: string | null = null;
+  try {
+    const [y, m, d] = day.split("-").map(Number);
+    const [hh, mm] = args.time.split(":").map(Number);
+    const ev = await createEvent({
+      summary: `Salon 15 — ${member.first_name} ${member.last_name}`.trim(),
+      description: [
+        `Leistung: ${labelOf(args.services)}`,
+        "Sponti (im Salon eingetragen)",
+        `Mitglied: @${member.username} (N° ${member.member_no})`,
+      ].join("\n"),
+      startISO: wallISO(y, m, d, hh * 60 + mm),
+      endISO: wallISO(y, m, d, hh * 60 + mm + dur),
+    });
+    googleEventId = ev.id;
+  } catch {
+    // calendar unreachable — the cut still counts in the DB
+  }
+
+  const appt = await createAppointment({
+    memberId: member.id,
+    startsAt: start.toISOString(),
+    durationMin: dur,
+    services: args.services,
+    priceChf: price,
+    payMethod: "ort",
+    googleEventId,
+    note: "Sponti",
+  });
+  const done = start.getTime() <= Date.now();
+  if (done) await markAppointmentDone(appt.id);
+  after(() => notifyPassChanged(member.id));
+  return { ok: true, done, price };
+}
+
 /** Barber: his own invite code (no use limit) for the invite card. */
 export async function barberInviteCodeAction(): Promise<string | null> {
   const s = await getSession();

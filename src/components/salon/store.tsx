@@ -162,6 +162,7 @@ export interface SalonState {
   absWhy: string;
   done: Record<string, boolean>;
   started: Record<string, boolean>;
+  adminTick: number; // bumped after a walk-in → admin lists reload
 
   // overlays
   salOn: boolean;
@@ -273,6 +274,7 @@ function initialState(start?: StartConfig): SalonState {
     absWhy: "Ferien",
     done: {},
     started: {},
+    adminTick: 0,
     salOn: ov === "salon",
     salVis: ov === "salon",
     cOn: ov === "cuts",
