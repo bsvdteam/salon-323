@@ -44,11 +44,16 @@ export const BUSINESS = {
   // ersetzen (Profil öffnen → Pin → Koordinaten). Grobe Ortsmitte Degersheim:
   geo: { lat: 47.3897, lng: 9.2017 },
 
-  // TODO(seo): echte Öffnungszeiten eintragen — müssen mit dem GBP übereinstimmen.
-  // Sobald hier Einträge stehen, werden sie automatisch als
-  // openingHoursSpecification ins Schema ausgegeben. dayOfWeek auf Englisch:
-  // z. B. { days: ["Tuesday","Wednesday","Thursday","Friday"], opens: "09:00", closes: "18:00" }
-  hours: [] as OpeningHours[],
+  // Öffnungszeiten (wie in /admin → Zeiten; im Google-Unternehmensprofil
+  // gleich eintragen). Werden als openingHoursSpecification ausgegeben.
+  hours: [
+    {
+      days: ["Monday", "Tuesday", "Wednesday", "Thursday"],
+      opens: "20:30",
+      closes: "22:00",
+    },
+    { days: ["Saturday"], opens: "18:00", closes: "20:00" },
+  ] as OpeningHours[],
 
   // TODO(seo): echte Profile eintragen — Instagram, local.ch, search.ch, GBP.
   // Das sind die `sameAs`-Verweise, die Google/KI die Entität bestätigen.

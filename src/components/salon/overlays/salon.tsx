@@ -47,6 +47,11 @@ export function SalonOverlay() {
       dot: t ? 1 : 0,
     };
   });
+  // the lunch break only matters on a day that is open across it
+  const showPause = [0, 1, 2, 3, 4, 5, 6].some((wd) => {
+    const w = state.week[wd];
+    return w.on && w.s < state.pause.e && w.e > state.pause.s;
+  });
   const facts = [
     {
       k: "Parkieren",
@@ -413,9 +418,11 @@ export function SalonOverlay() {
                 }}
               >
                 <span style={kick}>Öffnungszeiten</span>
-                <span style={{ fontSize: 11, color: "rgba(14,20,28,.55)" }}>
-                  Mittag {fmt(state.pause.s)}–{fmt(state.pause.e)}
-                </span>
+                {showPause && (
+                  <span style={{ fontSize: 11, color: "rgba(14,20,28,.55)" }}>
+                    Mittag {fmt(state.pause.s)}–{fmt(state.pause.e)}
+                  </span>
+                )}
               </div>
               {salHours.map((h, i) => (
                 <div
