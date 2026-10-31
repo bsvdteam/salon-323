@@ -13,6 +13,7 @@ import {
   wdS,
   monS,
   fmtTime,
+  BOOK_DAYS,
 } from "@/lib/data";
 import type { DayHours } from "../../store";
 import { bookAppointmentAction } from "@/lib/actions";
@@ -32,7 +33,7 @@ export function BookTab() {
     const nowMs = Date.now();
     const d2s = (d: Date) =>
       `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
-    fetch(`/api/availability?from=${d2s(dateOf(0))}&to=${d2s(dateOf(14))}`)
+    fetch(`/api/availability?from=${d2s(dateOf(0))}&to=${d2s(dateOf(BOOK_DAYS))}`)
       .then((r) => r.json())
       .then((j) =>
         setAvail({
@@ -78,22 +79,24 @@ export function BookTab() {
   const isAbs = (o: number) => st.abs.some((ab) => o >= ab.a && o <= ab.b);
   const fmt = fmtTime;
   const dayOffs: number[] = [];
-  for (let o = 0; o <= 14; o++)
+  for (let o = 0; o <= BOOK_DAYS; o++)
     if (slotsFor(o).length && !isAbs(o)) dayOffs.push(o);
   const effDay = dayOffs.includes(st.day) ? st.day : (dayOffs[0] ?? 0);
   const slotMins = slotsFor(effDay);
 
   const t0b = dateOf(0).getDay();
   const lead = (t0b + 6) % 7;
-  const gridOffs = Array.from({ length: 14 }, (_, i) => i - lead);
+  // whole weeks from this Monday through the week of the last bookable day
+  const gridLen = Math.ceil((lead + BOOK_DAYS + 1) / 7) * 7;
+  const gridOffs = Array.from({ length: gridLen }, (_, i) => i - lead);
   const nextAbs = st.abs
-    .filter((ab) => ab.b >= 1 && ab.a <= 14)
+    .filter((ab) => ab.b >= 1 && ab.a <= BOOK_DAYS)
     .sort((x, y) => x.a - y.a)[0];
   const dlB = (o: number) => {
     const d = dateOf(o);
     return `${d.getDate()}. ${monS[d.getMonth()]}`;
   };
-  const bookRange = `${dlB(0)} – ${dlB(14)} · 2 Wochen im Voraus`;
+  const bookRange = `${dlB(0)} – ${dlB(BOOK_DAYS)} · 3 Wochen im Voraus`;
   const absNote = nextAbs
     ? `${nextAbs.why} ${nextAbs.a === nextAbs.b ? dlB(Math.max(1, nextAbs.a)) : dlB(Math.max(1, nextAbs.a)) + "–" + dlB(nextAbs.b)}`
     : "";
@@ -103,7 +106,7 @@ export function BookTab() {
     const on = effDay === o;
     const freeN = slotsFor(o).filter((m) => !isTaken(o, m)).length;
     const lvl = freeN > 10 ? 3 : freeN > 6 ? 2 : 1;
-    const out = o < 0 || o > 14;
+    const out = o < 0 || o > BOOK_DAYS;
     const ab = !out && st.abs.find((x) => o >= x.a && o <= x.b);
     const closed = !out && !ab && !slotsFor(o).length;
     const full = !out && !ab && !closed && freeN === 0;

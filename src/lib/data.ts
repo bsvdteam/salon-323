@@ -804,6 +804,18 @@ export function dateOf(off: number) {
   const n = new Date();
   return new Date(n.getFullYear(), n.getMonth(), n.getDate() + off);
 }
+/** Walk-ins ("Sponti") get their own warm colour in the admin agenda and
+ *  calendar; Google colorId 6 = Tangerine in Laurin's own calendar. */
+export const SPONTI = {
+  ink: "#B8622D",
+  bg: "#F6E4D3",
+  fg: "#5A2F12",
+  gcal: "6",
+};
+
+/** How far ahead members can book, always counted from today (3 weeks). */
+export const BOOK_DAYS = 21;
+
 export function svcName(k: ServiceKey) {
   return (svc.find((s) => s.k === k) || ({} as (typeof svc)[number])).name;
 }

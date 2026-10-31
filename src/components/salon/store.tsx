@@ -133,7 +133,11 @@ export interface SalonState {
   remind: boolean;
 
   // bottom sheet (profile / client)
-  sheet: { type: "profile" } | { type: "client"; m: ClientRecord } | null;
+  sheet:
+    | { type: "profile" }
+    | { type: "client"; m: ClientRecord }
+    | { type: "sponti" }
+    | null;
 
   // story
   story: boolean;

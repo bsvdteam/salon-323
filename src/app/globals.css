@@ -57,6 +57,10 @@ a:hover {
 input::placeholder {
   color: rgba(244, 247, 250, 0.42);
 }
+/* inputs on light glass (bottom sheets) */
+.ph-ink::placeholder {
+  color: rgba(14, 20, 28, 0.38);
+}
 input:focus {
   outline: none;
 }

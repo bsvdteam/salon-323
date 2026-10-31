@@ -1,14 +1,24 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useSalon } from "./store";
 import { useSalonActions } from "./actions";
-import { tiers, labelOf, mon, svc, priceOf, type ServiceKey } from "@/lib/data";
+import {
+  tiers,
+  labelOf,
+  mon,
+  svc,
+  priceOf,
+  SPONTI,
+  type ServiceKey,
+} from "@/lib/data";
 import {
   updateUsernameAction,
   changePinAction,
   resetMemberPinAction,
   walkInAction,
+  listMembersAction,
+  type AdminMember,
 } from "@/lib/actions";
 
 const rowStyle: React.CSSProperties = {
@@ -96,6 +106,7 @@ function PinChangeRow() {
             inputMode="numeric"
             autoComplete="current-password"
             placeholder="Aktueller PIN"
+            className="ph-ink"
             autoFocus
             style={pinInput}
           />
@@ -110,6 +121,7 @@ function PinChangeRow() {
               inputMode="numeric"
               autoComplete="new-password"
               placeholder="Neuer PIN"
+              className="ph-ink"
               style={pinInput}
             />
             <button
@@ -170,176 +182,9 @@ function PinResetRow({ memberId, first }: { memberId: string; first: string }) {
   );
 }
 
-/** Barber: a member walks in unannounced ("Sponti") → book it on the spot.
- *  Now (or a past time today) counts at once: cut, revenue, Wallet card. */
-function WalkInRow({ memberId, first }: { memberId: string; first: string }) {
-  const { set, say } = useSalon();
-  const [open, setOpen] = useState(false);
-  const [sv, setSv] = useState<ServiceKey[]>(["haare"]);
-  const [time, setTime] = useState("");
-  const [busy, setBusy] = useState(false);
-  const price = priceOf(sv);
-  const start = () => {
-    const n = new Date();
-    const m = n.getHours() * 60 + Math.floor(n.getMinutes() / 5) * 5;
-    setTime(
-      `${String(Math.floor(m / 60)).padStart(2, "0")}:${String(m % 60).padStart(2, "0")}`,
-    );
-    setOpen(true);
-  };
-  const toggle = (k: ServiceKey) =>
-    setSv((p) => (p.includes(k) ? p.filter((x) => x !== k) : [...p, k]));
-  const ok = sv.length > 0 && /^\d{2}:\d{2}$/.test(time) && !busy;
-  const save = () => {
-    if (!ok) return;
-    setBusy(true);
-    walkInAction({ memberId, services: sv, time }).then((r) => {
-      setBusy(false);
-      if (!r.ok) return say("Ging nicht – bitte nochmal");
-      say(
-        r.done
-          ? `${first} · CHF ${r.price} abgebucht`
-          : `${first} · heute ${time} eingetragen`,
-      );
-      set((p) => ({ sheet: null, adminTick: p.adminTick + 1 }));
-    });
-  };
-  return (
-    <div style={{ ...rowStyle, flexWrap: "wrap" }}>
-      <span style={{ fontSize: 13, color: "rgba(14,20,28,.65)" }}>Sponti</span>
-      {!open ? (
-        <button onClick={start} style={pillBtn}>
-          Jetzt eintragen
-        </button>
-      ) : (
-        <div
-          style={{
-            flexBasis: "100%",
-            display: "flex",
-            flexDirection: "column",
-            gap: 10,
-            animation: "fade .6s ease both",
-          }}
-        >
-          <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
-            {svc.map((x) => {
-              const on = sv.includes(x.k);
-              return (
-                <button
-                  key={x.k}
-                  onClick={() => toggle(x.k)}
-                  className={on ? "glass-dark" : undefined}
-                  style={{
-                    ...pillBtn,
-                    border: on ? 0 : pillBtn.border,
-                    fontWeight: on ? 600 : 500,
-                  }}
-                >
-                  {x.name}
-                </button>
-              );
-            })}
-          </div>
-          <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-            <input
-              type="time"
-              step={300}
-              value={time}
-              onChange={(e) => setTime(e.target.value)}
-              aria-label="Uhrzeit heute"
-              style={{
-                ...pinInput,
-                flex: "none",
-                width: 120,
-                letterSpacing: ".04em",
-              }}
-            />
-            <button
-              onClick={save}
-              className={ok ? "glass-dark" : undefined}
-              style={{
-                ...pillBtn,
-                flex: 1,
-                height: 44,
-                border: ok ? 0 : pillBtn.border,
-                opacity: ok ? 1 : 0.5,
-                fontWeight: 600,
-              }}
-            >
-              {busy ? "…" : `Abbuchen · CHF ${price}`}
-            </button>
-          </div>
-        </div>
-      )}
-    </div>
-  );
-}
-
-export function Sheet() {
-  const { state, set, say } = useSalon();
-  const a = useSalonActions();
-  const sh = state.sheet;
-  if (!sh) return null;
-
-  const U = state.user ?? {
-    first: "Luca",
-    last: "Meier",
-    username: "luca",
-    cuts: 41,
-    since: [2, 2024] as [number, number],
-    no: "0047",
-    phone: "",
-    email: "",
-    card: 0,
-    isNew: false,
-  };
-  const ti = tiers.reduce((acc, t, k) => (U.cuts >= t.min ? k : acc), 0);
-  const T = tiers[ti];
-  const ini2 = (n: string) =>
-    n
-      .split(" ")
-      .map((w) => w[0])
-      .join("")
-      .slice(0, 2)
-      .toUpperCase();
-
-  let ini: string,
-    name: string,
-    sub: string,
-    rows: { l: string; v: string }[],
-    primary: () => void,
-    primaryLabel: string;
-  const isProfile = sh.type === "profile";
-  if (sh.type === "profile") {
-    ini = (U.first[0] + (U.last[0] || "")).toUpperCase();
-    name = (U.first + " " + U.last).trim();
-    sub = "@" + U.username;
-    rows = [
-      { l: "Mitglied", v: "N° " + U.no },
-      { l: "Tier", v: T.r + " · " + T.n },
-      { l: "Vorlage", v: labelOf(state.template) },
-    ];
-    primary = () => a.logout();
-    primaryLabel = "Abmelden";
-  } else {
-    const m = sh.m;
-    ini = ini2(m.n);
-    name = m.n;
-    sub = `Tier ${m.tier} · ${m.cuts} Cuts`;
-    rows = [
-      { l: "Mitglied seit", v: mon[m.since[0]] + " " + m.since[1] },
-      { l: "Eingeladen von", v: m.via },
-      { l: "Zuletzt", v: m.last },
-      { l: "Vorlage", v: m.tpl },
-      { l: "Notiz", v: m.note },
-    ];
-    primary = () => {
-      set({ sheet: null });
-      a.say("Anruf an " + m.n.split(" ")[0]);
-    };
-    primaryLabel = "Anrufen";
-  }
-
+/** Bottom sheet chrome: backdrop, glass panel, drag handle. */
+function SheetFrame({ children }: { children: React.ReactNode }) {
+  const { set } = useSalon();
   return (
     <>
       <div
@@ -410,231 +255,463 @@ export function Sheet() {
               }}
             />
           </button>
-          <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
-            <span
-              className="glass-dark"
-              style={{
-                flex: "none",
-                width: 52,
-                height: 52,
-                borderRadius: "50%",
-                display: "grid",
-                placeItems: "center",
-                fontSize: 14,
-                fontWeight: 600,
-                border: 0,
-              }}
-            >
-              {ini}
-            </span>
-            <div
-              style={{
-                display: "flex",
-                flexDirection: "column",
-                gap: 3,
-                minWidth: 0,
-              }}
-            >
-              <span
-                style={{
-                  fontSize: 20,
-                  fontWeight: 400,
-                  letterSpacing: "-.01em",
-                }}
-              >
-                {name}
-              </span>
-              <span style={{ fontSize: 12, color: "var(--ink-60)" }}>
-                {sub}
-              </span>
-            </div>
-          </div>
+          {children}
+        </div>
+      </div>
+    </>
+  );
+}
+
+/** Barber: "+ Sponti" — someone walks in unannounced. Pick the person, the
+ *  services and the time (now by default), done: it lands in today's agenda
+ *  (own colour) and the calendar; "Fertig · abbuchen" there counts the cut. */
+function SpontiSheet() {
+  const { set, say } = useSalon();
+  const [list, setList] = useState<AdminMember[] | null>(null);
+  const [q, setQ] = useState("");
+  const [pick, setPick] = useState<AdminMember | null>(null);
+  const [sv, setSv] = useState<ServiceKey[]>(["haare"]);
+  const [time, setTime] = useState(() => {
+    const n = new Date();
+    const m = n.getHours() * 60 + Math.floor(n.getMinutes() / 5) * 5;
+    return `${String(Math.floor(m / 60)).padStart(2, "0")}:${String(m % 60).padStart(2, "0")}`;
+  });
+  const [busy, setBusy] = useState(false);
+  useEffect(() => {
+    listMembersAction()
+      .then((r) => setList(r ?? []))
+      .catch(() => setList([]));
+  }, []);
+  const qq = q.trim().toLowerCase();
+  const shown = (list ?? [])
+    .filter((m) => !qq || m.n.toLowerCase().includes(qq))
+    .sort((x, y) => x.n.localeCompare(y.n, "de"));
+  const toggle = (k: ServiceKey) =>
+    setSv((p) => (p.includes(k) ? p.filter((x) => x !== k) : [...p, k]));
+  const ok = !!pick && sv.length > 0 && /^\d{2}:\d{2}$/.test(time) && !busy;
+  const save = () => {
+    if (!ok || !pick) return;
+    setBusy(true);
+    walkInAction({ memberId: pick.id, services: sv, time }).then((r) => {
+      setBusy(false);
+      if (!r.ok) return say("Ging nicht – bitte nochmal");
+      say(`${pick.n.split(" ")[0]} · ${time} eingetragen`);
+      set((p) => ({ sheet: null, adminTick: p.adminTick + 1 }));
+    });
+  };
+  const muted = { padding: "12px 0", color: "rgba(14,20,28,.5)" };
+  return (
+    <SheetFrame>
+      <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+        <span
+          style={{
+            fontFamily: "var(--font-geist-mono)",
+            fontSize: 9,
+            letterSpacing: ".2em",
+            color: SPONTI.ink,
+          }}
+        >
+          SPONTI
+        </span>
+        <span style={{ fontSize: 22, letterSpacing: "-.02em" }}>
+          {pick ? pick.n : "Wer sitzt im Stuhl?"}
+        </span>
+      </div>
+
+      {!pick ? (
+        <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+          <input
+            value={q}
+            onChange={(e) => setQ(e.target.value)}
+            placeholder="Name suchen"
+            className="ph-ink"
+            autoCorrect="off"
+            spellCheck={false}
+            style={{ ...pinInput, letterSpacing: 0, flex: "none" }}
+          />
           <div style={{ display: "flex", flexDirection: "column" }}>
-            {rows.map((r, i) => (
-              <div
-                key={i}
+            {!list && <span style={muted}>Lädt …</span>}
+            {list && !shown.length && (
+              <span style={muted}>Niemand gefunden</span>
+            )}
+            {shown.map((m) => (
+              <button
+                key={m.id}
+                onClick={() => setPick(m)}
                 style={{
-                  display: "flex",
-                  justifyContent: "space-between",
-                  alignItems: "center",
-                  gap: 12,
-                  padding: "14px 0",
+                  ...rowStyle,
+                  width: "100%",
+                  border: 0,
                   borderTop: "1px solid rgba(14,20,28,.07)",
+                  background: "transparent",
+                  color: "#0E141C",
+                  textAlign: "left",
                 }}
               >
-                <span style={{ fontSize: 13, color: "rgba(14,20,28,.65)" }}>
-                  {r.l}
+                <span style={{ fontSize: 15, fontWeight: 500 }}>{m.n}</span>
+                <span style={{ fontSize: 12, color: "rgba(14,20,28,.55)" }}>
+                  Tier {m.tier} · {m.cuts} Cuts
                 </span>
-                <span
-                  style={{ fontSize: 13, fontWeight: 500, textAlign: "right" }}
-                >
-                  {r.v}
-                </span>
-              </div>
+              </button>
             ))}
-            {isProfile && (
-              <div
-                style={{
-                  display: "flex",
-                  justifyContent: "space-between",
-                  alignItems: "center",
-                  gap: 12,
-                  padding: "12px 0",
-                  borderTop: "1px solid rgba(14,20,28,.07)",
-                }}
-              >
-                <span style={{ fontSize: 13, color: "rgba(14,20,28,.65)" }}>
-                  Username
-                </span>
-                <div
+          </div>
+        </div>
+      ) : (
+        <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+          <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+            {svc.map((x) => {
+              const on = sv.includes(x.k);
+              return (
+                <button
+                  key={x.k}
+                  onClick={() => toggle(x.k)}
                   style={{
-                    display: "flex",
-                    alignItems: "center",
-                    gap: 1,
-                    flex: "none",
+                    ...pillBtn,
+                    height: 40,
+                    border: on ? "1px solid #0E141C" : pillBtn.border,
+                    background: on ? "#0E141C" : "transparent",
+                    color: on ? "#F4F7FA" : "#0E141C",
+                    fontWeight: on ? 600 : 500,
                   }}
                 >
-                  <span style={{ fontSize: 13, color: "rgba(14,20,28,.4)" }}>
-                    @
-                  </span>
-                  <input
-                    value={U.username}
-                    onChange={(e) =>
-                      set((p) =>
-                        p.user
-                          ? {
-                              user: {
-                                ...p.user,
-                                username: e.target.value
-                                  .replace(/\s/g, "")
-                                  .toLowerCase(),
-                              },
-                            }
-                          : {},
-                      )
-                    }
-                    onBlur={() => {
-                      // Persist the change; the server enforces format +
-                      // uniqueness. On a clash we just flag it (the member can
-                      // pick another; a re-login re-syncs the stored value).
-                      const u = U.username.trim();
-                      if (!u) return;
-                      updateUsernameAction(u).then((res) => {
-                        if (!res.ok)
-                          say(
-                            res.error === "username_taken"
-                              ? "Username schon vergeben"
-                              : "Ungültiger Username",
-                          );
-                      });
-                    }}
-                    autoCapitalize="none"
-                    autoCorrect="off"
-                    spellCheck={false}
-                    style={{
-                      width: 130,
-                      textAlign: "right",
-                      border: 0,
-                      background: "transparent",
-                      color: "#0E141C",
-                      fontSize: 16,
-                      fontWeight: 500,
-                      fontFamily: "var(--font-urbanist)",
-                    }}
-                  />
-                </div>
-              </div>
-            )}
-            {isProfile &&
-              (
-                [
-                  { l: "Vorname", key: "first" as const, v: U.first },
-                  { l: "Nachname", key: "last" as const, v: U.last },
-                  { l: "Telefon", key: "phone" as const, v: U.phone },
-                  { l: "E-Mail", key: "email" as const, v: U.email },
-                ] as const
-              ).map((f) => (
-                <div
-                  key={f.key}
-                  style={{
-                    display: "flex",
-                    justifyContent: "space-between",
-                    alignItems: "center",
-                    gap: 12,
-                    padding: "12px 0",
-                    borderTop: "1px solid rgba(14,20,28,.07)",
-                  }}
-                >
-                  <span style={{ fontSize: 13, color: "rgba(14,20,28,.65)" }}>
-                    {f.l}
-                  </span>
-                  <input
-                    value={f.v}
-                    onChange={(e) =>
-                      set((p) =>
-                        p.user
-                          ? { user: { ...p.user, [f.key]: e.target.value } }
-                          : {},
-                      )
-                    }
-                    type={f.key === "email" ? "email" : "text"}
-                    autoCapitalize={f.key === "email" ? "none" : undefined}
-                    autoCorrect={f.key === "email" ? "off" : undefined}
-                    spellCheck={f.key === "email" ? false : undefined}
-                    placeholder={f.key === "email" ? "du@mail.ch" : undefined}
-                    style={{
-                      width: 170,
-                      textAlign: "right",
-                      border: 0,
-                      background: "transparent",
-                      color: "#0E141C",
-                      fontSize: 16,
-                      fontWeight: 500,
-                      fontFamily: "var(--font-urbanist)",
-                    }}
-                  />
-                </div>
-              ))}
-            {isProfile && <PinChangeRow />}
-            {sh.type === "client" && sh.m.id && (
-              <WalkInRow memberId={sh.m.id} first={sh.m.n.split(" ")[0]} />
-            )}
-            {sh.type === "client" && sh.m.id && (
-              <PinResetRow memberId={sh.m.id} first={sh.m.n.split(" ")[0]} />
-            )}
+                  {x.name}
+                </button>
+              );
+            })}
+          </div>
+          <div style={{ ...rowStyle, borderTop: 0, padding: 0 }}>
+            <span style={{ fontSize: 13, color: "rgba(14,20,28,.65)" }}>
+              Heute um
+            </span>
+            <input
+              type="time"
+              step={300}
+              value={time}
+              onChange={(e) => setTime(e.target.value)}
+              aria-label="Uhrzeit heute"
+              style={{
+                ...pinInput,
+                flex: "none",
+                width: 124,
+                letterSpacing: ".04em",
+              }}
+            />
           </div>
           <div style={{ display: "flex", gap: 8 }}>
             <button
-              onClick={primary}
-              className="glass-dark"
+              onClick={save}
               style={{
                 flex: 1,
                 height: 50,
                 borderRadius: 999,
+                border: 0,
+                background: SPONTI.ink,
+                color: "#fff",
                 fontSize: 13,
                 fontWeight: 600,
-                border: 0,
+                opacity: ok ? 1 : 0.5,
               }}
             >
-              {primaryLabel}
+              {busy ? "…" : `Eintragen · CHF ${priceOf(sv)}`}
             </button>
             <button
-              onClick={() => set({ sheet: null })}
-              style={{
-                height: 50,
-                borderRadius: 999,
-                padding: "0 22px",
-                fontSize: 13,
-                border: "1px solid rgba(14,20,28,.14)",
-                background: "transparent",
-                color: "#0E141C",
-              }}
+              onClick={() => setPick(null)}
+              style={{ ...pillBtn, height: 50, padding: "0 20px" }}
             >
-              Schliessen
+              Zurück
             </button>
           </div>
         </div>
+      )}
+    </SheetFrame>
+  );
+}
+
+export function Sheet() {
+  const { state, set, say } = useSalon();
+  const a = useSalonActions();
+  const sh = state.sheet;
+  if (!sh) return null;
+  if (sh.type === "sponti") return <SpontiSheet />;
+
+  const U = state.user ?? {
+    first: "Luca",
+    last: "Meier",
+    username: "luca",
+    cuts: 41,
+    since: [2, 2024] as [number, number],
+    no: "0047",
+    phone: "",
+    email: "",
+    card: 0,
+    isNew: false,
+  };
+  const ti = tiers.reduce((acc, t, k) => (U.cuts >= t.min ? k : acc), 0);
+  const T = tiers[ti];
+  const ini2 = (n: string) =>
+    n
+      .split(" ")
+      .map((w) => w[0])
+      .join("")
+      .slice(0, 2)
+      .toUpperCase();
+
+  let ini: string,
+    name: string,
+    sub: string,
+    rows: { l: string; v: string }[],
+    primary: () => void,
+    primaryLabel: string;
+  const isProfile = sh.type === "profile";
+  if (sh.type === "profile") {
+    ini = (U.first[0] + (U.last[0] || "")).toUpperCase();
+    name = (U.first + " " + U.last).trim();
+    sub = "@" + U.username;
+    rows = [
+      { l: "Mitglied", v: "N° " + U.no },
+      { l: "Tier", v: T.r + " · " + T.n },
+      { l: "Vorlage", v: labelOf(state.template) },
+    ];
+    primary = () => a.logout();
+    primaryLabel = "Abmelden";
+  } else {
+    const m = sh.m;
+    ini = ini2(m.n);
+    name = m.n;
+    sub = `Tier ${m.tier} · ${m.cuts} Cuts`;
+    rows = [
+      { l: "Mitglied seit", v: mon[m.since[0]] + " " + m.since[1] },
+      { l: "Eingeladen von", v: m.via },
+      { l: "Zuletzt", v: m.last },
+      { l: "Vorlage", v: m.tpl },
+      { l: "Notiz", v: m.note },
+    ];
+    primary = () => {
+      set({ sheet: null });
+      a.say("Anruf an " + m.n.split(" ")[0]);
+    };
+    primaryLabel = "Anrufen";
+  }
+
+  return (
+    <SheetFrame>
+      <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
+        <span
+          className="glass-dark"
+          style={{
+            flex: "none",
+            width: 52,
+            height: 52,
+            borderRadius: "50%",
+            display: "grid",
+            placeItems: "center",
+            fontSize: 14,
+            fontWeight: 600,
+            border: 0,
+          }}
+        >
+          {ini}
+        </span>
+        <div
+          style={{
+            display: "flex",
+            flexDirection: "column",
+            gap: 3,
+            minWidth: 0,
+          }}
+        >
+          <span
+            style={{
+              fontSize: 20,
+              fontWeight: 400,
+              letterSpacing: "-.01em",
+            }}
+          >
+            {name}
+          </span>
+          <span style={{ fontSize: 12, color: "var(--ink-60)" }}>{sub}</span>
+        </div>
       </div>
-    </>
+      <div style={{ display: "flex", flexDirection: "column" }}>
+        {rows.map((r, i) => (
+          <div
+            key={i}
+            style={{
+              display: "flex",
+              justifyContent: "space-between",
+              alignItems: "center",
+              gap: 12,
+              padding: "14px 0",
+              borderTop: "1px solid rgba(14,20,28,.07)",
+            }}
+          >
+            <span style={{ fontSize: 13, color: "rgba(14,20,28,.65)" }}>
+              {r.l}
+            </span>
+            <span style={{ fontSize: 13, fontWeight: 500, textAlign: "right" }}>
+              {r.v}
+            </span>
+          </div>
+        ))}
+        {isProfile && (
+          <div
+            style={{
+              display: "flex",
+              justifyContent: "space-between",
+              alignItems: "center",
+              gap: 12,
+              padding: "12px 0",
+              borderTop: "1px solid rgba(14,20,28,.07)",
+            }}
+          >
+            <span style={{ fontSize: 13, color: "rgba(14,20,28,.65)" }}>
+              Username
+            </span>
+            <div
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: 1,
+                flex: "none",
+              }}
+            >
+              <span style={{ fontSize: 13, color: "rgba(14,20,28,.4)" }}>
+                @
+              </span>
+              <input
+                value={U.username}
+                onChange={(e) =>
+                  set((p) =>
+                    p.user
+                      ? {
+                          user: {
+                            ...p.user,
+                            username: e.target.value
+                              .replace(/\s/g, "")
+                              .toLowerCase(),
+                          },
+                        }
+                      : {},
+                  )
+                }
+                onBlur={() => {
+                  // Persist the change; the server enforces format +
+                  // uniqueness. On a clash we just flag it (the member can
+                  // pick another; a re-login re-syncs the stored value).
+                  const u = U.username.trim();
+                  if (!u) return;
+                  updateUsernameAction(u).then((res) => {
+                    if (!res.ok)
+                      say(
+                        res.error === "username_taken"
+                          ? "Username schon vergeben"
+                          : "Ungültiger Username",
+                      );
+                  });
+                }}
+                autoCapitalize="none"
+                autoCorrect="off"
+                spellCheck={false}
+                style={{
+                  width: 130,
+                  textAlign: "right",
+                  border: 0,
+                  background: "transparent",
+                  color: "#0E141C",
+                  fontSize: 16,
+                  fontWeight: 500,
+                  fontFamily: "var(--font-urbanist)",
+                }}
+              />
+            </div>
+          </div>
+        )}
+        {isProfile &&
+          (
+            [
+              { l: "Vorname", key: "first" as const, v: U.first },
+              { l: "Nachname", key: "last" as const, v: U.last },
+              { l: "Telefon", key: "phone" as const, v: U.phone },
+              { l: "E-Mail", key: "email" as const, v: U.email },
+            ] as const
+          ).map((f) => (
+            <div
+              key={f.key}
+              style={{
+                display: "flex",
+                justifyContent: "space-between",
+                alignItems: "center",
+                gap: 12,
+                padding: "12px 0",
+                borderTop: "1px solid rgba(14,20,28,.07)",
+              }}
+            >
+              <span style={{ fontSize: 13, color: "rgba(14,20,28,.65)" }}>
+                {f.l}
+              </span>
+              <input
+                value={f.v}
+                onChange={(e) =>
+                  set((p) =>
+                    p.user
+                      ? { user: { ...p.user, [f.key]: e.target.value } }
+                      : {},
+                  )
+                }
+                type={f.key === "email" ? "email" : "text"}
+                autoCapitalize={f.key === "email" ? "none" : undefined}
+                autoCorrect={f.key === "email" ? "off" : undefined}
+                spellCheck={f.key === "email" ? false : undefined}
+                placeholder={f.key === "email" ? "du@mail.ch" : undefined}
+                className="ph-ink"
+                style={{
+                  width: 170,
+                  textAlign: "right",
+                  border: 0,
+                  background: "transparent",
+                  color: "#0E141C",
+                  fontSize: 16,
+                  fontWeight: 500,
+                  fontFamily: "var(--font-urbanist)",
+                }}
+              />
+            </div>
+          ))}
+        {isProfile && <PinChangeRow />}
+        {sh.type === "client" && sh.m.id && (
+          <PinResetRow memberId={sh.m.id} first={sh.m.n.split(" ")[0]} />
+        )}
+      </div>
+      <div style={{ display: "flex", gap: 8 }}>
+        <button
+          onClick={primary}
+          className="glass-dark"
+          style={{
+            flex: 1,
+            height: 50,
+            borderRadius: 999,
+            fontSize: 13,
+            fontWeight: 600,
+            border: 0,
+          }}
+        >
+          {primaryLabel}
+        </button>
+        <button
+          onClick={() => set({ sheet: null })}
+          style={{
+            height: 50,
+            borderRadius: 999,
+            padding: "0 22px",
+            fontSize: 13,
+            border: "1px solid rgba(14,20,28,.14)",
+            background: "transparent",
+            color: "#0E141C",
+          }}
+        >
+          Schliessen
+        </button>
+      </div>
+    </SheetFrame>
   );
 }

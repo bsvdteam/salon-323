@@ -69,7 +69,8 @@ export async function exchangeCode(code: string): Promise<TokenResponse> {
       grant_type: "authorization_code",
     }).toString(),
   });
-  if (!res.ok) throw new Error(`Token-Tausch fehlgeschlagen: ${await res.text()}`);
+  if (!res.ok)
+    throw new Error(`Token-Tausch fehlgeschlagen: ${await res.text()}`);
   return (await res.json()) as TokenResponse;
 }
 
@@ -94,7 +95,8 @@ export async function saveConnection(
     account_email: email,
     connected_at: new Date().toISOString(),
   });
-  if (error) throw new Error(`Verbindung speichern fehlgeschlagen: ${error.message}`);
+  if (error)
+    throw new Error(`Verbindung speichern fehlgeschlagen: ${error.message}`);
 }
 
 /** Holt mit dem gespeicherten Refresh-Token ein frisches Access-Token. */
@@ -109,7 +111,8 @@ export async function accessToken(token?: string): Promise<string> {
       grant_type: "refresh_token",
     }).toString(),
   });
-  if (!res.ok) throw new Error(`Token-Refresh fehlgeschlagen: ${await res.text()}`);
+  if (!res.ok)
+    throw new Error(`Token-Refresh fehlgeschlagen: ${await res.text()}`);
   const j = (await res.json()) as TokenResponse;
   return j.access_token;
 }
@@ -146,6 +149,8 @@ export type EventInput = {
   endISO: string;
   /** Kunden-E-Mail: als Gast eingeladen -> Google mailt Bestätigung & Updates. */
   attendeeEmail?: string;
+  /** Google-Farbe "1".."11" (z.B. Sponti = 6 Tangerine). */
+  colorId?: string;
 };
 
 /** Legt einen Termin im verbundenen Kalender an. */
@@ -172,10 +177,12 @@ export async function createEvent(input: EventInput): Promise<{
         attendees: input.attendeeEmail
           ? [{ email: input.attendeeEmail }]
           : undefined,
+        colorId: input.colorId,
       }),
     },
   );
-  if (!res.ok) throw new Error(`Termin anlegen fehlgeschlagen: ${await res.text()}`);
+  if (!res.ok)
+    throw new Error(`Termin anlegen fehlgeschlagen: ${await res.text()}`);
   const j = await res.json();
   return { id: j.id, htmlLink: j.htmlLink };
 }
@@ -202,7 +209,8 @@ export async function busyRanges(
       items: [{ id }],
     }),
   });
-  if (!res.ok) throw new Error(`Frei/Belegt-Abfrage fehlgeschlagen: ${await res.text()}`);
+  if (!res.ok)
+    throw new Error(`Frei/Belegt-Abfrage fehlgeschlagen: ${await res.text()}`);
   const j = await res.json();
   return (j.calendars?.[id]?.busy ?? []) as BusyRange[];
 }
@@ -225,6 +233,7 @@ export type CalEvent = {
   start: string; // ISO (dateTime) oder YYYY-MM-DD (Ganztags)
   end: string;
   summary: string;
+  colorId?: string;
 };
 
 /** Listet echte Termine im Zeitfenster (für den Admin: anzeigen + absagen). */
@@ -244,11 +253,13 @@ export async function listEvents(
     `${CAL_BASE}/calendars/${encodeURIComponent(calendarId())}/events?${params.toString()}`,
     { headers: { Authorization: `Bearer ${token}` } },
   );
-  if (!res.ok) throw new Error(`Termine laden fehlgeschlagen: ${await res.text()}`);
+  if (!res.ok)
+    throw new Error(`Termine laden fehlgeschlagen: ${await res.text()}`);
   const j = (await res.json()) as {
     items?: {
       id: string;
       summary?: string;
+      colorId?: string;
       start?: { dateTime?: string; date?: string };
       end?: { dateTime?: string; date?: string };
     }[];
@@ -258,5 +269,6 @@ export async function listEvents(
     start: e.start?.dateTime ?? e.start?.date ?? "",
     end: e.end?.dateTime ?? e.end?.date ?? "",
     summary: e.summary ?? "(ohne Titel)",
+    colorId: e.colorId,
   }));
 }

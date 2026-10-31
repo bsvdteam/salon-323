@@ -40,7 +40,7 @@ import {
 } from "@/lib/db/availability";
 import { loadMemberBundle, type MemberBundle } from "@/lib/db/bundle";
 import { createEvent, wallISO, deleteEvent } from "@/lib/google/calendar";
-import { durOf, labelOf, priceOf, tiers } from "@/lib/data";
+import { durOf, labelOf, priceOf, tiers, SPONTI } from "@/lib/data";
 import { supabaseAdmin } from "@/lib/supabase/server";
 import type { ServiceKey, PayMethod } from "@/lib/supabase/types";
 
@@ -398,6 +398,7 @@ export type AdminTodayAppt = {
   start: number; // minutes from midnight (salon-local)
   sv: ServiceKey[];
   done: boolean;
+  sponti: boolean; // walk-in entered by the barber
   m: AdminMember;
 };
 
@@ -414,7 +415,7 @@ export async function listTodayAppointmentsAction(): Promise<
   const dayEnd = new Date(dayStart.getTime() + 86400000);
   const { data, error } = await sb
     .from("appointments")
-    .select("id, starts_at, services, status, member_id")
+    .select("id, starts_at, services, status, member_id, note")
     .gte("starts_at", dayStart.toISOString())
     .lt("starts_at", dayEnd.toISOString())
     .neq("status", "cancelled")
@@ -456,6 +457,7 @@ export async function listTodayAppointmentsAction(): Promise<
       start: d.getHours() * 60 + d.getMinutes(),
       sv: r.services as ServiceKey[],
       done: r.status === "done",
+      sponti: r.note === "Sponti",
       m: {
         id: r.member_id,
         n: m ? `${m.first_name} ${m.last_name}`.trim() : "—",
@@ -603,16 +605,16 @@ export async function markApptDoneAction(
   return { ok: true };
 }
 
-/** Barber: a walk-in ("Sponti") for a member — booked right in the shop.
- *  Today at `time` (salon time); if that is now or past it counts at once
- *  (status done, +1 cut, revenue), a later time stays booked like any other.
- *  Mirrored into the Google Calendar without a guest invite, so the slot is
- *  blocked and the member gets no mail. */
+/** Barber: a walk-in ("Sponti") for a member, entered in the shop for today
+ *  at `time` (salon time). Stored as a normal booking marked "Sponti": it
+ *  shows in its own colour in the agenda and the Google Calendar (no guest
+ *  invite → no mail) and is charged with "Fertig · abbuchen" like any other —
+ *  or counts by itself once its time is over. */
 export async function walkInAction(args: {
   memberId: string;
   services: ServiceKey[];
   time: string; // "HH:MM", today
-}): Promise<{ ok: true; done: boolean; price: number } | { ok: false }> {
+}): Promise<{ ok: true; price: number } | { ok: false }> {
   const s = await getSession();
   if (!s || s.role !== "barber") return { ok: false };
   if (!args.services.length || !/^\d{2}:\d{2}$/.test(args.time))
@@ -638,13 +640,14 @@ export async function walkInAction(args: {
       ].join("\n"),
       startISO: wallISO(y, m, d, hh * 60 + mm),
       endISO: wallISO(y, m, d, hh * 60 + mm + dur),
+      colorId: SPONTI.gcal,
     });
     googleEventId = ev.id;
   } catch {
     // calendar unreachable — the cut still counts in the DB
   }
 
-  const appt = await createAppointment({
+  await createAppointment({
     memberId: member.id,
     startsAt: start.toISOString(),
     durationMin: dur,
@@ -654,10 +657,8 @@ export async function walkInAction(args: {
     googleEventId,
     note: "Sponti",
   });
-  const done = start.getTime() <= Date.now();
-  if (done) await markAppointmentDone(appt.id);
   after(() => notifyPassChanged(member.id));
-  return { ok: true, done, price };
+  return { ok: true, price };
 }
 
 /** Barber: his own invite code (no use limit) for the invite card. */

@@ -19,7 +19,16 @@ import {
   type AdminTodayAppt,
   type RevenueData,
 } from "@/lib/actions";
-import { labelOf, durOf, priceOf, dateOf, wdL, mon, fmtTime } from "@/lib/data";
+import {
+  labelOf,
+  durOf,
+  priceOf,
+  dateOf,
+  wdL,
+  mon,
+  fmtTime,
+  SPONTI,
+} from "@/lib/data";
 
 const kick: React.CSSProperties = {
   fontFamily: "var(--font-geist-mono)",
@@ -133,6 +142,7 @@ export function AdminScreen() {
     tier: a.m.tier,
     m: a.m,
     serverDone: a.done,
+    sponti: a.sponti,
   }));
   const isDone = (ap: (typeof appts)[number]) =>
     ap.serverDone ||
@@ -148,7 +158,7 @@ export function AdminScreen() {
     const el = Math.max(0, nowMin - cur.start),
       p = Math.min(1, el / cur.dur);
     curV = {
-      kicker: `Im Stuhl · ${fmt(cur.start)}–${fmt(cur.start + cur.dur)}`,
+      kicker: `${cur.sponti ? "Sponti · " : ""}Im Stuhl · ${fmt(cur.start)}–${fmt(cur.start + cur.dur)}`,
       n: cur.n,
       s: labelOf(cur.sv),
       tier: cur.tier,
@@ -167,7 +177,7 @@ export function AdminScreen() {
   } else if (nxt) {
     const inMin = nxt.start - nowMin;
     curV = {
-      kicker: `Als Nächstes · ${inMin > 0 ? "in " + inMin + " min" : fmt(nxt.start)}`,
+      kicker: `${nxt.sponti ? "Sponti · " : ""}Als Nächstes · ${inMin > 0 ? "in " + inMin + " min" : fmt(nxt.start)}`,
       n: nxt.n,
       s: labelOf(nxt.sv),
       tier: nxt.tier,
@@ -203,12 +213,28 @@ export function AdminScreen() {
     return {
       n: ap.n,
       sub: `${fmt(ap.start)} · ${labelOf(ap.sv)}`,
-      tag: dn ? "✓" : "TIER " + ap.tier,
+      tag: dn ? "✓" : ap.sponti ? "SPONTI" : "TIER " + ap.tier,
       top: top(ap.start) + 2 + "px",
       h: h + "px",
       open: () => openClient(ap.m),
-      bg: isCur ? "#121925" : dn ? "#E3E9EF" : "#F6F8FA",
-      fg: isCur ? "#F4F7FA" : dn ? "rgba(14,20,28,.5)" : "#0E141C",
+      // walk-ins in their own warm colour (a faded tint once done)
+      bg: isCur
+        ? ap.sponti
+          ? SPONTI.ink
+          : "#121925"
+        : ap.sponti
+          ? SPONTI.bg
+          : dn
+            ? "#E3E9EF"
+            : "#F6F8FA",
+      fg: isCur
+        ? "#F4F7FA"
+        : ap.sponti
+          ? SPONTI.fg
+          : dn
+            ? "rgba(14,20,28,.5)"
+            : "#0E141C",
+      o: dn && ap.sponti ? 0.6 : 1,
       shadow: isCur
         ? "0 18px 36px -18px rgba(10,20,40,.6)"
         : "0 8px 20px -14px rgba(20,32,52,.35)",
@@ -358,21 +384,20 @@ export function AdminScreen() {
                   letterSpacing: "-.025em",
                 }}
               >
-                {appts.length} Termine heute.
+                {appts.length} {appts.length === 1 ? "Termin" : "Termine"}{" "}
+                heute.
               </h1>
-              {/* walk-in: pick the member, then "Sponti" in their profile */}
+              {/* walk-in: person + services + time, straight from here */}
               <button
-                onClick={() => {
-                  set({ aTab: "members" });
-                  say("Mitglied antippen → Sponti");
-                }}
-                className="glass-dark"
+                onClick={() => set({ sheet: { type: "sponti" } })}
                 style={{
                   flex: "none",
                   height: 40,
                   padding: "0 16px",
                   borderRadius: 999,
                   border: 0,
+                  background: SPONTI.ink,
+                  color: "#fff",
                   fontSize: 12.5,
                   fontWeight: 600,
                 }}
@@ -768,6 +793,7 @@ export function AdminScreen() {
                     zIndex: 1,
                     background: b.bg,
                     color: b.fg,
+                    opacity: b.o,
                     boxShadow: b.shadow,
                     transition: "all 1s cubic-bezier(.22,1,.36,1)",
                   }}

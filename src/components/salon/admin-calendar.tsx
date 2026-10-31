@@ -4,8 +4,15 @@ import { useEffect, useState } from "react";
 import { useSalon } from "./store";
 import { EmptyState } from "./empty-state";
 import { cancelApptByEventIdAction } from "@/lib/actions";
+import { BOOK_DAYS, SPONTI } from "@/lib/data";
 
-type Appt = { id: string; start: string; end: string; summary: string };
+type Appt = {
+  id: string;
+  start: string;
+  end: string;
+  summary: string;
+  colorId?: string;
+};
 
 const kick: React.CSSProperties = {
   fontFamily: "var(--font-geist-mono)",
@@ -47,7 +54,7 @@ export function CalendarTab() {
       `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
     const from = new Date();
     const to = new Date();
-    to.setDate(to.getDate() + 14);
+    to.setDate(to.getDate() + BOOK_DAYS);
     fetch(`/api/appointments?from=${d2s(from)}&to=${d2s(to)}`)
       .then((r) => r.json())
       .then((j) => {
@@ -56,6 +63,9 @@ export function CalendarTab() {
       .catch(() => {})
       .finally(() => setLoaded(true));
   }, []);
+
+  // walk-ins carry the Sponti colour in Google (set by walkInAction)
+  const sp = (ev: Appt) => ev.colorId === SPONTI.gcal;
 
   const cancel = async (ev: Appt) => {
     setBusyId(ev.id);
@@ -114,7 +124,10 @@ export function CalendarTab() {
         }}
       >
         <span style={kick}>
-          {loaded ? `${items.length} Termine` : "lädt…"} · nächste 2 Wochen
+          {loaded
+            ? `${items.length} ${items.length === 1 ? "Termin" : "Termine"}`
+            : "lädt…"}{" "}
+          · nächste 3 Wochen
         </span>
         <h1
           style={{
@@ -220,11 +233,27 @@ export function CalendarTab() {
                           minWidth: 48,
                           fontFamily: "var(--font-geist-mono)",
                           fontSize: 13,
-                          color: "#0E141C",
+                          color: sp(ev) ? SPONTI.ink : "#0E141C",
                         }}
                       >
                         {timeLabel(ev.start)}
                       </span>
+                      {sp(ev) && (
+                        <span
+                          style={{
+                            flex: "none",
+                            fontFamily: "var(--font-geist-mono)",
+                            fontSize: 8.5,
+                            letterSpacing: ".16em",
+                            padding: "4px 8px",
+                            borderRadius: 999,
+                            background: SPONTI.bg,
+                            color: SPONTI.fg,
+                          }}
+                        >
+                          SPONTI
+                        </span>
+                      )}
                       <span
                         style={{
                           fontSize: 14,
@@ -234,7 +263,7 @@ export function CalendarTab() {
                           textOverflow: "ellipsis",
                         }}
                       >
-                        {ev.summary}
+                        {ev.summary.replace(/^Salon 15 — /, "")}
                       </span>
                     </div>
                     <button

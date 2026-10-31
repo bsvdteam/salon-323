@@ -3,13 +3,13 @@
 import { useEffect, useState } from "react";
 import { useSalon, type DayHours } from "./store";
 import { EmptyState } from "./empty-state";
-import { dateOf, wdL, wdS, monS, mon, fmtTime } from "@/lib/data";
+import { dateOf, wdL, wdS, monS, mon, fmtTime, BOOK_DAYS } from "@/lib/data";
 
 /**
  * Barber availability — rebuilt to be compact instead of one long scroll.
  * A segmented switch shows one of three views at a time:
  *   • Woche    — the standard week as day-chips + a single inline editor
- *   • 2 Wochen — the next 14 days as a grid + an inline per-day editor
+ *   • 3 Wochen — the bookable days (BOOK_DAYS) as a grid + an inline per-day editor
  *   • Frei     — absences list + calendar picker (with an empty state)
  * Google Calendar status sits on top; Calendly is gone.
  */
@@ -78,7 +78,7 @@ export function AvailTab() {
   for (const wd of [1, 2, 3, 4, 5, 6, 0])
     mins += slotsW(st.week[wd]).length * 30;
   const weekHours = `${Math.round(mins / 60)} h buchbar / Woche`;
-  const horizonL = dl(14);
+  const horizonL = dl(BOOK_DAYS);
 
   // ── absences ──
   const absList = st.abs
@@ -153,7 +153,7 @@ export function AvailTab() {
 
   const nav: { k: "week" | "soon" | "away"; l: string }[] = [
     { k: "week", l: "Woche" },
-    { k: "soon", l: "2 Wochen" },
+    { k: "soon", l: "3 Wochen" },
     { k: "away", l: "Frei" },
   ];
 
@@ -565,7 +565,7 @@ export function AvailTab() {
               gap: 10,
             }}
           >
-            <span style={kick}>Nächste 2 Wochen</span>
+            <span style={kick}>Nächste 3 Wochen</span>
             <span style={{ fontSize: 11.5, color: "var(--ink-60)" }}>
               Buchbar bis {horizonL}
             </span>
@@ -577,7 +577,7 @@ export function AvailTab() {
               gap: 6,
             }}
           >
-            {Array.from({ length: 14 }, (_, k) => k + 1).map((o) => {
+            {Array.from({ length: BOOK_DAYS }, (_, k) => k + 1).map((o) => {
               const d = dateOf(o);
               const w = dayW(o);
               const ab = st.abs.find((x) => o >= x.a && o <= x.b);
