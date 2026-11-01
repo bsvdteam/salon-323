@@ -27,12 +27,10 @@ export function StoryShare({ onClose }: { onClose: () => void }) {
     const U = st.user;
     if (!U || !code) return;
     let live = true;
-    const link = inviteUrl(code);
     renderStory({
-      inviter: `${U.first}${U.last ? " " + U.last[0] + "." : ""}`,
       card: U.card,
       code,
-      link: link.replace(/^https?:\/\/(www\.)?/, ""),
+      domain: window.location.host.replace(/^www\./, ""),
     })
       .then((blob) => {
         if (!live) return;

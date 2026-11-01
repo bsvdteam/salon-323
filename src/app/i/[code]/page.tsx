@@ -1,7 +1,6 @@
 import type { Metadata } from "next";
 import { SalonApp } from "@/components/salon/salon-app";
 import { validateInvite } from "@/lib/db/invites";
-import { OG_IMAGE } from "@/lib/site";
 
 type Props = { params: Promise<{ code: string }> };
 
@@ -20,8 +19,8 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     ? `${v.inviterName} lädt dich zu Salon 15 ein`
     : "Einladung zu Salon 15";
   const description =
-    "Ein Raum, ein Stuhl, ein Barber. Rein kommt nur, wer eingeladen wird." +
-    (v ? ` Dein Code: ${code}` : "");
+    "Salon 15 – der Barber in Degersheim. Members only." +
+    (v ? ` Use code ${code}.` : "");
   return {
     title,
     description,
@@ -35,7 +34,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
       title,
       description,
       url: `/i/${code}`,
-      images: [OG_IMAGE],
+      // the picture comes from ./opengraph-image (story look, with the code)
     },
     twitter: { card: "summary_large_image", title, description },
   };

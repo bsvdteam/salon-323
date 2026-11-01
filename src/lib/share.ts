@@ -69,8 +69,7 @@ export function inviteUrl(code: string): string {
  *  passed separately so share sheets render it as a preview card. */
 export function inviteMessage(code: string): string {
   return (
-    "Ich lade dich zu Salon 15 ein – ein Raum, ein Stuhl, ein Barber. " +
-    "Rein kommt nur, wer eingeladen wird.\n\n" +
-    `Dein Code: ${code}`
+    "Salon 15 – der Barber in Degersheim. Members only.\n" +
+    `Ich lade dich ein – use code ${code}`
   );
 }

@@ -1,14 +1,19 @@
 // Client-only: draws the invite "story" (1080×1920, Instagram/WhatsApp story
 // size) on a canvas — the inviter's card design as backdrop and as a blank
-// "Your Name" card for whoever joins, the code big in glass, who invites at
-// the bottom. Fonts come from the page (next/font), like in the app.
+// "Your Name" card for whoever joins, then just the code, the domain and
+// John 15,15. Fonts come from the page (next/font), like in the app.
 import { cardStyles } from "@/lib/data";
 
 export type StoryInput = {
-  inviter: string; // "Anna T."
   card: number; // the inviter's chosen design
   code: string;
-  link: string; // shown without https://
+  domain: string; // "salon15.ch"
+};
+
+/** Salon 15 → John 15: friends, which is what an invite is. */
+export const VERSE = {
+  t: ["Euch aber habe ich gesagt,", "dass ihr Freunde seid."],
+  r: "Johannes 15,15",
 };
 
 const W = 1080;
@@ -78,6 +83,7 @@ export async function renderStory(d: StoryInput): Promise<Blob> {
     document.fonts.load(`200 120px ${sans}`),
     document.fonts.load(`400 40px ${sans}`),
     document.fonts.load(`300 150px ${mono}`),
+    document.fonts.load(`300 30px ${sans}`),
     document.fonts.load(`400 30px ${mono}`),
   ]).catch(() => {});
   const img = await loadImg(cs.img);
@@ -123,12 +129,16 @@ export async function renderStory(d: StoryInput): Promise<Blob> {
   ctx.fillText("Look sharp.", 78, 400);
   ctx.fillStyle = rgba(ink, 0.55);
   ctx.fillText("Feel sharp.", 78, 545);
+  // what this is, for someone who's never heard of it
+  ctx.fillStyle = rgba(ink, 0.8);
+  ctx.font = `400 38px ${sans}`;
+  ctx.fillText("Barber in Degersheim.", 84, 640);
 
   // ── the card itself, sharp and tilted
   const cw = 860;
   const ch = cw / 1.586;
   ctx.save();
-  ctx.translate(W / 2 + 20, 1040);
+  ctx.translate(W / 2 + 20, 1030);
   ctx.rotate((-6 * Math.PI) / 180);
   ctx.shadowColor = "rgba(0,0,0,.55)";
   ctx.shadowBlur = 90;
@@ -174,7 +184,7 @@ export async function renderStory(d: StoryInput): Promise<Blob> {
   ctx.restore();
   // thin rim on the card
   ctx.save();
-  ctx.translate(W / 2 + 20, 1040);
+  ctx.translate(W / 2 + 20, 1030);
   ctx.rotate((-6 * Math.PI) / 180);
   ctx.beginPath();
   ctx.roundRect(-cw / 2, -ch / 2, cw, ch, 52);
@@ -183,49 +193,29 @@ export async function renderStory(d: StoryInput): Promise<Blob> {
   ctx.stroke();
   ctx.restore();
 
-  // ── the code, in glass
-  const gx = 80;
-  const gy = 1430;
-  const gw = W - 160;
-  const gh = 270;
-  ctx.save();
-  ctx.beginPath();
-  ctx.roundRect(gx, gy, gw, gh, 56);
-  ctx.clip();
-  ctx.filter = "blur(30px)";
-  cover(ctx, img, -120, -120, W + 240, H + 240, 0.5, 0.4);
-  ctx.filter = "none";
-  ctx.fillStyle = "rgba(255,255,255,.12)";
-  ctx.fillRect(gx, gy, gw, gh);
-  ctx.restore();
-  ctx.beginPath();
-  ctx.roundRect(gx, gy, gw, gh, 56);
-  ctx.strokeStyle = "rgba(255,255,255,.32)";
-  ctx.lineWidth = 2;
-  ctx.stroke();
-  ctx.fillStyle = rgba(ink, 0.65);
-  ctx.font = `400 24px ${mono}`;
-  spaced(ctx, "USE CODE", gx + 64, gy + 76, 10);
-  ctx.fillStyle = ink;
-  ctx.font = `300 132px ${mono}`;
-  spaced(ctx, d.code, W / 2, gy + 214, 34, "center");
-
-  // ── link + who invites
-  ctx.fillStyle = rgba(ink, 0.85);
-  ctx.font = `400 34px ${sans}`;
+  // ── the code: no box, just type — a hairline, the label, the code
   ctx.textAlign = "center";
-  ctx.fillText(d.link, W / 2, 1790);
+  ctx.fillStyle = rgba(ink, 0.35);
+  ctx.fillRect(W / 2 - 32, 1408, 64, 2);
+  ctx.fillStyle = rgba(ink, 0.6);
+  ctx.font = `400 22px ${mono}`;
+  spaced(ctx, "USE CODE", W / 2, 1488, 12, "center");
+  ctx.fillStyle = ink;
+  ctx.font = `300 116px ${mono}`;
+  spaced(ctx, d.code, W / 2, 1612, 30, "center");
+  ctx.fillStyle = rgba(ink, 0.8);
+  ctx.font = `400 32px ${sans}`;
+  ctx.fillText(d.domain, W / 2, 1690);
+
+  // ── John 15, quietly at the foot
+  ctx.fillStyle = rgba(ink, 0.6);
+  ctx.font = `300 30px ${sans}`;
+  ctx.fillText(`„${VERSE.t[0]}`, W / 2, 1782);
+  ctx.fillText(`${VERSE.t[1]}“`, W / 2, 1822);
+  ctx.fillStyle = rgba(ink, 0.42);
+  ctx.font = `400 18px ${mono}`;
+  spaced(ctx, VERSE.r.toUpperCase(), W / 2, 1870, 6, "center");
   ctx.textAlign = "left";
-  ctx.fillStyle = rgba(ink, 0.55);
-  ctx.font = `400 20px ${mono}`;
-  spaced(
-    ctx,
-    `INVITED BY ${d.inviter.toUpperCase()}`,
-    W / 2,
-    1850,
-    7,
-    "center",
-  );
 
   // ── film grain, very light
   const grain = ctx.getImageData(0, 0, W, H);
