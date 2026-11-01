@@ -110,6 +110,8 @@ export function LoginScreen() {
   const ov = useOverlayActions();
   const st = state;
   const ready = st.intro >= 3;
+  // "PIN vergessen?" — shows who resets it (the barber) and a WhatsApp link
+  const [forgot, setForgot] = useState(false);
   const panelOpen = !!st.mode;
   const chromeO = ready ? 1 : 0;
 
@@ -607,6 +609,70 @@ export function LoginScreen() {
                   </button>
                 </div>
               )}
+              {st.pwFor === "member" &&
+                (forgot ? (
+                  <div
+                    style={{
+                      display: "flex",
+                      flexDirection: "column",
+                      gap: 12,
+                      padding: "14px 16px",
+                      borderRadius: 22,
+                      background: "rgba(255,255,255,.07)",
+                      border: "1px solid rgba(255,255,255,.12)",
+                      animation: "fade .8s ease both",
+                    }}
+                  >
+                    <span
+                      style={{
+                        fontSize: 13,
+                        lineHeight: 1.45,
+                        color: "rgba(244,247,250,.8)",
+                      }}
+                    >
+                      Kein Problem: Laurin setzt dir einen neuen PIN. Schreib
+                      ihm kurz oder frag im Salon – danach kannst du ihn im
+                      Profil wieder selbst ändern.
+                    </span>
+                    <a
+                      href={`${salon.wa}?text=${encodeURIComponent(
+                        `Hoi Laurin, ich habe meinen PIN vergessen. Mein Username: ${st.username.trim()}`,
+                      )}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      style={{
+                        height: 44,
+                        borderRadius: 999,
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        background: "#F4F7FA",
+                        color: "#0E141C",
+                        fontSize: 13,
+                        fontWeight: 500,
+                        textDecoration: "none",
+                      }}
+                    >
+                      Laurin auf WhatsApp schreiben
+                    </a>
+                  </div>
+                ) : (
+                  <button
+                    onClick={() => setForgot(true)}
+                    style={{
+                      alignSelf: "center",
+                      border: 0,
+                      background: "transparent",
+                      padding: "4px 8px",
+                      fontSize: 12.5,
+                      color: "rgba(244,247,250,.6)",
+                      textDecoration: "underline",
+                      textUnderlineOffset: 3,
+                    }}
+                  >
+                    PIN vergessen?
+                  </button>
+                ))}
             </div>
           )}
 

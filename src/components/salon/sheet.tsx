@@ -143,13 +143,16 @@ function PinChangeRow() {
   );
 }
 
-/** Barber: a member forgot their PIN → generate a new one, shown once. */
+/** Barber: a member forgot their PIN → generate a new one, shown once. The
+ *  first tap only asks, since the old PIN stops working right away. */
 function PinResetRow({ memberId, first }: { memberId: string; first: string }) {
   const { say } = useSalon();
   const [pin, setPin] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [ask, setAsk] = useState(false);
   const reset = () => {
     if (busy) return;
+    if (!ask) return setAsk(true);
     setBusy(true);
     resetMemberPinAction(memberId).then((r) => {
       setBusy(false);
@@ -160,7 +163,11 @@ function PinResetRow({ memberId, first }: { memberId: string; first: string }) {
   return (
     <div style={rowStyle}>
       <span style={{ fontSize: 13, color: "rgba(14,20,28,.65)" }}>
-        {pin ? `Neuer PIN für ${first}` : "PIN"}
+        {pin
+          ? `Neuer PIN für ${first} – sag ihn weiter`
+          : ask
+            ? "Alter PIN geht dann nicht mehr"
+            : "PIN vergessen?"}
       </span>
       {pin ? (
         <span
@@ -174,8 +181,20 @@ function PinResetRow({ memberId, first }: { memberId: string; first: string }) {
           {pin}
         </span>
       ) : (
-        <button onClick={reset} style={pillBtn}>
-          {busy ? "…" : "Zurücksetzen"}
+        <button
+          onClick={reset}
+          style={
+            ask
+              ? {
+                  ...pillBtn,
+                  border: 0,
+                  background: "#B5483F",
+                  color: "#fff",
+                }
+              : pillBtn
+          }
+        >
+          {busy ? "…" : ask ? "Neuen PIN erzeugen" : "Zurücksetzen"}
         </button>
       )}
     </div>

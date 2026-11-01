@@ -4,14 +4,34 @@ import { useCallback, useEffect, useRef } from "react";
 import { useSalon } from "./store";
 import { verses, type ServiceKey } from "@/lib/data";
 import {
-  loginMemberAction,
-  loginBarberAction,
   validateInviteAction,
-  redeemOnboardAction,
   usernameAvailableAction,
-  logoutAction,
+  type AuthResult,
+  type OnboardArgs,
 } from "@/lib/actions";
 import { bundleToState } from "@/lib/member-view";
+
+// Everything that sets or clears the session cookie goes through /api/auth as
+// a plain fetch, never a Server Action — the action's automatic re-render put
+// the old URL (/admin) back and could rebuild the page mid-login. See
+// src/app/api/auth/route.ts.
+const auth = <T>(body: object): Promise<T> =>
+  fetch("/api/auth", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify(body),
+  }).then((r) => r.json());
+const loginMemberAction = (username: string, pin?: string) =>
+  auth<AuthResult>({ op: "member", username, pin });
+const loginBarberAction = (username: string, password: string) =>
+  auth<{ ok: true } | { ok: false; error: string }>({
+    op: "barber",
+    username,
+    password,
+  });
+const redeemOnboardAction = (args: OnboardArgs) =>
+  auth<AuthResult>({ op: "onboard", args });
+const logoutAction = () => auth<{ ok: boolean }>({ op: "logout" });
 
 /** Auth + navigation actions, ported 1:1 from the prototype Component methods. */
 export function useSalonActions() {
