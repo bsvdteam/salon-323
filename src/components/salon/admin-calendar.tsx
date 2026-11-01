@@ -48,6 +48,8 @@ export function CalendarTab() {
   const [items, setItems] = useState<Appt[]>([]);
   const [loaded, setLoaded] = useState(false);
   const [busyId, setBusyId] = useState<string | null>(null);
+  // first tap on „Absagen“ only asks; the second (Ja, absagen) really cancels
+  const [askId, setAskId] = useState<string | null>(null);
 
   useEffect(() => {
     const d2s = (d: Date) =>
@@ -77,11 +79,14 @@ export function CalendarTab() {
       if (!j.ok) throw new Error();
       await cancelApptByEventIdAction(ev.id);
       setItems((prev) => prev.filter((x) => x.id !== ev.id));
-      say("Termin abgesagt – Kunde benachrichtigt");
+      say(
+        sp(ev) ? "Sponti gelöscht" : "Termin abgesagt – Kunde benachrichtigt",
+      );
     } catch {
       say("Absagen fehlgeschlagen");
     } finally {
       setBusyId(null);
+      setAskId(null);
     }
   };
 
@@ -208,10 +213,6 @@ export function CalendarTab() {
                   <div
                     key={ev.id}
                     style={{
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "space-between",
-                      gap: 12,
                       padding: "13px 0",
                       borderBottom:
                         i < day.items.length - 1
@@ -223,66 +224,134 @@ export function CalendarTab() {
                       style={{
                         display: "flex",
                         alignItems: "center",
+                        justifyContent: "space-between",
                         gap: 12,
-                        minWidth: 0,
                       }}
                     >
-                      <span
+                      <div
                         style={{
-                          flex: "none",
-                          minWidth: 48,
-                          fontFamily: "var(--font-geist-mono)",
-                          fontSize: 13,
-                          color: sp(ev) ? SPONTI.ink : "#0E141C",
+                          display: "flex",
+                          alignItems: "center",
+                          gap: 12,
+                          minWidth: 0,
                         }}
                       >
-                        {timeLabel(ev.start)}
-                      </span>
-                      {sp(ev) && (
                         <span
                           style={{
                             flex: "none",
+                            minWidth: 48,
                             fontFamily: "var(--font-geist-mono)",
-                            fontSize: 8.5,
-                            letterSpacing: ".16em",
-                            padding: "4px 8px",
-                            borderRadius: 999,
-                            background: SPONTI.bg,
-                            color: SPONTI.fg,
+                            fontSize: 13,
+                            color: sp(ev) ? SPONTI.ink : "#0E141C",
                           }}
                         >
-                          SPONTI
+                          {timeLabel(ev.start)}
                         </span>
+                        {sp(ev) && (
+                          <span
+                            style={{
+                              flex: "none",
+                              fontFamily: "var(--font-geist-mono)",
+                              fontSize: 8.5,
+                              letterSpacing: ".16em",
+                              padding: "4px 8px",
+                              borderRadius: 999,
+                              background: SPONTI.bg,
+                              color: SPONTI.fg,
+                            }}
+                          >
+                            SPONTI
+                          </span>
+                        )}
+                        <span
+                          style={{
+                            fontSize: 14,
+                            fontWeight: 500,
+                            whiteSpace: "nowrap",
+                            overflow: "hidden",
+                            textOverflow: "ellipsis",
+                          }}
+                        >
+                          {ev.summary.replace(/^Salon 15 — /, "")}
+                        </span>
+                      </div>
+                      {askId !== ev.id && (
+                        <button
+                          onClick={() => setAskId(ev.id)}
+                          style={{
+                            flex: "none",
+                            height: 34,
+                            padding: "0 14px",
+                            borderRadius: 999,
+                            fontSize: 12,
+                            border: "1px solid rgba(229,119,108,.35)",
+                            background: "rgba(229,119,108,.1)",
+                            color: "#B5483F",
+                          }}
+                        >
+                          Absagen
+                        </button>
                       )}
-                      <span
+                    </div>
+                    {askId === ev.id && (
+                      <div
                         style={{
-                          fontSize: 14,
-                          fontWeight: 500,
-                          whiteSpace: "nowrap",
-                          overflow: "hidden",
-                          textOverflow: "ellipsis",
+                          marginTop: 12,
+                          padding: "12px 14px",
+                          borderRadius: 18,
+                          background: "rgba(229,119,108,.08)",
+                          border: "1px solid rgba(229,119,108,.22)",
                         }}
                       >
-                        {ev.summary.replace(/^Salon 15 — /, "")}
-                      </span>
-                    </div>
-                    <button
-                      onClick={() => cancel(ev)}
-                      disabled={busyId === ev.id}
-                      style={{
-                        flex: "none",
-                        height: 34,
-                        padding: "0 14px",
-                        borderRadius: 999,
-                        fontSize: 12,
-                        border: "1px solid rgba(229,119,108,.35)",
-                        background: "rgba(229,119,108,.1)",
-                        color: "#B5483F",
-                        opacity: busyId === ev.id ? 0.5 : 1,
-                      }}
-                    >
-                      {busyId === ev.id ? "…" : "Absagen"}
-                    </button>
+                        <div style={{ fontSize: 13, lineHeight: 1.4 }}>
+                          Termin {timeLabel(ev.start)} wirklich absagen?
+                          <span
+                            style={{
+                              display: "block",
+                              fontSize: 12,
+                              color: "rgba(14,20,28,.55)",
+                            }}
+                          >
+                            {sp(ev)
+                              ? "Der Sponti-Eintrag wird gelöscht."
+                              : "Der Kunde bekommt eine Absage per Mail."}
+                          </span>
+                        </div>
+                        <div style={{ display: "flex", gap: 8, marginTop: 10 }}>
+                          <button
+                            onClick={() => cancel(ev)}
+                            disabled={busyId === ev.id}
+                            style={{
+                              flex: 1,
+                              height: 38,
+                              borderRadius: 999,
+                              border: 0,
+                              fontSize: 13,
+                              background: "#B5483F",
+                              color: "#fff",
+                              opacity: busyId === ev.id ? 0.5 : 1,
+                            }}
+                          >
+                            {busyId === ev.id ? "…" : "Ja, absagen"}
+                          </button>
+                          <button
+                            onClick={() => setAskId(null)}
+                            disabled={busyId === ev.id}
+                            style={{
+                              flex: 1,
+                              height: 38,
+                              borderRadius: 999,
+                              fontSize: 13,
+                              border: "1px solid rgba(14,20,28,.14)",
+                              background: "transparent",
+                              color: "#0E141C",
+                            }}
+                          >
+                            Nein
+                          </button>
+                        </div>
+                      </div>
+                    )}
                   </div>
                 ))}
               </div>
