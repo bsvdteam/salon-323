@@ -3,6 +3,7 @@
 import { useSalon, type AdminTab } from "../store";
 import { useSalonActions } from "../actions";
 import { Icon } from "../icons";
+import { RevenueTab } from "../admin-revenue";
 import { CalendarTab } from "../admin-calendar";
 import { AvailTab } from "../admin-avail";
 import { InviteGenerator, MemberCount } from "../invite-generator";
@@ -13,11 +14,9 @@ import {
   saveAvailabilityAction,
   listMembersAction,
   listTodayAppointmentsAction,
-  listRevenueAction,
   markApptDoneAction,
   type AdminMember,
   type AdminTodayAppt,
-  type RevenueData,
 } from "@/lib/actions";
 import {
   labelOf,
@@ -87,13 +86,6 @@ export function AdminScreen() {
     listTodayAppointmentsAction()
       .then((r) => setToday({ nowMin, appts: r ?? [] }))
       .catch(() => setToday({ nowMin, appts: [] }));
-  }, [st.adminTick]);
-  // Revenue, aggregated over months (the Umsatz tab).
-  const [rev, setRev] = useState<RevenueData | null>(null);
-  useEffect(() => {
-    listRevenueAction()
-      .then((r) => setRev(r))
-      .catch(() => {});
   }, [st.adminTick]);
 
   // Zeiten: every change in the Zeiten tab is saved to the DB (debounced), so
@@ -282,14 +274,6 @@ export function AdminScreen() {
       border: on ? "transparent" : "rgba(255,255,255,.35)",
     };
   });
-
-  // ── Revenue (real, aggregated over months via listRevenueAction) ──
-  const revMonths = rev?.months ?? [];
-  const revMax = Math.max(1, ...revMonths.map((m) => m.total));
-  const rev6Total = revMonths.reduce((s, m) => s + m.total, 0);
-  const revAvg =
-    rev && rev.monthCount ? Math.round(rev.month / rev.monthCount) : null;
-  const chf = (n: number) => n.toLocaleString("de-CH");
 
   return (
     <div
@@ -1057,185 +1041,7 @@ export function AdminScreen() {
 
       {st.aTab === "avail" && <AvailTab />}
 
-      {/* ── REVENUE (real, über Monate skalierbar: CHF 15 / 20 pro Termin) ── */}
-      {st.aTab === "revenue" && (
-        <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
-          {/* hero: this month */}
-          <div
-            style={{
-              display: "flex",
-              flexDirection: "column",
-              gap: 10,
-              animation: "up 1.4s cubic-bezier(.22,1,.36,1) both",
-            }}
-          >
-            <span style={kick}>Umsatz · {rev?.monthLabel ?? "Monat"}</span>
-            <div style={{ display: "flex", alignItems: "baseline", gap: 10 }}>
-              <span style={{ fontSize: 14, color: "var(--ink-60)" }}>CHF</span>
-              <span
-                style={{
-                  fontSize: "clamp(56px,13vw,78px)",
-                  fontWeight: 200,
-                  letterSpacing: "-.045em",
-                  lineHeight: 1,
-                }}
-              >
-                {chf(rev?.month ?? 0)}
-              </span>
-            </div>
-            <span style={{ fontSize: 12.5, color: "rgba(14,20,28,.65)" }}>
-              {rev?.monthCount ?? 0}{" "}
-              {rev?.monthCount === 1 ? "Schnitt" : "Schnitte"} diesen Monat ·
-              CHF 15 pro Schnitt, 20 mit Bart
-            </span>
-          </div>
-
-          {/* 6-month trend (real) or an empty state until there's revenue */}
-          {rev6Total > 0 ? (
-            <div
-              className="glass-dark"
-              style={{
-                borderRadius: 32,
-                padding: 22,
-                animation: "up 1.6s cubic-bezier(.22,1,.36,1) .15s both",
-                display: "flex",
-                flexDirection: "column",
-                gap: 18,
-              }}
-            >
-              <div style={{ display: "flex", justifyContent: "space-between" }}>
-                <span style={kickD}>Letzte 6 Monate</span>
-                <span
-                  style={{ fontSize: 11.5, color: "rgba(244,247,250,.65)" }}
-                >
-                  CHF {chf(rev6Total)}
-                </span>
-              </div>
-              <div
-                style={{
-                  height: 150,
-                  display: "grid",
-                  gridTemplateColumns: "repeat(6,minmax(0,1fr))",
-                  gap: 10,
-                  alignItems: "end",
-                }}
-              >
-                {revMonths.map((m, i) => (
-                  <div
-                    key={i}
-                    style={{
-                      height: "100%",
-                      display: "flex",
-                      flexDirection: "column",
-                      justifyContent: "flex-end",
-                      alignItems: "center",
-                      gap: 8,
-                    }}
-                  >
-                    <span
-                      style={{
-                        fontFamily: "var(--font-geist-mono)",
-                        fontSize: 8.5,
-                        color: "rgba(244,247,250,.6)",
-                      }}
-                    >
-                      {m.total ? chf(m.total) : "—"}
-                    </span>
-                    <div
-                      style={{
-                        width: "100%",
-                        maxWidth: 26,
-                        height: Math.max(3, (m.total / revMax) * 100) + "px",
-                        borderRadius: 999,
-                        background:
-                          i === revMonths.length - 1
-                            ? "#F4A69E"
-                            : "rgba(244,247,250,.85)",
-                        transformOrigin: "bottom",
-                        animation: "grow 1.6s cubic-bezier(.22,1,.36,1) both",
-                        animationDelay: 0.3 + i * 0.09 + "s",
-                      }}
-                    />
-                    <span
-                      style={{
-                        fontFamily: "var(--font-geist-mono)",
-                        fontSize: 8.5,
-                        letterSpacing: ".1em",
-                        color: "rgba(244,247,250,.6)",
-                      }}
-                    >
-                      {m.label}
-                    </span>
-                  </div>
-                ))}
-              </div>
-            </div>
-          ) : (
-            <div
-              className="glass-dark"
-              style={{
-                borderRadius: 32,
-                animation: "up 1.6s cubic-bezier(.22,1,.36,1) .15s both",
-              }}
-            >
-              <EmptyState
-                title="Noch kein Umsatz"
-                sub='Jeder erledigte Termin zählt mit CHF 15 (20 mit Bart). Buch den ersten im „Heute"-Tab ab – Monate und Trend bauen sich hier automatisch auf.'
-                glyph="CHF"
-                tone="dark"
-              />
-            </div>
-          )}
-
-          {/* today / week / avg tiles */}
-          <div
-            style={{
-              display: "grid",
-              gridTemplateColumns: "repeat(3,minmax(0,1fr))",
-              gap: 10,
-            }}
-          >
-            {[
-              { l: "Heute", v: "CHF " + chf(rev?.today ?? 0) },
-              { l: "Diese Woche", v: "CHF " + chf(rev?.week ?? 0) },
-              { l: "Ø / Schnitt", v: revAvg != null ? "CHF " + revAvg : "—" },
-            ].map((t, i) => (
-              <div
-                key={i}
-                className="glass-light"
-                style={{
-                  padding: "16px 14px",
-                  borderRadius: 24,
-                  color: "#0E141C",
-                  animation: `up 1.6s cubic-bezier(.22,1,.36,1) ${0.25 + i * 0.05}s both`,
-                  display: "flex",
-                  flexDirection: "column",
-                  gap: 10,
-                }}
-              >
-                <span style={{ fontSize: 11, color: "var(--ink-62)" }}>
-                  {t.l}
-                </span>
-                <span
-                  style={{
-                    fontSize: 20,
-                    fontWeight: 300,
-                    letterSpacing: "-.02em",
-                  }}
-                >
-                  {t.v}
-                </span>
-              </div>
-            ))}
-          </div>
-
-          <span
-            style={{ padding: "0 4px", fontSize: 11.5, color: "var(--ink-60)" }}
-          >
-            Verdient = erledigte Termine · bezahlt vor Ort (bar oder TWINT).
-          </span>
-        </div>
-      )}
+      {st.aTab === "revenue" && <RevenueTab />}
 
       {/* admin nav */}
       <div

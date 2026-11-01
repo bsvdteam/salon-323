@@ -355,6 +355,30 @@ export type Database = {
           },
         ]
       }
+      revenue_entries: {
+        Row: {
+          amount_chf: number
+          created_at: string
+          day: string
+          id: string
+          note: string | null
+        }
+        Insert: {
+          amount_chf: number
+          created_at?: string
+          day: string
+          id?: string
+          note?: string | null
+        }
+        Update: {
+          amount_chf?: number
+          created_at?: string
+          day?: string
+          id?: string
+          note?: string | null
+        }
+        Relationships: []
+      }
       wallet_registrations: {
         Row: {
           created_at: string

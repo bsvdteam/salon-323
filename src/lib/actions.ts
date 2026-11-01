@@ -473,14 +473,25 @@ export async function listTodayAppointmentsAction(): Promise<
   });
 }
 
-export type RevenueMonth = { label: string; total: number; count: number };
+export type RevenueMonth = { ym: string; label: string; total: number };
+export type RevenueEntry = {
+  id: string;
+  day: string; // YYYY-MM-DD, Salon-Kalendertag
+  amount: number;
+  note: string;
+};
 export type RevenueData = {
-  today: number;
+  ym: string; // gewählter Monat, YYYY-MM
+  isCurrent: boolean;
+  monthLabel: string; // "November", bei anderem Jahr "November 2025"
+  total: number; // Termine + manuell
+  apptTotal: number;
+  apptCount: number;
+  manualTotal: number;
+  today: number; // nur im aktuellen Monat, sonst 0
   week: number;
-  month: number;
-  monthCount: number;
-  monthLabel: string; // z.B. "Oktober"
-  months: RevenueMonth[]; // letzte 6, alt → neu (letzter = aktueller Monat)
+  entries: RevenueEntry[]; // manuelle Einträge des Monats, neu → alt
+  months: RevenueMonth[]; // 12 Monate, alt → neu (letzter = aktueller oder gewählter)
 };
 
 const MON_FULL = [
@@ -511,80 +522,157 @@ const MON_ABBR = [
   "Nov",
   "Dez",
 ];
+const ymOf = (y: number, m: number) => `${y}-${String(m + 1).padStart(2, "0")}`;
+const dayOf = (d: Date) =>
+  `${ymOf(d.getFullYear(), d.getMonth())}-${String(d.getDate()).padStart(2, "0")}`;
 
 /**
- * Barber revenue, aggregated from real appointments and scalable over months.
- * "Verdient" = erledigte Termine (status 'done' — automatisch, sobald der
- * Termin vorbei ist, oder vorher vom Barber abgehakt); jeder zählt mit seinem
- * price_chf (15 / 20 mit Bart). Alle Zeitgrenzen in Salon-Zeitzone.
+ * Barber revenue for one month (default: the current one) plus a 12-month
+ * trend. Two sources, added together: erledigte Termine (status 'done' —
+ * automatisch nach dem Termin oder vom Barber abgehakt, je mit price_chf) and
+ * revenue_entries, the amounts the barber typed in himself (nachgetragene
+ * Monate, Termine ausserhalb der App). All boundaries in salon time.
  */
-export async function listRevenueAction(): Promise<RevenueData | null> {
+export async function listRevenueAction(
+  ym?: string,
+): Promise<RevenueData | null> {
   const s = await getSession();
   if (!s || s.role !== "barber") return null;
   await settlePastAppointments();
   const sb = supabaseAdmin();
 
   const nowZ = toZonedTime(new Date(), TZ);
-  const startMonth = new Date(nowZ.getFullYear(), nowZ.getMonth() - 5, 1);
-  const sinceISO = fromZonedTime(startMonth, TZ).toISOString();
+  const curYm = ymOf(nowZ.getFullYear(), nowZ.getMonth());
+  // a valid month that is not in the future, else the current one
+  const sel =
+    ym && /^\d{4}-(0[1-9]|1[0-2])$/.test(ym) && ym <= curYm ? ym : curYm;
+  const [sy, sm] = sel.split("-").map(Number);
 
-  const { data, error } = await sb
-    .from("appointments")
-    .select("starts_at, price_chf, status")
-    .eq("status", "done")
-    .gte("starts_at", sinceISO);
-  if (error) throw error;
-  const rows = data ?? [];
+  // trend window: the 12 months ending now, or ending at the chosen month when
+  // that one is older than the window
+  const winEnd =
+    (nowZ.getFullYear() - sy) * 12 + nowZ.getMonth() - (sm - 1) > 11
+      ? new Date(sy, sm - 1, 1)
+      : new Date(nowZ.getFullYear(), nowZ.getMonth(), 1);
+  const winStart = new Date(winEnd.getFullYear(), winEnd.getMonth() - 11, 1);
+  const winNext = new Date(winEnd.getFullYear(), winEnd.getMonth() + 1, 1);
 
-  // last 6 month buckets (oldest → current)
+  const [appts, manual] = await Promise.all([
+    sb
+      .from("appointments")
+      .select("starts_at, price_chf")
+      .eq("status", "done")
+      .gte("starts_at", fromZonedTime(winStart, TZ).toISOString())
+      .lt("starts_at", fromZonedTime(winNext, TZ).toISOString()),
+    sb
+      .from("revenue_entries")
+      .select("id, day, amount_chf, note")
+      .gte("day", dayOf(winStart))
+      .lt("day", dayOf(winNext))
+      .order("day", { ascending: false })
+      .order("created_at", { ascending: false }),
+  ]);
+  if (appts.error) throw appts.error;
+  if (manual.error) throw manual.error;
+
   const months: RevenueMonth[] = [];
-  const bucketIndex = new Map<string, number>();
-  for (let i = 5; i >= 0; i--) {
-    const d = new Date(nowZ.getFullYear(), nowZ.getMonth() - i, 1);
-    const key = `${d.getFullYear()}-${d.getMonth()}`;
-    bucketIndex.set(key, months.length);
-    months.push({ label: MON_ABBR[d.getMonth()], total: 0, count: 0 });
+  const idx = new Map<string, number>();
+  for (let i = 0; i < 12; i++) {
+    const d = new Date(winStart.getFullYear(), winStart.getMonth() + i, 1);
+    const k = ymOf(d.getFullYear(), d.getMonth());
+    idx.set(k, months.length);
+    months.push({ ym: k, label: MON_ABBR[d.getMonth()], total: 0 });
   }
 
-  // week start (Monday 00:00, salon-local)
+  const isCurrent = sel === curYm;
+  const todayStr = dayOf(nowZ);
   const dow = (nowZ.getDay() + 6) % 7; // 0 = Monday
-  const weekStart = new Date(
-    nowZ.getFullYear(),
-    nowZ.getMonth(),
-    nowZ.getDate() - dow,
+  const weekStart = dayOf(
+    new Date(nowZ.getFullYear(), nowZ.getMonth(), nowZ.getDate() - dow),
   );
 
-  let today = 0,
-    week = 0,
-    month = 0,
-    monthCount = 0;
-  for (const r of rows) {
-    const z = toZonedTime(new Date(r.starts_at), TZ);
+  let apptTotal = 0,
+    apptCount = 0,
+    manualTotal = 0,
+    today = 0,
+    week = 0;
+  const add = (day: string, p: number) => {
+    const bi = idx.get(day.slice(0, 7));
+    if (bi != null) months[bi].total += p;
+    if (day === todayStr) today += p;
+    if (day >= weekStart && day <= todayStr) week += p;
+  };
+  for (const r of appts.data ?? []) {
+    const day = dayOf(toZonedTime(new Date(r.starts_at), TZ));
     const p = r.price_chf ?? 0;
-    const bi = bucketIndex.get(`${z.getFullYear()}-${z.getMonth()}`);
-    if (bi != null) {
-      months[bi].total += p;
-      months[bi].count += 1;
+    add(day, p);
+    if (day.startsWith(sel)) {
+      apptTotal += p;
+      apptCount += 1;
     }
-    if (
-      z.getFullYear() === nowZ.getFullYear() &&
-      z.getMonth() === nowZ.getMonth()
-    ) {
-      month += p;
-      monthCount += 1;
-      if (z.getDate() === nowZ.getDate()) today += p;
+  }
+  const entries: RevenueEntry[] = [];
+  for (const r of manual.data ?? []) {
+    const p = Number(r.amount_chf);
+    add(r.day, p);
+    if (r.day.startsWith(sel)) {
+      manualTotal += p;
+      entries.push({ id: r.id, day: r.day, amount: p, note: r.note ?? "" });
     }
-    if (z >= weekStart) week += p;
   }
 
   return {
-    today,
-    week,
-    month,
-    monthCount,
-    monthLabel: MON_FULL[nowZ.getMonth()],
+    ym: sel,
+    isCurrent,
+    monthLabel: MON_FULL[sm - 1] + (sy === nowZ.getFullYear() ? "" : ` ${sy}`),
+    total: apptTotal + manualTotal,
+    apptTotal,
+    apptCount,
+    manualTotal,
+    today: isCurrent ? today : 0,
+    week: isCurrent ? week : 0,
+    entries,
     months,
   };
+}
+
+/** Barber types in revenue by hand (a past month, a cut outside the app). */
+export async function addRevenueAction(input: {
+  day: string;
+  amount: number;
+  note?: string;
+}): Promise<{ ok: boolean; error?: string }> {
+  const s = await getSession();
+  if (!s || s.role !== "barber") return { ok: false };
+  const amount = Math.round(Number(input.amount) * 100) / 100;
+  if (!Number.isFinite(amount) || amount <= 0 || amount > 1_000_000)
+    return { ok: false, error: "Betrag ungültig" };
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(input.day))
+    return { ok: false, error: "Datum ungültig" };
+  if (input.day > dayOf(toZonedTime(new Date(), TZ)))
+    return { ok: false, error: "Datum liegt in der Zukunft" };
+  const { error } = await supabaseAdmin()
+    .from("revenue_entries")
+    .insert({
+      day: input.day,
+      amount_chf: amount,
+      note: input.note?.trim().slice(0, 120) || null,
+    });
+  if (error) throw error;
+  return { ok: true };
+}
+
+export async function deleteRevenueAction(
+  id: string,
+): Promise<{ ok: boolean }> {
+  const s = await getSession();
+  if (!s || s.role !== "barber") return { ok: false };
+  const { error } = await supabaseAdmin()
+    .from("revenue_entries")
+    .delete()
+    .eq("id", id);
+  if (error) throw error;
+  return { ok: true };
 }
 
 /** Barber marks an appointment done (also before its time) → status 'done'
