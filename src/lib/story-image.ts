@@ -1,19 +1,14 @@
 // Client-only: draws the invite "story" (1080×1920, Instagram/WhatsApp story
-// size) on a canvas — the member's own card design as backdrop and as a real
-// card, the code big in glass, tier and standing at the bottom. Fonts come
-// from the page (next/font), so it looks exactly like the app.
-import { cardStyles, tierAt, fmtTop, type Standing } from "@/lib/data";
+// size) on a canvas — the inviter's card design as backdrop and as a blank
+// "Your Name" card for whoever joins, the code big in glass, who invites at
+// the bottom. Fonts come from the page (next/font), like in the app.
+import { cardStyles } from "@/lib/data";
 
 export type StoryInput = {
-  first: string;
-  last: string;
-  no: string;
-  cuts: number;
-  card: number;
-  since: [number, number];
+  inviter: string; // "Anna T."
+  card: number; // the inviter's chosen design
   code: string;
   link: string; // shown without https://
-  standing: Standing | null;
 };
 
 const W = 1080;
@@ -73,8 +68,6 @@ function rgba(hex: string, a: number) {
   return `rgba(${(n >> 16) & 255},${(n >> 8) & 255},${n & 255},${a})`;
 }
 
-const ROMAN_FALLBACK = "I";
-
 export async function renderStory(d: StoryInput): Promise<Blob> {
   const cs = cardStyles[d.card] ?? cardStyles[0];
   const css = getComputedStyle(document.body);
@@ -94,8 +87,6 @@ export async function renderStory(d: StoryInput): Promise<Blob> {
   cv.height = H;
   const ctx = cv.getContext("2d")!;
   const ink = cs.text;
-  const points = d.standing?.points ?? 0;
-  const { T } = tierAt(points, d.cuts);
 
   // ── backdrop: the card photo, blown up, blurred, sunk into its own colour
   ctx.fillStyle = cs.base;
@@ -126,19 +117,19 @@ export async function renderStory(d: StoryInput): Promise<Blob> {
   ctx.fillStyle = rgba(ink, 0.6);
   spaced(ctx, "MEMBERS ONLY", W - 84, 150, 9, "right");
 
-  // ── headline
+  // ── headline: a barber's line, big and quiet
   ctx.fillStyle = ink;
-  ctx.font = `200 118px ${sans}`;
-  ["Rein kommt", "nur, wer", "eingeladen", "wird."].forEach((l, i) =>
-    ctx.fillText(l, 80, 330 + i * 122),
-  );
+  ctx.font = `200 136px ${sans}`;
+  ctx.fillText("Look sharp.", 78, 400);
+  ctx.fillStyle = rgba(ink, 0.55);
+  ctx.fillText("Feel sharp.", 78, 545);
 
   // ── the card itself, sharp and tilted
   const cw = 860;
   const ch = cw / 1.586;
   ctx.save();
-  ctx.translate(W / 2 + 30, 1060);
-  ctx.rotate((-7 * Math.PI) / 180);
+  ctx.translate(W / 2 + 20, 1040);
+  ctx.rotate((-6 * Math.PI) / 180);
   ctx.shadowColor = "rgba(0,0,0,.55)";
   ctx.shadowBlur = 90;
   ctx.shadowOffsetY = 50;
@@ -170,24 +161,21 @@ export async function renderStory(d: StoryInput): Promise<Blob> {
   ctx.fillStyle = rgba(ink, 0.6);
   ctx.font = `400 18px ${mono}`;
   spaced(ctx, "MEMBER", px, -ch / 2 + 112, 6);
+  ctx.fillStyle = rgba(ink, 0.7);
+  ctx.font = `400 18px ${mono}`;
+  spaced(ctx, "INVITE", cw / 2 - 56, -ch / 2 + 78, 8, "right");
+  // a blank card, waiting for a name
   ctx.fillStyle = ink;
-  ctx.font = `200 56px ${sans}`;
-  ctx.textAlign = "right";
-  ctx.fillText(T.r || ROMAN_FALLBACK, cw / 2 - 56, -ch / 2 + 98);
-  ctx.textAlign = "left";
-  ctx.font = `400 46px ${sans}`;
-  ctx.fillText(`${d.first} ${d.last}`.trim(), px, ch / 2 - 104);
+  ctx.font = `300 52px ${sans}`;
+  ctx.fillText("Your Name", px, ch / 2 - 104);
   ctx.fillStyle = rgba(ink, 0.72);
   ctx.font = `400 20px ${mono}`;
-  spaced(ctx, `N° ${d.no} · ${T.n.toUpperCase()}`, px, ch / 2 - 58, 5);
-  const since =
-    String(d.since[0] + 1).padStart(2, "0") + "·" + String(d.since[1]).slice(2);
-  spaced(ctx, `SEIT ${since}`, cw / 2 - 56, ch / 2 - 58, 5, "right");
+  spaced(ctx, "N° ———— · GUEST", px, ch / 2 - 58, 5);
   ctx.restore();
   // thin rim on the card
   ctx.save();
-  ctx.translate(W / 2 + 30, 1060);
-  ctx.rotate((-7 * Math.PI) / 180);
+  ctx.translate(W / 2 + 20, 1040);
+  ctx.rotate((-6 * Math.PI) / 180);
   ctx.beginPath();
   ctx.roundRect(-cw / 2, -ch / 2, cw, ch, 52);
   ctx.strokeStyle = "rgba(255,255,255,.28)";
@@ -217,12 +205,12 @@ export async function renderStory(d: StoryInput): Promise<Blob> {
   ctx.stroke();
   ctx.fillStyle = rgba(ink, 0.65);
   ctx.font = `400 24px ${mono}`;
-  spaced(ctx, "MEIN CODE", gx + 64, gy + 76, 10);
+  spaced(ctx, "USE CODE", gx + 64, gy + 76, 10);
   ctx.fillStyle = ink;
   ctx.font = `300 132px ${mono}`;
   spaced(ctx, d.code, W / 2, gy + 214, 34, "center");
 
-  // ── link + standing
+  // ── link + who invites
   ctx.fillStyle = rgba(ink, 0.85);
   ctx.font = `400 34px ${sans}`;
   ctx.textAlign = "center";
@@ -230,11 +218,14 @@ export async function renderStory(d: StoryInput): Promise<Blob> {
   ctx.textAlign = "left";
   ctx.fillStyle = rgba(ink, 0.55);
   ctx.font = `400 20px ${mono}`;
-  const brag =
-    d.standing && d.standing.of > 1
-      ? `TIER ${T.r} · ${T.n.toUpperCase()} · ${fmtTop(d.standing.top).toUpperCase()}`
-      : `TIER ${T.r} · ${T.n.toUpperCase()}`;
-  spaced(ctx, brag, W / 2, 1850, 6, "center");
+  spaced(
+    ctx,
+    `INVITED BY ${d.inviter.toUpperCase()}`,
+    W / 2,
+    1850,
+    7,
+    "center",
+  );
 
   // ── film grain, very light
   const grain = ctx.getImageData(0, 0, W, H);

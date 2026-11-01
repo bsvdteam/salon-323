@@ -29,15 +29,10 @@ export function StoryShare({ onClose }: { onClose: () => void }) {
     let live = true;
     const link = inviteUrl(code);
     renderStory({
-      first: U.first,
-      last: U.last,
-      no: U.no,
-      cuts: U.cuts,
+      inviter: `${U.first}${U.last ? " " + U.last[0] + "." : ""}`,
       card: U.card,
-      since: U.since,
       code,
       link: link.replace(/^https?:\/\/(www\.)?/, ""),
-      standing: st.standing,
     })
       .then((blob) => {
         if (!live) return;
@@ -70,17 +65,32 @@ export function StoryShare({ onClose }: { onClose: () => void }) {
     navigator.canShare({ files: [file] });
 
   // straight in the tap: the file is ready, nothing awaited before share()
+  const download = () => {
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = file!.name;
+    a.click();
+  };
   const shareStory = () => {
     if (!file) return;
     if (canShareFile) {
       navigator.share({ files: [file], text: inviteUrl(code) }).catch(() => {});
       return;
     }
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = file.name;
-    a.click();
+    download();
     say("Bild gespeichert – jetzt in deine Story");
+  };
+  // Into the photo gallery: on iPhone only the share sheet can do that
+  // ("Bild sichern"), so it opens with just the picture; elsewhere a download.
+  const saveImage = () => {
+    if (!file) return;
+    if (canShareFile) {
+      say("Tippe auf „Bild sichern“");
+      navigator.share({ files: [file] }).catch(() => {});
+      return;
+    }
+    download();
+    say("Bild gespeichert");
   };
   const shareLink = () => {
     shareText({
@@ -214,24 +224,28 @@ export function StoryShare({ onClose }: { onClose: () => void }) {
             transition: "opacity .4s ease",
           }}
         >
-          {canShareFile || !file ? "In Story teilen" : "Bild speichern"}
+          In Story teilen
         </button>
-        <button
-          onClick={shareLink}
-          style={{
-            width: "100%",
-            height: 48,
-            borderRadius: 999,
-            border: "1px solid rgba(255,255,255,.22)",
-            background: "transparent",
-            color: "#F4F7FA",
-            fontSize: 13,
-          }}
-        >
-          Link senden
-        </button>
+        <div style={{ display: "flex", gap: 8, width: "100%" }}>
+          <button onClick={saveImage} disabled={!file} style={ghost}>
+            In Galerie speichern
+          </button>
+          <button onClick={shareLink} style={ghost}>
+            Link senden
+          </button>
+        </div>
       </div>
     </div>,
     document.body,
   );
 }
+
+const ghost: React.CSSProperties = {
+  flex: 1,
+  height: 48,
+  borderRadius: 999,
+  border: "1px solid rgba(255,255,255,.22)",
+  background: "rgba(255,255,255,.04)",
+  color: "#F4F7FA",
+  fontSize: 13,
+};
