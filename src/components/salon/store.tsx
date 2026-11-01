@@ -15,6 +15,7 @@ import {
   type Invite,
   type SalonUser,
   type ServiceKey,
+  type Standing,
 } from "@/lib/data";
 import { getAvailabilityAction } from "@/lib/actions";
 import { bundleToState } from "@/lib/member-view";
@@ -83,6 +84,7 @@ export interface SalonState {
   inviteFirst: string; // first name fixed by the matched invite (server)
   inviteBy: string; // inviter display name ("Marco R.")
   myInviter: string; // who invited the logged-in member (for the circle tab)
+  standing: Standing | null; // points, tier and rank of the logged-in member
   busy: boolean; // a server action is in flight (login / onboarding)
   barberAuthed: boolean; // barber session verified (server) or just logged in
   pwFor: null | "member" | "barber"; // landing login, 2nd field: PIN or password
@@ -125,7 +127,7 @@ export interface SalonState {
   cut: string;
 
   // circle
-  refCode: string; // the member's personal invite code (up to 5 people)
+  refCode: string; // the member's personal invite code (no cap)
   walletToken: string; // signed link to the Wallet pass (works without cookie)
   circleSel: string | null;
 
@@ -213,6 +215,7 @@ function initialState(start?: StartConfig): SalonState {
     inviteFirst: "",
     inviteBy: "",
     myInviter: "",
+    standing: null,
     busy: false,
     barberAuthed: !!start?.barber,
     // /admin without a barber session opens straight on username + password

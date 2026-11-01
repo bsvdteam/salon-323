@@ -5,6 +5,8 @@ import { useSalon } from "../../store";
 import {
   salon,
   tiers,
+  tierAt,
+  PTS,
   cardStyles,
   dateOf,
   svcName,
@@ -51,8 +53,9 @@ export function CardTab() {
     card: 0,
     isNew: false,
   };
-  const ti = tiers.reduce((acc, t, k) => (U.cuts >= t.min ? k : acc), 0);
-  const T = tiers[ti];
+  const S = st.standing;
+  const pts = S?.points ?? 0;
+  const { i: ti, T, TN, progress } = tierAt(pts);
   const cs = cardStyles[U.card] ?? cardStyles[0];
   const qr = useMemo(() => buildQR(), []);
 
@@ -604,6 +607,198 @@ export function CardTab() {
           </a>
         )}
       </div>
+
+      {/* level: tier ladder, points by source and place among all members */}
+      <div
+        className="glass-light"
+        style={{
+          width: "min(370px,100%)",
+          boxSizing: "border-box",
+          borderRadius: 30,
+          padding: 22,
+          color: "#0E141C",
+          display: "flex",
+          flexDirection: "column",
+          gap: 20,
+          animation: "up 1.6s cubic-bezier(.22,1,.36,1) .7s both",
+        }}
+      >
+        <div
+          style={{
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "center",
+          }}
+        >
+          <span style={lvlKick}>Dein Level</span>
+          {S && S.of > 1 && (
+            <span
+              className="glass-dark"
+              style={{
+                height: 26,
+                padding: "0 12px",
+                borderRadius: 999,
+                display: "flex",
+                alignItems: "center",
+                fontFamily: "var(--font-geist-mono)",
+                fontSize: 9,
+                letterSpacing: ".18em",
+                border: 0,
+              }}
+            >
+              TOP {S.top} %
+            </span>
+          )}
+        </div>
+
+        <div style={{ display: "flex", alignItems: "flex-end", gap: 16 }}>
+          <span
+            style={{
+              fontSize: 64,
+              fontWeight: 200,
+              letterSpacing: "-.02em",
+              lineHeight: 0.8,
+            }}
+          >
+            {T.r}
+          </span>
+          <span style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+            <span style={{ fontSize: 20, fontWeight: 400 }}>{T.n}</span>
+            <span style={{ fontSize: 12, color: "var(--ink-60)" }}>
+              {S && S.of > 1 ? `Platz ${S.rank} von ${S.of}` : `${pts} Punkte`}
+            </span>
+          </span>
+        </div>
+
+        {/* the four tiers as one ladder; the current step fills up */}
+        <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+          <div
+            style={{
+              display: "grid",
+              gridTemplateColumns: `repeat(${tiers.length},minmax(0,1fr))`,
+              gap: 4,
+            }}
+          >
+            {tiers.map((t, k) => (
+              <div
+                key={t.r}
+                style={{
+                  height: 5,
+                  borderRadius: 999,
+                  background: "rgba(14,20,28,.08)",
+                  overflow: "hidden",
+                }}
+              >
+                <div
+                  style={{
+                    height: "100%",
+                    width:
+                      k < ti
+                        ? "100%"
+                        : k === ti
+                          ? `${Math.max(4, progress * 100)}%`
+                          : "0%",
+                    borderRadius: 999,
+                    background: k === ti ? "#E5776C" : "#0E141C",
+                    transformOrigin: "left",
+                    animation: `line 1.2s cubic-bezier(.22,1,.36,1) ${0.8 + k * 0.12}s both`,
+                  }}
+                />
+              </div>
+            ))}
+          </div>
+          <div
+            style={{
+              display: "grid",
+              gridTemplateColumns: `repeat(${tiers.length},minmax(0,1fr))`,
+              gap: 4,
+              fontFamily: "var(--font-geist-mono)",
+              fontSize: 8,
+              letterSpacing: ".14em",
+              textTransform: "uppercase",
+            }}
+          >
+            {tiers.map((t, k) => (
+              <span
+                key={t.r}
+                style={{
+                  color: k === ti ? "#0E141C" : "rgba(14,20,28,.45)",
+                  fontWeight: k === ti ? 600 : 400,
+                }}
+              >
+                {t.n}
+              </span>
+            ))}
+          </div>
+          <span style={{ fontSize: 12, color: "var(--ink-60)" }}>
+            {pts} Punkte ·{" "}
+            {TN ? `noch ${TN.min - pts} bis ${TN.n}` : "höchstes Tier erreicht"}
+          </span>
+        </div>
+
+        <div
+          style={{
+            display: "grid",
+            gridTemplateColumns: "repeat(3,minmax(0,1fr))",
+            gap: 8,
+          }}
+        >
+          {[
+            { l: "Cuts", v: S?.cutPts ?? 0, h: `${PTS.cut} pro Schnitt` },
+            {
+              l: "Einladungen",
+              v: S?.invitePts ?? 0,
+              h: `${PTS.invite} pro Person*`,
+            },
+            {
+              l: "Circle",
+              v: S?.circlePts ?? 0,
+              h: `${PTS.circle} pro Person*`,
+            },
+          ].map((x) => (
+            <div
+              key={x.l}
+              style={{
+                display: "flex",
+                flexDirection: "column",
+                gap: 6,
+                padding: "14px 12px",
+                borderRadius: 18,
+                background: "rgba(255,255,255,.45)",
+                border: "1px solid rgba(255,255,255,.8)",
+              }}
+            >
+              <span style={{ fontSize: 10.5, color: "var(--ink-60)" }}>
+                {x.l}
+              </span>
+              <span style={{ fontSize: 20, fontWeight: 300, lineHeight: 1 }}>
+                +{x.v}
+              </span>
+              <span style={{ fontSize: 9.5, color: "rgba(14,20,28,.5)" }}>
+                {x.h}
+              </span>
+            </div>
+          ))}
+        </div>
+        <span
+          style={{
+            fontSize: 11,
+            lineHeight: 1.5,
+            color: "rgba(14,20,28,.55)",
+          }}
+        >
+          * zählt, sobald die Person ihren ersten Schnitt hatte. Circle = Leute,
+          die deine Eingeladenen mitbringen.
+        </span>
+      </div>
     </div>
   );
 }
+
+const lvlKick: React.CSSProperties = {
+  fontFamily: "var(--font-geist-mono)",
+  fontSize: 9,
+  letterSpacing: ".22em",
+  textTransform: "uppercase",
+  color: "var(--ink-62)",
+};

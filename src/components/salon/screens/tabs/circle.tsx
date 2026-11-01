@@ -1,10 +1,11 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { useSalon } from "../../store";
-import { tiers, mon, type Invite } from "@/lib/data";
+import { tierAt, mon, type Invite } from "@/lib/data";
 import { copyText, inviteMessage, inviteUrl, shareText } from "@/lib/share";
 
+const EZ = "cubic-bezier(.22,1,.36,1)";
 const LGN =
   "linear-gradient(160deg,rgba(255,255,255,.75),rgba(255,255,255,.35))";
 const ini = (n: string) =>
@@ -22,11 +23,16 @@ const countAll = (list: Invite[]): number =>
   list.reduce((s, n) => s + 1 + countAll(n.kids), 0);
 const depthOf = (list: Invite[]): number =>
   list.length ? 1 + Math.max(...list.map((n) => depthOf(n.kids))) : 0;
-const findNode = (list: Invite[], id: string | null): Invite | null => {
+/** The node with this id and the name of whoever brought it in. */
+const findNode = (
+  list: Invite[],
+  id: string | null,
+  parent: string | null = null,
+): { n: Invite; parent: string | null } | null => {
   if (!id) return null;
   for (const n of list) {
-    if (n.id === id) return n;
-    const k = findNode(n.kids, id);
+    if (n.id === id) return { n, parent };
+    const k = findNode(n.kids, id, n.name);
     if (k) return k;
   }
   return null;
@@ -36,40 +42,42 @@ const findNode = (list: Invite[], id: string | null): Invite | null => {
 const SIZES = [38, 24, 18, 14, 11];
 
 type OrbitNode = {
+  id: string;
   x: number;
   y: number;
   size: number;
   label: string;
   on: boolean;
-  free: boolean;
-  pick: () => void;
+  dim: boolean;
+  k: number; // order, for the staggered entrance
 };
 
 /**
- * One circle as concentric rings: the person in the middle, everyone they
- * invited on ring 1, the people those invited on ring 2 … The rings grow
- * outward with the tree. Angles follow the tree (radial layout): every branch
- * gets a slice sized by how many leaves it has, so a growing branch spreads.
+ * One circle as concentric rings: me in the middle, everyone I invited on
+ * ring 1, the people those invited on ring 2 … the rings grow outward with
+ * the tree. Angles follow the tree (radial layout): every branch gets a slice
+ * sized by its leaves. With a focus, that person's branch stays lit and the
+ * rest of the tree steps back.
  */
 function Orbit({
   center,
   kids,
-  selId,
+  focusId,
+  centerOn,
   onPick,
   onCenter,
-  freeSlots = 0,
 }: {
   center: string;
   kids: Invite[];
-  selId: string | null;
+  focusId: string | null;
+  centerOn: boolean;
   onPick: (id: string) => void;
   onCenter: () => void;
-  freeSlots?: number; // dashed "free place" dots on ring 1 (own circle only)
 }) {
   const D = Math.max(1, Math.min(5, depthOf(kids)));
-  // Ring radii (% of the box): far enough apart that a chain of circles
-  // never overlaps (gap from the node sizes, box ≈ 340 px), then stretched
-  // so the outermost ring sits near the edge.
+  // Ring radii (% of the box): far enough apart that a chain of circles never
+  // overlaps (gap from the node sizes, box ≈ 340 px), then stretched so the
+  // outermost ring sits near the edge.
   const radii = [D === 1 ? 31 : 18];
   for (let l = 1; l < D; l++)
     radii.push(
@@ -79,11 +87,16 @@ function Orbit({
   if (D > 1 && last < 46)
     for (let l = 1; l < D; l++)
       radii[l] = 18 + ((radii[l] - 18) * (46 - 18)) / (last - 18);
-  const radius = (level: number) => radii[level - 1];
 
   const nodes: OrbitNode[] = [];
-  const lines: { x1: number; y1: number; x2: number; y2: number; o: number }[] =
-    [];
+  const lines: {
+    x1: number;
+    y1: number;
+    x2: number;
+    y2: number;
+    o: number;
+    dim: boolean;
+  }[] = [];
   const weight = (n: Invite): number =>
     n.kids.length ? n.kids.reduce((s, k) => s + weight(k), 0) : 1;
 
@@ -94,6 +107,7 @@ function Orbit({
     span: number,
     px: number,
     py: number,
+    lit: boolean, // inside the focused branch
   ) => {
     const total = list.reduce((s, n) => s + weight(n), 0) || 1;
     let a = from;
@@ -101,70 +115,49 @@ function Orbit({
       const w = (weight(n) / total) * span;
       const ang = a + w / 2;
       a += w;
-      const r = radius(level);
+      const r = radii[level - 1];
       const x = 50 + r * Math.cos(rad(ang));
       const y = 50 + r * Math.sin(rad(ang));
+      const on = n.id === focusId;
+      const inBranch = lit || on;
       lines.push({
         x1: px,
         y1: py,
         x2: x,
         y2: y,
         o: level === 1 ? 0.22 : 0.13,
+        dim: !!focusId && !inBranch,
       });
       nodes.push({
+        id: n.id,
         x,
         y,
-        size: SIZES[level - 1] ?? 12,
+        size: SIZES[level - 1] ?? 11,
         label: n.name,
-        on: selId === n.id,
-        free: false,
-        pick: () => onPick(n.id),
+        on,
+        dim: !!focusId && !inBranch,
+        k: nodes.length,
       });
-      if (level < 5) place(n.kids, level + 1, ang - w / 2, w, x, y);
+      if (level < 5) place(n.kids, level + 1, ang - w / 2, w, x, y, inBranch);
     }
   };
-
-  // ring 1 shares the full turn between the real people and the free dots
-  const real = kids.reduce((s, n) => s + weight(n), 0);
-  const slots = real + freeSlots;
-  place(kids, 1, -90, slots ? (360 * real) / slots : 360, 50, 50);
-  for (let k = 0; k < freeSlots; k++) {
-    const ang = -90 + (360 * (real + k + 0.5)) / slots;
-    nodes.push({
-      x: 50 + radius(1) * Math.cos(rad(ang)),
-      y: 50 + radius(1) * Math.sin(rad(ang)),
-      size: 16,
-      label: "",
-      on: false,
-      free: true,
-      pick: () => {},
-    });
-  }
+  place(kids, 1, -90, 360, 50, 50, false);
 
   return (
-    <div
-      style={{
-        position: "relative",
-        width: "100%",
-        maxWidth: 340,
-        aspectRatio: "1/1",
-      }}
-    >
+    <div style={{ position: "relative", width: "100%", aspectRatio: "1/1" }}>
       {/* one ring per generation, growing outward */}
-      {Array.from({ length: D }, (_, i) => {
-        const r = radius(i + 1);
-        return (
-          <div
-            key={"r" + i}
-            style={{
-              position: "absolute",
-              inset: P(50 - r),
-              borderRadius: "50%",
-              border: `1px ${i ? "dashed" : "solid"} rgba(14,20,28,${i ? 0.09 : 0.12})`,
-            }}
-          />
-        );
-      })}
+      {Array.from({ length: D }, (_, i) => (
+        <div
+          key={"r" + i}
+          style={{
+            position: "absolute",
+            inset: P(50 - radii[i]),
+            borderRadius: "50%",
+            border: `1px ${i ? "dashed" : "solid"} rgba(14,20,28,${i ? 0.09 : 0.12})`,
+            animation: `ringIn 1.4s ${EZ} ${0.1 + i * 0.12}s both`,
+          }}
+        />
+      ))}
       <div
         data-loop
         style={{
@@ -196,14 +189,16 @@ function Orbit({
               transformOrigin: "0 50%",
               transform: `rotate(${(Math.atan2(l.y2 - l.y1, l.x2 - l.x1) * 180) / Math.PI}deg)`,
               background: `linear-gradient(90deg,rgba(14,20,28,${l.o}),rgba(14,20,28,${l.o / 3}))`,
+              opacity: l.dim ? 0.25 : 1,
+              transition: `opacity .8s ${EZ}`,
             }}
           />
         ))}
-        {nodes.map((n, i) => (
+        {nodes.map((n) => (
           <button
-            key={"n" + i}
-            onClick={n.pick}
-            aria-label={n.label || "Freier Platz"}
+            key={n.id}
+            onClick={() => onPick(n.id)}
+            aria-label={n.label}
             style={{
               position: "absolute",
               left: P(n.x),
@@ -215,6 +210,7 @@ function Orbit({
               border: 0,
               background: "transparent",
               color: "#0E141C",
+              animation: `nodeIn 1s ${EZ} ${0.25 + n.k * 0.04}s both`,
             }}
           >
             <span
@@ -227,23 +223,20 @@ function Orbit({
                 borderRadius: "50%",
                 fontSize: n.size >= 38 ? 11 : n.size >= 24 ? 9 : 7,
                 fontWeight: 600,
-                background: n.free
-                  ? "transparent"
+                background: n.on
+                  ? "#0E141C"
                   : n.size >= 38
                     ? LGN
-                    : "rgba(255,255,255,.5)",
-                border: n.free
-                  ? "1px dashed rgba(14,20,28,.4)"
-                  : `1px solid ${n.on ? "#0E141C" : "rgba(255,255,255,.9)"}`,
+                    : "rgba(255,255,255,.55)",
+                color: n.on ? "#F4F7FA" : "#0E141C",
+                border: `1px solid ${n.on ? "#0E141C" : "rgba(255,255,255,.9)"}`,
                 backdropFilter: "blur(18px)",
                 WebkitBackdropFilter: "blur(18px)",
                 boxShadow: n.on
-                  ? "0 10px 30px -10px rgba(14,20,28,.5)"
-                  : n.free
-                    ? "none"
-                    : "0 10px 24px -16px rgba(14,20,28,.4)",
-                transform: n.on ? "scale(1.12)" : "none",
-                transition: "all .9s cubic-bezier(.22,1,.36,1)",
+                  ? "0 0 0 5px rgba(14,20,28,.08),0 14px 30px -10px rgba(14,20,28,.55)"
+                  : "0 10px 24px -16px rgba(14,20,28,.4)",
+                opacity: n.dim ? 0.28 : 1,
+                transition: `all .8s ${EZ}`,
                 animation: "spinr 180s linear infinite",
               }}
             >
@@ -254,6 +247,7 @@ function Orbit({
       </div>
       <button
         onClick={onCenter}
+        aria-label="Du – einladen"
         className="glass-dark"
         style={{
           position: "absolute",
@@ -266,6 +260,11 @@ function Orbit({
           fontSize: 13,
           fontWeight: 600,
           border: 0,
+          boxShadow: centerOn
+            ? "0 0 0 6px rgba(244,166,158,.35),0 18px 40px -14px rgba(14,20,28,.6)"
+            : "0 14px 34px -16px rgba(14,20,28,.55)",
+          transform: centerOn ? "scale(1.06)" : "none",
+          transition: `all .8s ${EZ}`,
         }}
       >
         {center}
@@ -280,54 +279,38 @@ export function CircleTab() {
   const U = st.user ?? {
     first: "Luca",
     last: "Meier",
-    cuts: 41,
     since: [2, 2024] as [number, number],
   };
   const INV = st.invites ?? [];
   const direct = INV.length;
   const total = countAll(INV);
-  const ti = tiers.reduce((acc, t, k) => (U.cuts >= t.min ? k : acc), 0);
-  const T = tiers[ti];
   const initials = (U.first[0] + (U.last?.[0] || "")).toUpperCase();
 
-  // the tapped person — their circle opens next to mine
-  const sel = findNode(INV, st.circleSel);
-  const pick = (id: string) =>
-    set({ circleSel: st.circleSel === id ? null : id });
-  const panelRef = useRef<HTMLDivElement>(null);
-  useEffect(() => {
-    // on a phone the panel sits below — bring it into view
-    if (sel && window.innerWidth < 760)
-      window.scrollTo({
-        // vertical only — scrollIntoView could also pan the page sideways
-        top:
-          (panelRef.current?.getBoundingClientRect().top ?? 0) +
-          window.scrollY -
-          80,
-        behavior: "smooth",
-      });
-  }, [sel]);
+  // circleSel: null = just my circle, "me" = invite card, else a member id
+  const sel = st.circleSel;
+  const meOn = sel === "me";
+  const hit = meOn ? null : findNode(INV, sel);
+  const mode: "none" | "me" | "user" = meOn ? "me" : hit ? "user" : "none";
+  const pick = (id: string) => set({ circleSel: sel === id ? null : id });
+  const close = () => set({ circleSel: null });
 
-  const cap = sel
-    ? {
-        name: sel.name,
-        meta: sel.meta,
-        tag:
-          "Tier " +
-          sel.tag +
-          (sel.kids.length
-            ? ` · ${countAll(sel.kids)} im Circle`
-            : " · noch niemand eingeladen"),
-      }
-    : {
-        name: total
-          ? total + (total === 1 ? " Person" : " Personen") + " durch dich"
-          : "Dein Circle ist noch leer",
-        meta: total
-          ? `${direct} direkt eingeladen · tippe auf einen Kreis`
-          : "Teil deinen Code – jeder Kreis ist jemand, den du mitbringst.",
-        tag: "Tier " + T.r + " · " + T.n,
-      };
+  // side by side on wide screens; on phones the circle shrinks a little and
+  // leans aside while the card glides in below
+  const [wide, setWide] = useState(false);
+  useEffect(() => {
+    const mq = window.matchMedia("(min-width: 760px)");
+    const on = () => setWide(mq.matches);
+    on();
+    mq.addEventListener("change", on);
+    return () => mq.removeEventListener("change", on);
+  }, []);
+
+  // me → circle to the left, invite card from the right;
+  // someone → circle to the right, their card from the left
+  const shift = mode === "me" ? -1 : mode === "user" ? 1 : 0;
+  const orbitT = wide
+    ? `translateX(${shift * 56}%)`
+    : `translateX(${shift * 10}%) scale(${shift ? 0.78 : 1})`;
 
   // Copy/share run straight in the tap handler — iOS only allows clipboard
   // and share sheet during the gesture (nothing is awaited before).
@@ -354,88 +337,231 @@ export function CircleTab() {
     else say("Kopieren ging nicht – Code: " + code);
   };
 
-  const inviteCard = (
-    <div
-      className="glass-dark"
-      style={{
-        borderRadius: 34,
-        padding: 24,
-        animation: "up 1.6s cubic-bezier(.22,1,.36,1) .2s both",
-        display: "flex",
-        flexDirection: "column",
-        gap: 20,
-      }}
-    >
-      <span style={kickD}>Dein Einladungscode</span>
-      <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-        <span
-          style={{
-            fontFamily: "var(--font-geist-mono)",
-            fontSize: "clamp(28px,6vw,36px)",
-            fontWeight: 300,
-            letterSpacing: ".24em",
-          }}
-        >
-          {code || "······"}
-        </span>
-        <span
-          style={{
-            fontSize: 13,
-            color: "rgba(244,247,250,.7)",
-            lineHeight: 1.6,
-            textWrap: "pretty",
-          }}
-        >
-          Ohne Limit – teil ihn mit Leuten, denen du vertraust. Name und alles
-          Weitere erfassen sie selbst.
-        </span>
-        <div
-          style={{
-            display: "flex",
-            gap: 8,
-            flexWrap: "wrap",
-            alignItems: "center",
-          }}
-        >
-          <button
-            onClick={share}
-            style={{
-              height: 44,
-              border: 0,
-              borderRadius: 999,
-              background: "#F4F7FA",
-              color: "#0E141C",
-              padding: "0 22px",
-              fontSize: 12.5,
-              fontWeight: 600,
-            }}
-          >
-            Einladung teilen
-          </button>
-          <button onClick={() => copy("link")} style={ghostBtn}>
-            {done === "link" ? "Link kopiert ✓" : "Link kopieren"}
-          </button>
-          <button onClick={() => copy("code")} style={ghostBtn}>
-            {done === "code" ? "Code kopiert ✓" : "Code kopieren"}
-          </button>
-        </div>
+  const panel = (side: "left" | "right"): React.CSSProperties => ({
+    width: wide ? "min(360px,46%)" : "100%",
+    boxSizing: "border-box",
+    borderRadius: 32,
+    padding: 22,
+    display: "flex",
+    flexDirection: "column",
+    gap: 18,
+    ...(wide
+      ? {
+          position: "absolute",
+          top: "50%",
+          [side]: 0,
+          translate: "0 -50%",
+        }
+      : { marginTop: 8 }),
+    animation: `${side === "left" ? "panelL" : "panelR"} 1s ${EZ} both`,
+  });
+
+  const invitePanel = (
+    <div key="me" className="glass-dark" style={panel("right")}>
+      <div style={rowBetween}>
+        <span style={kickD}>Dein Einladungscode</span>
+        <button onClick={close} style={xBtnD} aria-label="Schliessen">
+          ×
+        </button>
       </div>
-      <span style={{ fontSize: 12, color: "rgba(244,247,250,.65)" }}>
-        {direct
-          ? `${direct} direkt eingeladen · ${total} insgesamt`
-          : "Noch niemand eingeladen"}
+      <span
+        style={{
+          ...stagger(1),
+          fontFamily: "var(--font-geist-mono)",
+          fontSize: "clamp(30px,7vw,38px)",
+          fontWeight: 300,
+          letterSpacing: ".24em",
+        }}
+      >
+        {code || "······"}
       </span>
+      <div style={{ ...stagger(2), display: "flex", gap: 8, flexWrap: "wrap" }}>
+        <button
+          onClick={share}
+          style={{
+            height: 44,
+            border: 0,
+            borderRadius: 999,
+            background: "#F4F7FA",
+            color: "#0E141C",
+            padding: "0 22px",
+            fontSize: 12.5,
+            fontWeight: 600,
+          }}
+        >
+          Einladung teilen
+        </button>
+        <button onClick={() => copy("link")} style={ghostBtn}>
+          {done === "link" ? "Link ✓" : "Link"}
+        </button>
+        <button onClick={() => copy("code")} style={ghostBtn}>
+          {done === "code" ? "Code ✓" : "Code"}
+        </button>
+      </div>
+      <div
+        style={{
+          ...stagger(3),
+          height: 1,
+          background: "rgba(255,255,255,.12)",
+        }}
+      />
+      <div style={{ ...stagger(4), ...rowBetween, alignItems: "flex-end" }}>
+        <span style={{ display: "flex", flexDirection: "column", gap: 5 }}>
+          <span style={kickD}>
+            {st.myInviter ? "Eingeladen von" : "Gründungsmitglied"}
+          </span>
+          <span style={{ fontSize: 14.5, fontWeight: 500 }}>
+            {st.myInviter || "Von Anfang an dabei"}
+          </span>
+        </span>
+        <span style={{ fontSize: 11.5, color: "rgba(244,247,250,.6)" }}>
+          seit {mon[U.since[0]].slice(0, 3)} {U.since[1]}
+        </span>
+      </div>
     </div>
   );
 
+  let userPanel: React.ReactNode = null;
+  if (hit) {
+    const n = hit.n;
+    const t = tierAt(n.points);
+    const inCircle = countAll(n.kids);
+    userPanel = (
+      <div key={n.id} className="glass-light" style={panel("left")}>
+        <div style={rowBetween}>
+          <span style={kick}>
+            Tier {t.T.r} · {t.T.n}
+          </span>
+          <button onClick={close} style={xBtn} aria-label="Schliessen">
+            ×
+          </button>
+        </div>
+        <div
+          style={{
+            ...stagger(1),
+            display: "flex",
+            alignItems: "center",
+            gap: 14,
+          }}
+        >
+          <span
+            className="glass-dark"
+            style={{
+              flex: "none",
+              width: 54,
+              height: 54,
+              borderRadius: "50%",
+              display: "grid",
+              placeItems: "center",
+              fontSize: 15,
+              fontWeight: 600,
+              border: 0,
+            }}
+          >
+            {ini(n.name)}
+          </span>
+          <span style={{ display: "flex", flexDirection: "column", gap: 3 }}>
+            <span
+              style={{ fontSize: 21, fontWeight: 400, letterSpacing: "-.01em" }}
+            >
+              {n.name}
+            </span>
+            <span style={{ fontSize: 12, color: "var(--ink-60)" }}>
+              dabei seit {n.since}
+            </span>
+          </span>
+        </div>
+        <div
+          style={{
+            ...stagger(2),
+            display: "flex",
+            flexDirection: "column",
+            gap: 8,
+          }}
+        >
+          <div
+            style={{
+              height: 4,
+              borderRadius: 999,
+              background: "rgba(14,20,28,.08)",
+              overflow: "hidden",
+            }}
+          >
+            <div
+              style={{
+                width: `${Math.max(3, t.progress * 100)}%`,
+                height: "100%",
+                borderRadius: 999,
+                background: "#0E141C",
+                transformOrigin: "left",
+                animation: `line 1.4s ${EZ} .35s both`,
+              }}
+            />
+          </div>
+          <span style={{ fontSize: 11, color: "var(--ink-60)" }}>
+            {n.points} Punkte
+            {t.TN
+              ? ` · ${t.TN.min - n.points} bis ${t.TN.n}`
+              : " · höchstes Tier"}
+          </span>
+        </div>
+        <div
+          style={{
+            ...stagger(3),
+            display: "grid",
+            gridTemplateColumns: "repeat(3,minmax(0,1fr))",
+            gap: 8,
+          }}
+        >
+          {[
+            { l: "Cuts", v: n.cuts },
+            { l: "Eingeladen", v: n.kids.length },
+            { l: "Im Circle", v: inCircle },
+          ].map((x) => (
+            <div key={x.l} style={statBox}>
+              <span style={{ fontSize: 22, fontWeight: 300, lineHeight: 1 }}>
+                {x.v}
+              </span>
+              <span style={{ fontSize: 10.5, color: "var(--ink-60)" }}>
+                {x.l}
+              </span>
+            </div>
+          ))}
+        </div>
+        <span style={{ ...stagger(4), fontSize: 12, color: "var(--ink-62)" }}>
+          Eingeladen von {hit.parent ?? "dir"}
+        </span>
+      </div>
+    );
+  }
+
+  const caption =
+    mode === "me"
+      ? { a: "Du", b: "Jeder Kreis ist jemand, den du mitbringst." }
+      : hit
+        ? {
+            a: hit.n.name.split(" ")[0] + "s Circle",
+            b: hit.n.kids.length
+              ? `${countAll(hit.n.kids)} durch ${hit.n.name.split(" ")[0]} · hervorgehoben`
+              : "Noch niemanden eingeladen",
+          }
+        : {
+            a: total
+              ? `${total} ${total === 1 ? "Person" : "Personen"} durch dich`
+              : "Dein Circle ist noch leer",
+            b: total
+              ? `${direct} direkt · tippe auf einen Kreis`
+              : "Tippe auf dich, um jemanden einzuladen",
+          };
+
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 26 }}>
+    <div style={{ display: "flex", flexDirection: "column", gap: 22 }}>
       <div
         style={{
           display: "flex",
           flexDirection: "column",
           gap: 10,
-          animation: "up 1.4s cubic-bezier(.22,1,.36,1) both",
+          animation: `up 1.4s ${EZ} both`,
         }}
       >
         <span style={kick}>Circle</span>
@@ -451,207 +577,82 @@ export function CircleTab() {
         </h1>
       </div>
 
-      {/* who brought me in: their circle → me */}
       <div
-        className="glass-light"
         style={{
-          alignSelf: "flex-start",
+          position: "relative",
           display: "flex",
+          flexDirection: "column",
           alignItems: "center",
-          gap: 12,
-          padding: "10px 18px 10px 10px",
-          borderRadius: 999,
-          color: "#0E141C",
-          animation: "up 1.5s cubic-bezier(.22,1,.36,1) .1s both",
+          justifyContent: "center",
+          minHeight: wide ? 440 : undefined,
         }}
       >
-        {st.myInviter ? (
-          <>
-            <span style={{ display: "flex", alignItems: "center" }}>
-              <span style={avatar(false)}>{ini(st.myInviter)}</span>
-              <span
-                style={{
-                  width: 18,
-                  height: 1,
-                  background:
-                    "linear-gradient(90deg,rgba(14,20,28,.35),rgba(14,20,28,.12))",
-                }}
-              />
-              <span className="glass-dark" style={avatar(true)}>
-                {initials}
-              </span>
-            </span>
-            <span style={{ display: "flex", flexDirection: "column", gap: 2 }}>
-              <span style={{ ...kick, fontSize: 8.5 }}>Eingeladen von</span>
-              <span style={{ fontSize: 14.5, fontWeight: 500 }}>
-                {st.myInviter}
-                <span
-                  style={{
-                    fontWeight: 400,
-                    fontSize: 12,
-                    color: "var(--ink-60)",
-                  }}
-                >
-                  {" "}
-                  · seit {mon[U.since[0]].slice(0, 3)} {U.since[1]}
-                </span>
-              </span>
-            </span>
-          </>
-        ) : (
-          <>
-            <span className="glass-dark" style={avatar(true)}>
-              {initials}
-            </span>
-            <span style={{ display: "flex", flexDirection: "column", gap: 2 }}>
-              <span style={{ ...kick, fontSize: 8.5 }}>Gründungsmitglied</span>
-              <span style={{ fontSize: 14.5, fontWeight: 500 }}>
-                Von Anfang an dabei
-              </span>
-            </span>
-          </>
-        )}
-      </div>
-
-      <div
-        style={{
-          display: "grid",
-          gridTemplateColumns: "repeat(auto-fit,minmax(min(330px,100%),1fr))",
-          gap: 20,
-          alignItems: "start",
-        }}
-      >
-        {/* my circle */}
+        {/* the circle slides aside to make room for the card */}
         <div
           style={{
-            display: "flex",
-            flexDirection: "column",
-            alignItems: "center",
+            width: "100%",
+            maxWidth: 340,
+            transform: orbitT,
+            transformOrigin: "50% 0",
+            // on phones the shrunken circle gives its freed height back, so
+            // the card sits right under it (percent = of the column width)
+            marginBottom: !wide && shift ? "-24%" : 0,
+            transition: `transform 1.1s ${EZ}, margin 1.1s ${EZ}`,
           }}
         >
           <Orbit
             center={initials}
             kids={INV}
-            selId={st.circleSel}
+            focusId={hit ? hit.n.id : null}
+            centerOn={meOn}
             onPick={pick}
-            onCenter={() => set({ circleSel: null })}
-            freeSlots={Math.max(0, 3 - direct)}
+            onCenter={() => pick("me")}
           />
           <div
+            key={caption.a}
             style={{
-              minHeight: 72,
               display: "flex",
               flexDirection: "column",
               alignItems: "center",
-              justifyContent: "center",
+              gap: 5,
+              paddingTop: 12,
               textAlign: "center",
-              paddingTop: 10,
+              animation: `up .9s ${EZ} both`,
             }}
           >
-            <div
-              key={cap.name + cap.tag}
-              style={{
-                display: "flex",
-                flexDirection: "column",
-                alignItems: "center",
-                gap: 5,
-                animation: "up 1s cubic-bezier(.22,1,.36,1) both",
-              }}
-            >
-              <span style={{ fontSize: 16, fontWeight: 400 }}>{cap.name}</span>
-              <span style={{ fontSize: 12, color: "var(--ink-62)" }}>
-                {cap.meta}
-              </span>
-              <span style={{ ...kick, paddingTop: 2 }}>{cap.tag}</span>
-            </div>
+            <span style={{ fontSize: 16, fontWeight: 400 }}>{caption.a}</span>
+            <span style={{ fontSize: 12, color: "var(--ink-62)" }}>
+              {caption.b}
+            </span>
           </div>
         </div>
 
-        {/* their circle, side by side with mine — or my invite code */}
-        {sel ? (
-          <div
-            ref={panelRef}
-            key={sel.id}
-            className="glass-light"
-            style={{
-              borderRadius: 34,
-              padding: "18px 18px 22px",
-              color: "#0E141C",
-              display: "flex",
-              flexDirection: "column",
-              alignItems: "center",
-              gap: 6,
-              animation: "up 1.1s cubic-bezier(.22,1,.36,1) both",
-            }}
-          >
-            <div
-              style={{
-                alignSelf: "stretch",
-                display: "flex",
-                justifyContent: "space-between",
-                alignItems: "center",
-              }}
-            >
-              <span style={kick}>Circle von {sel.name.split(" ")[0]}</span>
-              <button
-                onClick={() => set({ circleSel: null })}
-                style={{
-                  border: 0,
-                  background: "transparent",
-                  color: "var(--ink-62)",
-                  fontSize: 12,
-                  padding: "6px 2px",
-                }}
-              >
-                Schliessen
-              </button>
-            </div>
-            <Orbit
-              center={ini(sel.name)}
-              kids={sel.kids}
-              selId={null}
-              onPick={pick}
-              onCenter={() => {}}
-            />
-            <span
-              style={{
-                fontSize: 12.5,
-                color: "var(--ink-62)",
-                textAlign: "center",
-              }}
-            >
-              {sel.kids.length
-                ? `${sel.name.split(" ")[0]} hat ${countAll(sel.kids)} ${countAll(sel.kids) === 1 ? "Person" : "Personen"} mitgebracht · tippe weiter`
-                : `${sel.name.split(" ")[0]} hat noch niemanden eingeladen.`}
-            </span>
-          </div>
-        ) : (
-          inviteCard
-        )}
+        {mode === "me" && invitePanel}
+        {mode === "user" && userPanel}
       </div>
-      {sel && inviteCard}
     </div>
   );
 }
 
-const avatar = (dark: boolean): React.CSSProperties => ({
-  flex: "none",
-  width: 36,
-  height: 36,
-  borderRadius: "50%",
-  display: "grid",
-  placeItems: "center",
-  fontSize: 11,
-  fontWeight: 600,
-  ...(dark
-    ? { border: 0 }
-    : {
-        background: LGN,
-        border: "1px solid rgba(255,255,255,.9)",
-        color: "#0E141C",
-      }),
+/** Staggered micro-entrance for a panel's rows. */
+const stagger = (i: number): React.CSSProperties => ({
+  animation: `up .9s ${EZ} ${0.12 + i * 0.07}s both`,
 });
-
+const rowBetween: React.CSSProperties = {
+  display: "flex",
+  justifyContent: "space-between",
+  alignItems: "center",
+  gap: 12,
+};
+const statBox: React.CSSProperties = {
+  display: "flex",
+  flexDirection: "column",
+  gap: 8,
+  padding: "14px 12px",
+  borderRadius: 18,
+  background: "rgba(255,255,255,.45)",
+  border: "1px solid rgba(255,255,255,.8)",
+};
 const kick: React.CSSProperties = {
   fontFamily: "var(--font-geist-mono)",
   fontSize: 9,
@@ -659,6 +660,7 @@ const kick: React.CSSProperties = {
   textTransform: "uppercase",
   color: "var(--ink-62)",
 };
+const kickD: React.CSSProperties = { ...kick, color: "rgba(244,247,250,.62)" };
 const ghostBtn: React.CSSProperties = {
   height: 44,
   border: "1px solid rgba(255,255,255,.18)",
@@ -668,10 +670,19 @@ const ghostBtn: React.CSSProperties = {
   padding: "0 18px",
   fontSize: 12,
 };
-const kickD: React.CSSProperties = {
-  fontFamily: "var(--font-geist-mono)",
-  fontSize: 9,
-  letterSpacing: ".22em",
-  textTransform: "uppercase",
-  color: "rgba(244,247,250,.62)",
+const xBtn: React.CSSProperties = {
+  width: 30,
+  height: 30,
+  borderRadius: "50%",
+  border: "1px solid rgba(14,20,28,.12)",
+  background: "rgba(255,255,255,.4)",
+  color: "#0E141C",
+  fontSize: 16,
+  lineHeight: 1,
+};
+const xBtnD: React.CSSProperties = {
+  ...xBtn,
+  border: "1px solid rgba(255,255,255,.18)",
+  background: "transparent",
+  color: "#F4F7FA",
 };

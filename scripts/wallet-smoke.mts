@@ -11,6 +11,7 @@ const member: MemberPassData = {
   firstName: "Luca",
   lastName: "Meier",
   cuts: 41,
+  points: 410,
   memberSince: "2024-02-15",
   card: Number(process.env.CARD ?? 0),
   appointment: null,

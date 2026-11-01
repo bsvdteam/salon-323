@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { useSalon, type ClientRecord } from "./store";
 import { useSalonActions } from "./actions";
 import {
-  tiers,
+  tierAt,
   labelOf,
   mon,
   svc,
@@ -589,8 +589,7 @@ export function Sheet() {
     card: 0,
     isNew: false,
   };
-  const ti = tiers.reduce((acc, t, k) => (U.cuts >= t.min ? k : acc), 0);
-  const T = tiers[ti];
+  const { T } = tierAt(state.standing?.points ?? 0);
   const ini2 = (n: string) =>
     n
       .split(" ")

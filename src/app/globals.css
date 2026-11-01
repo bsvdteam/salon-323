@@ -524,3 +524,49 @@ button {
     animation: none !important;
   }
 }
+
+/* Circle: rings draw in, nodes pop in, side panels glide in from their side */
+@keyframes ringIn {
+  from {
+    opacity: 0;
+    transform: scale(0.86);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+@keyframes nodeIn {
+  from {
+    opacity: 0;
+    transform: scale(0.4);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+@keyframes panelR {
+  from {
+    opacity: 0;
+    transform: translateX(48px) scale(0.97);
+    filter: blur(6px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+    filter: none;
+  }
+}
+@keyframes panelL {
+  from {
+    opacity: 0;
+    transform: translateX(-48px) scale(0.97);
+    filter: blur(6px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+    filter: none;
+  }
+}

@@ -17,12 +17,39 @@ export const svc: { k: ServiceKey; name: string; sub: string }[] = [
 
 export const cuts = ["Burst", "Mid", "Low", "Skin", "Taper", "Buzz", "Schere"];
 
+/** Points: every cut counts, and so does bringing people in — but an invite
+ *  only once that person has actually sat in the chair (first cut), so empty
+ *  sign-ups earn nothing. Their invites count for the circle too. */
+export const PTS = { cut: 10, invite: 25, circle: 5 };
+
+/** Tiers by points (min). 100 ≈ 10 cuts, or fewer cuts plus invites. */
 export const tiers = [
   { r: "I", n: "Guest", min: 0 },
-  { r: "II", n: "Member", min: 10 },
-  { r: "III", n: "Patron", min: 25 },
-  { r: "IV", n: "Inner Circle", min: 50 },
+  { r: "II", n: "Member", min: 100 },
+  { r: "III", n: "Patron", min: 250 },
+  { r: "IV", n: "Inner Circle", min: 500 },
 ];
+
+/** Current tier index, the tier, the next one (or null at the top) and how
+ *  far into the current step (0..1). */
+export function tierAt(points: number) {
+  const i = tiers.reduce((acc, t, k) => (points >= t.min ? k : acc), 0);
+  const T = tiers[i];
+  const TN = tiers[i + 1] ?? null;
+  const progress = TN ? (points - T.min) / (TN.min - T.min) : 1;
+  return { i, T, TN, progress };
+}
+
+/** A member's standing: points by source and place among all members. */
+export type Standing = {
+  points: number;
+  cutPts: number;
+  invitePts: number;
+  circlePts: number;
+  rank: number; // 1 = most points
+  of: number; // members ranked
+  top: number; // "Top x %" (1..100)
+};
 
 export const wdS = ["So", "Mo", "Di", "Mi", "Do", "Fr", "Sa"];
 export const wdL = [
@@ -742,6 +769,8 @@ export type Invite = {
   meta: string;
   tag: string;
   cuts: number;
+  points: number;
+  since: string; // "Nov 2026"
   kids: Invite[];
 };
 export type SalonUser = {

@@ -2,24 +2,19 @@
 // client SalonState shape. Pure and client-safe — the imports from server
 // modules are type-only, so no server code is bundled.
 import {
-  tiers,
+  tierAt,
   monS,
   type SalonUser,
   type Invite,
   type ServiceKey,
   type Appt,
+  type Standing,
 } from "@/lib/data";
 import type { MemberBundle } from "@/lib/db/bundle";
 import type { CircleNode } from "@/lib/db/invites";
 import type { AppointmentRow } from "@/lib/supabase/types";
 
-function tierRoman(cuts: number): string {
-  let idx = 0;
-  tiers.forEach((t, k) => {
-    if (cuts >= t.min) idx = k;
-  });
-  return tiers[idx].r;
-}
+const tierRoman = (points: number) => tierAt(points).T.r;
 
 /** "2024-03-…" → [2, 2024] (month index 0-11, year), matching SalonUser.since. */
 function sinceOf(dateStr: string): [number, number] {
@@ -61,8 +56,10 @@ function circleToInvites(circle: CircleNode[]): Invite[] {
     id: n.id,
     name: `${n.first} ${n.last}`.trim(),
     meta: `Seit ${monthLabel(n.since)} · ${n.cuts} ${n.cuts === 1 ? "Cut" : "Cuts"}`,
-    tag: tierRoman(n.cuts),
+    tag: tierRoman(n.points ?? 0),
     cuts: n.cuts,
+    points: n.points ?? 0,
+    since: monthLabel(n.since),
     kids: circleToInvites(n.kids),
   }));
 }
@@ -74,6 +71,7 @@ export type MemberStatePatch = {
   walletToken: string; // signed link to the Wallet pass
   template: ServiceKey[];
   myInviter: string;
+  standing: Standing;
   appt: Appt | null;
   history: { off: number; s: ServiceKey[] }[];
 };
@@ -104,6 +102,7 @@ export function bundleToState(
     walletToken: b.walletToken,
     template: (m.template as ServiceKey[]) ?? ["haare", "bart"],
     myInviter: b.invitedByName ?? "",
+    standing: b.standing,
     appt: apptFromRow(b.upcoming),
     history: b.history.map((r) => ({
       off: offsetOf(r.starts_at),

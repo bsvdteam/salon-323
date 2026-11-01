@@ -306,6 +306,7 @@ export function useSalonActions() {
         history: [],
         booked: null,
         refCode: "",
+        standing: null,
       });
       startIntro();
     });

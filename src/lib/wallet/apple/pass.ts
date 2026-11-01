@@ -15,7 +15,7 @@ import { formatInTimeZone, toZonedTime } from "date-fns-tz";
 import { de } from "date-fns/locale";
 import {
   salon,
-  tiers,
+  tierAt,
   svcName,
   cardStyles,
   wdS,
@@ -45,14 +45,13 @@ export type MemberPassData = {
   firstName: string;
   lastName: string;
   cuts: number;
+  points: number; // tier basis (cuts + invites, see loadStandings)
   memberSince: string; // ISO date
   card: number; // chosen card design 0..2 (members.card_index)
   appointment: ApptInfo | null;
 };
 
-function tierOf(cuts: number) {
-  return tiers.reduce((best, t) => (cuts >= t.min ? t : best), tiers[0]);
-}
+const tierOf = (points: number) => tierAt(points).T;
 
 function serviceLabel(services: ServiceKey[]): string {
   const names = services.map(svcName).filter(Boolean);
@@ -73,7 +72,7 @@ export async function buildMemberPass(
   opts: { siteUrl: string; poster: boolean },
 ): Promise<Buffer> {
   const cfg = appleWalletConfig();
-  const tier = tierOf(data.cuts);
+  const tier = tierOf(data.points);
   const fullName = `${data.firstName} ${data.lastName}`.trim();
   const since = formatInTimeZone(new Date(data.memberSince), TZ, "MMM yyyy", {
     locale: de,
@@ -203,7 +202,10 @@ export async function buildMemberPass(
     // Bring the pass to the lock screen around the appointment.
     pass.setRelevantDate(start);
   } else {
-    back.unshift({ key: "cuts", label: "Cuts", value: String(data.cuts) });
+    back.unshift(
+      { key: "cuts", label: "Cuts", value: String(data.cuts) },
+      { key: "points", label: "Punkte", value: String(data.points) },
+    );
     back.push({
       key: "hinweis",
       label: "Hinweis",

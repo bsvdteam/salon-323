@@ -40,7 +40,8 @@ import {
 } from "@/lib/db/availability";
 import { loadMemberBundle, type MemberBundle } from "@/lib/db/bundle";
 import { createEvent, wallISO, deleteEvent } from "@/lib/google/calendar";
-import { durOf, labelOf, priceOf, tiers, SPONTI } from "@/lib/data";
+import { durOf, labelOf, priceOf, tiers, tierAt, SPONTI } from "@/lib/data";
+import { loadStandings } from "@/lib/db/points";
 import { supabaseAdmin } from "@/lib/supabase/server";
 import type { ServiceKey, PayMethod } from "@/lib/supabase/types";
 
@@ -381,11 +382,9 @@ export async function listMembersAction(): Promise<AdminMember[] | null> {
     if (m.invited_by)
       invitedCount.set(m.invited_by, (invitedCount.get(m.invited_by) ?? 0) + 1);
 
+  const standings = await loadStandings();
   return (data ?? []).map((m): AdminMember => {
-    let ti = 0;
-    tiers.forEach((t, k) => {
-      if (m.cuts >= t.min) ti = k;
-    });
+    const ti = tierAt(standings.get(m.id)?.points ?? 0).i;
     const [y, mo] = m.member_since.split("-").map(Number);
     return {
       id: m.id,
@@ -529,14 +528,11 @@ export async function listTodayAppointmentsAction(): Promise<
   for (const k of kids ?? [])
     invited.set(k.invited_by!, (invited.get(k.invited_by!) ?? 0) + 1);
 
+  const standings = await loadStandings();
   return rows.map((r): AdminTodayAppt => {
     const m = byId.get(r.member_id);
     const d = toZonedTime(new Date(r.starts_at), TZ);
-    let ti = 0;
-    if (m)
-      tiers.forEach((t, k) => {
-        if (m.cuts >= t.min) ti = k;
-      });
+    const ti = tierAt(standings.get(r.member_id)?.points ?? 0).i;
     const [y, mo] = (m?.member_since ?? "2026-01-01").split("-").map(Number);
     return {
       id: r.id,

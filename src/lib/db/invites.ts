@@ -70,6 +70,7 @@ export type CircleNode = {
   last: string;
   cuts: number;
   since: string; // date
+  points?: number; // filled in by the bundle (loadStandings)
   kids: CircleNode[]; // the people this one brought in, and so on
 };
 

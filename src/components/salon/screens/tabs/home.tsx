@@ -7,7 +7,7 @@ import {
   dateOf,
   labelOf,
   svcName,
-  tiers,
+  tierAt,
   wdL,
   mon,
   monS,
@@ -31,9 +31,9 @@ export function HomeTab() {
     isNew: false,
   };
   const cuts = U.cuts;
-  const ti = tiers.reduce((acc, t, k) => (cuts >= t.min ? k : acc), 0);
-  const T = tiers[ti];
-  const TN = tiers[ti + 1];
+  const S = st.standing;
+  const pts = S?.points ?? 0;
+  const { T, TN, progress } = tierAt(pts);
   const INV = st.invites ?? [];
   const used = INV.length; // one code, no cap
   const now = dateOf(0);
@@ -215,15 +215,6 @@ export function HomeTab() {
         ago: `vor ${Math.round(-x.off / 7)} Wo.`,
       };
     });
-
-  const span = TN ? TN.min - T.min : 10;
-  const filled = cuts - T.min;
-  const tierDots = Array.from({ length: span }, (_, k) => ({
-    bg: k < filled ? "#0E141C" : "transparent",
-    border:
-      k < filled ? "#0E141C" : k === filled ? "#E5776C" : "rgba(14,20,28,.2)",
-    anim: k === filled ? "breathe 3s ease-in-out infinite" : "none",
-  }));
 
   const sinceShort =
     String(U.since[0] + 1).padStart(2, "0") + "·" + String(U.since[1]).slice(2);
@@ -914,38 +905,52 @@ export function HomeTab() {
               <span style={{ fontSize: 15, fontWeight: 500 }}>
                 Tier {T.r} · {T.n}
               </span>
-              <span style={{ fontSize: 11.5, color: "var(--ink-60)" }}>
-                {TN ? `noch ${TN.min - cuts} bis ${TN.n}` : "Höchstes Tier"}
-              </span>
-            </div>
-            <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
-              {tierDots.map((d, i) => (
+              {S && S.of > 1 && (
                 <span
-                  key={i}
-                  data-loop
                   style={{
-                    width: 8,
-                    height: 8,
-                    borderRadius: "50%",
-                    background: d.bg,
-                    border: `1px solid ${d.border}`,
-                    animation: d.anim,
+                    fontFamily: "var(--font-geist-mono)",
+                    fontSize: 9,
+                    letterSpacing: ".18em",
+                    color: "#B5483F",
                   }}
-                />
-              ))}
+                >
+                  TOP {S.top} %
+                </span>
+              )}
+            </div>
+            <div
+              style={{
+                position: "relative",
+                height: 6,
+                borderRadius: 999,
+                background: "rgba(14,20,28,.08)",
+                overflow: "hidden",
+              }}
+            >
+              <span
+                style={{
+                  position: "absolute",
+                  inset: 0,
+                  width: `${Math.max(3, progress * 100)}%`,
+                  borderRadius: 999,
+                  background: "linear-gradient(90deg,#0E141C,#3a4556)",
+                  transformOrigin: "left",
+                  animation: "line 1.6s cubic-bezier(.22,1,.36,1) .5s both",
+                }}
+              />
             </div>
             <div
               style={{
                 display: "flex",
                 justifyContent: "space-between",
-                fontFamily: "var(--font-geist-mono)",
-                fontSize: 8.5,
-                letterSpacing: ".18em",
-                color: "rgba(14,20,28,.55)",
+                fontSize: 11.5,
+                color: "var(--ink-60)",
               }}
             >
-              <span>{T.r}</span>
-              <span>{TN ? TN.n : "—"}</span>
+              <span>{pts} Punkte</span>
+              <span>
+                {TN ? `noch ${TN.min - pts} bis ${TN.n}` : "Höchstes Tier"}
+              </span>
             </div>
           </div>
 

@@ -5,6 +5,7 @@ import { getMemberById } from "@/lib/db/members";
 import { getUpcoming } from "@/lib/db/appointments";
 import type { ServiceKey } from "@/lib/supabase/types";
 import type { MemberPassData } from "./apple/pass";
+import { loadStandings } from "@/lib/db/points";
 
 /** Pass data for a member id, or null if there's no such (non-barber) member. */
 export async function memberPassData(
@@ -13,13 +14,17 @@ export async function memberPassData(
   const m = await getMemberById(memberId);
   if (!m || m.is_barber) return null;
 
-  const appt = await getUpcoming(memberId);
+  const [appt, standings] = await Promise.all([
+    getUpcoming(memberId),
+    loadStandings(),
+  ]);
   return {
     memberId: m.id,
     memberNo: m.member_no,
     firstName: m.first_name,
     lastName: m.last_name,
     cuts: m.cuts,
+    points: standings.get(m.id)?.points ?? 0,
     memberSince: m.member_since,
     card: m.card_index,
     appointment: appt
