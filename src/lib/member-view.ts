@@ -14,7 +14,7 @@ import type { MemberBundle } from "@/lib/db/bundle";
 import type { CircleNode } from "@/lib/db/invites";
 import type { AppointmentRow } from "@/lib/supabase/types";
 
-const tierRoman = (points: number) => tierAt(points).T.r;
+const tierRoman = (points: number, cuts: number) => tierAt(points, cuts).T.r;
 
 /** "2024-03-…" → [2, 2024] (month index 0-11, year), matching SalonUser.since. */
 function sinceOf(dateStr: string): [number, number] {
@@ -56,7 +56,7 @@ function circleToInvites(circle: CircleNode[]): Invite[] {
     id: n.id,
     name: `${n.first} ${n.last}`.trim(),
     meta: `Seit ${monthLabel(n.since)} · ${n.cuts} ${n.cuts === 1 ? "Cut" : "Cuts"}`,
-    tag: tierRoman(n.points ?? 0),
+    tag: tierRoman(n.points ?? 0, n.cuts),
     cuts: n.cuts,
     points: n.points ?? 0,
     since: monthLabel(n.since),

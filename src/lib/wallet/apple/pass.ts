@@ -51,7 +51,7 @@ export type MemberPassData = {
   appointment: ApptInfo | null;
 };
 
-const tierOf = (points: number) => tierAt(points).T;
+const tierOf = (points: number, cuts: number) => tierAt(points, cuts).T;
 
 function serviceLabel(services: ServiceKey[]): string {
   const names = services.map(svcName).filter(Boolean);
@@ -72,7 +72,7 @@ export async function buildMemberPass(
   opts: { siteUrl: string; poster: boolean },
 ): Promise<Buffer> {
   const cfg = appleWalletConfig();
-  const tier = tierOf(data.points);
+  const tier = tierOf(data.points, data.cuts);
   const fullName = `${data.firstName} ${data.lastName}`.trim();
   const since = formatInTimeZone(new Date(data.memberSince), TZ, "MMM yyyy", {
     locale: de,

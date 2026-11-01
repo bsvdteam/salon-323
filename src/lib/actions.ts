@@ -384,7 +384,7 @@ export async function listMembersAction(): Promise<AdminMember[] | null> {
 
   const standings = await loadStandings();
   return (data ?? []).map((m): AdminMember => {
-    const ti = tierAt(standings.get(m.id)?.points ?? 0).i;
+    const ti = tierAt(standings.get(m.id)?.points ?? 0, m.cuts).i;
     const [y, mo] = m.member_since.split("-").map(Number);
     return {
       id: m.id,
@@ -532,7 +532,7 @@ export async function listTodayAppointmentsAction(): Promise<
   return rows.map((r): AdminTodayAppt => {
     const m = byId.get(r.member_id);
     const d = toZonedTime(new Date(r.starts_at), TZ);
-    const ti = tierAt(standings.get(r.member_id)?.points ?? 0).i;
+    const ti = tierAt(standings.get(r.member_id)?.points ?? 0, m?.cuts ?? 0).i;
     const [y, mo] = (m?.member_since ?? "2026-01-01").split("-").map(Number);
     return {
       id: r.id,

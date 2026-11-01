@@ -6,6 +6,8 @@ import {
   salon,
   tiers,
   tierAt,
+  fmtTop,
+  INNER_CUTS,
   PTS,
   cardStyles,
   dateOf,
@@ -55,7 +57,7 @@ export function CardTab() {
   };
   const S = st.standing;
   const pts = S?.points ?? 0;
-  const { i: ti, T, TN, progress } = tierAt(pts);
+  const { i: ti, T, TN, progress } = tierAt(pts, U.cuts);
   const cs = cardStyles[U.card] ?? cardStyles[0];
   const qr = useMemo(() => buildQR(), []);
 
@@ -646,7 +648,7 @@ export function CardTab() {
                 border: 0,
               }}
             >
-              TOP {S.top} %
+              {fmtTop(S.top).toUpperCase()}
             </span>
           )}
         </div>
@@ -665,7 +667,7 @@ export function CardTab() {
           <span style={{ display: "flex", flexDirection: "column", gap: 4 }}>
             <span style={{ fontSize: 20, fontWeight: 400 }}>{T.n}</span>
             <span style={{ fontSize: 12, color: "var(--ink-60)" }}>
-              {S && S.of > 1 ? `Platz ${S.rank} von ${S.of}` : `${pts} Punkte`}
+              {pts} Punkte
             </span>
           </span>
         </div>
@@ -701,38 +703,36 @@ export function CardTab() {
                     borderRadius: 999,
                     background: k === ti ? "#E5776C" : "#0E141C",
                     transformOrigin: "left",
-                    animation: `line 1.2s cubic-bezier(.22,1,.36,1) ${0.8 + k * 0.12}s both`,
+                    animation: `line 1s cubic-bezier(.22,1,.36,1) ${0.8 + k * 0.06}s both`,
                   }}
                 />
               </div>
             ))}
           </div>
+          {/* ten steps: name the one you're on and the next */}
           <div
             style={{
-              display: "grid",
-              gridTemplateColumns: `repeat(${tiers.length},minmax(0,1fr))`,
-              gap: 4,
+              display: "flex",
+              justifyContent: "space-between",
               fontFamily: "var(--font-geist-mono)",
-              fontSize: 8,
-              letterSpacing: ".14em",
+              fontSize: 8.5,
+              letterSpacing: ".16em",
               textTransform: "uppercase",
             }}
           >
-            {tiers.map((t, k) => (
-              <span
-                key={t.r}
-                style={{
-                  color: k === ti ? "#0E141C" : "rgba(14,20,28,.45)",
-                  fontWeight: k === ti ? 600 : 400,
-                }}
-              >
-                {t.n}
-              </span>
-            ))}
+            <span style={{ fontWeight: 600 }}>
+              {T.r} · {T.n}
+            </span>
+            <span style={{ color: "rgba(14,20,28,.45)" }}>
+              {TN ? `${TN.r} · ${TN.n}` : `${tiers.length} / ${tiers.length}`}
+            </span>
           </div>
           <span style={{ fontSize: 12, color: "var(--ink-60)" }}>
-            {pts} Punkte ·{" "}
-            {TN ? `noch ${TN.min - pts} bis ${TN.n}` : "höchstes Tier erreicht"}
+            {TN
+              ? TN.min > pts
+                ? `noch ${TN.min - pts} Punkte bis ${TN.n}`
+                : `noch ${INNER_CUTS - U.cuts} Schnitte bis ${TN.n}`
+              : "Höchstes Tier – du bist im Inner Circle"}
           </span>
         </div>
 

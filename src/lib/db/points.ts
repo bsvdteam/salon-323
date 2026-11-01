@@ -46,7 +46,8 @@ export async function loadStandings(): Promise<Map<string, Standing>> {
     s.rank =
       i && ranked[i - 1].points === s.points ? ranked[i - 1].rank : i + 1;
     s.of = ranked.length;
-    s.top = Math.max(1, Math.ceil((s.rank / ranked.length) * 100));
+    // share of members at this place or better; one decimal at scale
+    s.top = Math.max(0.1, Math.round((s.rank / ranked.length) * 1000) / 10);
   });
   return out;
 }

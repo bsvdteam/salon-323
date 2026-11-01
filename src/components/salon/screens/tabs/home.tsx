@@ -8,6 +8,8 @@ import {
   labelOf,
   svcName,
   tierAt,
+  fmtTop,
+  INNER_CUTS,
   wdL,
   mon,
   monS,
@@ -33,7 +35,7 @@ export function HomeTab() {
   const cuts = U.cuts;
   const S = st.standing;
   const pts = S?.points ?? 0;
-  const { T, TN, progress } = tierAt(pts);
+  const { T, TN, progress } = tierAt(pts, cuts);
   const INV = st.invites ?? [];
   const used = INV.length; // one code, no cap
   const now = dateOf(0);
@@ -914,7 +916,7 @@ export function HomeTab() {
                     color: "#B5483F",
                   }}
                 >
-                  TOP {S.top} %
+                  {fmtTop(S.top).toUpperCase()}
                 </span>
               )}
             </div>
@@ -949,7 +951,11 @@ export function HomeTab() {
             >
               <span>{pts} Punkte</span>
               <span>
-                {TN ? `noch ${TN.min - pts} bis ${TN.n}` : "Höchstes Tier"}
+                {TN
+                  ? TN.min > pts
+                    ? `noch ${TN.min - pts} bis ${TN.n}`
+                    : `noch ${INNER_CUTS - cuts} Schnitte bis ${TN.n}`
+                  : "Höchstes Tier"}
               </span>
             </div>
           </div>

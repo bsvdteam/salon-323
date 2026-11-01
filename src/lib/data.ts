@@ -22,23 +22,38 @@ export const cuts = ["Burst", "Mid", "Low", "Skin", "Taper", "Buzz", "Schere"];
  *  sign-ups earn nothing. Their invites count for the circle too. */
 export const PTS = { cut: 10, invite: 25, circle: 5 };
 
-/** Tiers by points (min). 100 ≈ 10 cuts, or fewer cuts plus invites. */
+/** Ten tiers by points — Guest until the first cut, then step by step inward.
+ *  The last one is earned by loyalty, not shortcuts: on top of the points it
+ *  needs INNER_CUTS cuts, i.e. two years at about 1–2 visits a month. */
+export const INNER_CUTS = 36;
 export const tiers = [
   { r: "I", n: "Guest", min: 0 },
-  { r: "II", n: "Member", min: 100 },
-  { r: "III", n: "Patron", min: 250 },
-  { r: "IV", n: "Inner Circle", min: 500 },
+  { r: "II", n: "Member", min: 10 },
+  { r: "III", n: "Regular", min: 30 },
+  { r: "IV", n: "Familiar", min: 60 },
+  { r: "V", n: "Insider", min: 100 },
+  { r: "VI", n: "Confidant", min: 150 },
+  { r: "VII", n: "Patron", min: 200 },
+  { r: "VIII", n: "Ambassador", min: 250 },
+  { r: "IX", n: "Pillar", min: 300 },
+  { r: "X", n: "Inner Circle", min: 360 },
 ];
 
 /** Current tier index, the tier, the next one (or null at the top) and how
- *  far into the current step (0..1). */
-export function tierAt(points: number) {
-  const i = tiers.reduce((acc, t, k) => (points >= t.min ? k : acc), 0);
+ *  far into the current step (0..1). The top tier also needs INNER_CUTS. */
+export function tierAt(points: number, cuts: number) {
+  const top = tiers.length - 1;
+  let i = tiers.reduce((acc, t, k) => (points >= t.min ? k : acc), 0);
+  if (i === top && cuts < INNER_CUTS) i = top - 1;
   const T = tiers[i];
   const TN = tiers[i + 1] ?? null;
-  const progress = TN ? (points - T.min) / (TN.min - T.min) : 1;
+  const progress = TN ? Math.min(1, (points - T.min) / (TN.min - T.min)) : 1;
   return { i, T, TN, progress };
 }
+
+/** "Top 5 %", "Top 0.4 %" — one decimal below 1 %. */
+export const fmtTop = (top: number) =>
+  `Top ${top < 1 ? top.toFixed(1) : Math.round(top)} %`;
 
 /** A member's standing: points by source and place among all members. */
 export type Standing = {
@@ -48,7 +63,7 @@ export type Standing = {
   circlePts: number;
   rank: number; // 1 = most points
   of: number; // members ranked
-  top: number; // "Top x %" (1..100)
+  top: number; // share of members at or above (0.1..100), see fmtTop
 };
 
 export const wdS = ["So", "Mo", "Di", "Mi", "Do", "Fr", "Sa"];

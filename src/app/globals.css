@@ -570,3 +570,15 @@ button {
     filter: none;
   }
 }
+@keyframes storyIn {
+  from {
+    opacity: 0;
+    transform: translateY(40px) rotate(-4deg) scale(0.86);
+    filter: blur(8px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+    filter: none;
+  }
+}

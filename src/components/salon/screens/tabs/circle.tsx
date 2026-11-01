@@ -3,7 +3,8 @@
 import { useEffect, useState } from "react";
 import { useSalon } from "../../store";
 import { tierAt, mon, type Invite } from "@/lib/data";
-import { copyText, inviteMessage, inviteUrl, shareText } from "@/lib/share";
+import { copyText, inviteUrl } from "@/lib/share";
+import { StoryShare } from "../../story-share";
 
 const EZ = "cubic-bezier(.22,1,.36,1)";
 const LGN =
@@ -320,17 +321,9 @@ export function CircleTab() {
     setDone(what);
     setTimeout(() => setDone(""), 2200);
   };
-  const share = () => {
-    if (!code) return;
-    shareText({
-      title: "Einladung zu Salon 15",
-      text: inviteMessage(code),
-      url: inviteUrl(code),
-    }).then((r) => {
-      if (r === "copied") say("Einladung kopiert – jetzt einfügen");
-      else if (r === "failed") say("Kopieren ging nicht – Code: " + code);
-    });
-  };
+  // "Einladung teilen" opens the story picture (+ the classic link share)
+  const [story, setStory] = useState(false);
+  const share = () => code && setStory(true);
   const copy = (what: "link" | "code") => {
     if (!code) return;
     if (copyText(what === "link" ? inviteUrl(code) : code)) flash(what);
@@ -424,7 +417,7 @@ export function CircleTab() {
   let userPanel: React.ReactNode = null;
   if (hit) {
     const n = hit.n;
-    const t = tierAt(n.points);
+    const t = tierAt(n.points, n.cuts);
     const inCircle = countAll(n.kids);
     userPanel = (
       <div key={n.id} className="glass-light" style={panel("left")}>
@@ -501,7 +494,7 @@ export function CircleTab() {
           <span style={{ fontSize: 11, color: "var(--ink-60)" }}>
             {n.points} Punkte
             {t.TN
-              ? ` · ${t.TN.min - n.points} bis ${t.TN.n}`
+              ? ` · ${Math.max(0, t.TN.min - n.points)} bis ${t.TN.n}`
               : " · höchstes Tier"}
           </span>
         </div>
@@ -630,6 +623,7 @@ export function CircleTab() {
         {mode === "me" && invitePanel}
         {mode === "user" && userPanel}
       </div>
+      {story && <StoryShare onClose={() => setStory(false)} />}
     </div>
   );
 }

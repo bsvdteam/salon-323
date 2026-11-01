@@ -589,7 +589,7 @@ export function Sheet() {
     card: 0,
     isNew: false,
   };
-  const { T } = tierAt(state.standing?.points ?? 0);
+  const { T } = tierAt(state.standing?.points ?? 0, U.cuts);
   const ini2 = (n: string) =>
     n
       .split(" ")
