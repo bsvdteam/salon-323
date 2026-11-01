@@ -58,14 +58,12 @@ function apptFromRow(r: AppointmentRow | null): Appt | null {
 
 function circleToInvites(circle: CircleNode[]): Invite[] {
   return circle.map((n): Invite => ({
+    id: n.id,
     name: `${n.first} ${n.last}`.trim(),
-    meta: `Seit ${monthLabel(n.since)} · ${n.cuts} Cuts`,
+    meta: `Seit ${monthLabel(n.since)} · ${n.cuts} ${n.cuts === 1 ? "Cut" : "Cuts"}`,
     tag: tierRoman(n.cuts),
-    kids: n.kids.map((k) => ({
-      name: `${k.first} ${k.last}`.trim(),
-      meta: `Von ${n.first} · seit ${monthLabel(k.since)}`,
-      tag: tierRoman(k.cuts),
-    })),
+    cuts: n.cuts,
+    kids: circleToInvites(n.kids),
   }));
 }
 
@@ -99,6 +97,7 @@ export function bundleToState(
       email: m.contact_email ?? "",
       card: m.card_index,
       isNew,
+      inactive: !!m.deactivated_at,
     },
     invites: circleToInvites(b.circle),
     refCode: m.ref_code,

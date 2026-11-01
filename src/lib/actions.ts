@@ -230,6 +230,7 @@ export async function bookAppointmentAction(
 
   const member = await getMemberById(mid);
   if (!member) return { ok: false, error: "not_found" };
+  if (member.deactivated_at) return { ok: false, error: "inactive" };
 
   // Price: CHF 15 / 20 with beard (server-computed).
   const price = priceOf(args.services) || 15;
@@ -340,6 +341,8 @@ export type AdminMember = {
   since: [number, number];
   tpl: string;
   note: string;
+  inactive: boolean; // deactivated by the barber: can't book
+  invited: number; // how many joined with their code
 };
 
 /** Barber: the real member roster for the admin Members tab. */
@@ -351,7 +354,7 @@ export async function listMembersAction(): Promise<AdminMember[] | null> {
   const { data, error } = await sb
     .from("members")
     .select(
-      "id, first_name, last_name, cuts, member_since, template, note, invited_by",
+      "id, first_name, last_name, cuts, member_since, template, note, invited_by, deactivated_at",
     )
     .eq("is_barber", false)
     .order("cuts", { ascending: false });
@@ -373,6 +376,11 @@ export async function listMembersAction(): Promise<AdminMember[] | null> {
       );
   }
 
+  const invitedCount = new Map<string, number>();
+  for (const m of data ?? [])
+    if (m.invited_by)
+      invitedCount.set(m.invited_by, (invitedCount.get(m.invited_by) ?? 0) + 1);
+
   return (data ?? []).map((m): AdminMember => {
     let ti = 0;
     tiers.forEach((t, k) => {
@@ -389,8 +397,77 @@ export async function listMembersAction(): Promise<AdminMember[] | null> {
       since: [(mo || 1) - 1, y],
       tpl: labelOf((m.template as ServiceKey[]) ?? []),
       note: m.note ?? "",
+      inactive: !!m.deactivated_at,
+      invited: invitedCount.get(m.id) ?? 0,
     };
   });
+}
+
+/** Barber: deactivate (or reactivate) a member. Inactive = the account and
+ *  its history stay, but booking is refused and the invite code stops
+ *  working. An upcoming appointment stays — cancel it in Termine if needed. */
+export async function setMemberActiveAction(
+  memberId: string,
+  active: boolean,
+): Promise<{ ok: boolean }> {
+  const s = await getSession();
+  if (!s || s.role !== "barber") return { ok: false };
+  const m = await getMemberById(memberId);
+  if (!m || m.is_barber) return { ok: false };
+  const { error } = await supabaseAdmin()
+    .from("members")
+    .update({ deactivated_at: active ? null : new Date().toISOString() })
+    .eq("id", memberId);
+  if (error) throw error;
+  return { ok: true };
+}
+
+/** Barber: delete a member for good. Their upcoming appointment is cancelled
+ *  in Google (the guest gets Google's cancellation), the money of past cuts
+ *  stays in the revenue as anonymous manual entries, then the row goes —
+ *  appointments, wallet registrations and invites cascade; people they
+ *  invited stay members (invited_by → null). */
+export async function deleteMemberAction(
+  memberId: string,
+): Promise<{ ok: boolean }> {
+  const s = await getSession();
+  if (!s || s.role !== "barber") return { ok: false };
+  const m = await getMemberById(memberId);
+  if (!m || m.is_barber) return { ok: false };
+  const sb = supabaseAdmin();
+  const { data: appts, error } = await sb
+    .from("appointments")
+    .select("starts_at, price_chf, status, google_event_id")
+    .eq("member_id", memberId);
+  if (error) throw error;
+
+  // keep the money: past cuts become anonymous manual revenue entries
+  const p2 = (n: number) => String(n).padStart(2, "0");
+  const keep = (appts ?? [])
+    .filter((a) => a.status === "done" && (a.price_chf ?? 0) > 0)
+    .map((a) => {
+      const z = toZonedTime(new Date(a.starts_at), TZ);
+      return {
+        day: `${z.getFullYear()}-${p2(z.getMonth() + 1)}-${p2(z.getDate())}`,
+        amount_chf: a.price_chf,
+        note: "Schnitt · gelöschtes Mitglied",
+      };
+    });
+  if (keep.length) {
+    const { error: e2 } = await sb.from("revenue_entries").insert(keep);
+    if (e2) throw e2;
+  }
+  for (const a of appts ?? [])
+    if (
+      a.status === "booked" &&
+      a.google_event_id &&
+      new Date(a.starts_at) > new Date()
+    )
+      await deleteEvent(a.google_event_id).catch(() => {});
+
+  const { error: e3 } = await sb.from("members").delete().eq("id", memberId);
+  if (e3) throw e3;
+  return { ok: true };
 }
 
 export type AdminTodayAppt = {
@@ -443,6 +520,15 @@ export async function listTodayAppointmentsAction(): Promise<
       );
   }
 
+  // how many joined with each one's code (shown when deleting from the sheet)
+  const { data: kids } = await sb
+    .from("members")
+    .select("invited_by")
+    .in("invited_by", memberIds);
+  const invited = new Map<string, number>();
+  for (const k of kids ?? [])
+    invited.set(k.invited_by!, (invited.get(k.invited_by!) ?? 0) + 1);
+
   return rows.map((r): AdminTodayAppt => {
     const m = byId.get(r.member_id);
     const d = toZonedTime(new Date(r.starts_at), TZ);
@@ -468,6 +554,8 @@ export async function listTodayAppointmentsAction(): Promise<
         since: [(mo || 1) - 1, y],
         tpl: labelOf((m?.template as ServiceKey[]) ?? []),
         note: m?.note ?? "",
+        inactive: !!m?.deactivated_at,
+        invited: invited.get(r.member_id) ?? 0,
       },
     };
   });

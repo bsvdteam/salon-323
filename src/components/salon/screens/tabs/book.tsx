@@ -14,6 +14,7 @@ import {
   monS,
   fmtTime,
   BOOK_DAYS,
+  salon,
 } from "@/lib/data";
 import type { DayHours } from "../../store";
 import { bookAppointmentAction } from "@/lib/actions";
@@ -33,7 +34,9 @@ export function BookTab() {
     const nowMs = Date.now();
     const d2s = (d: Date) =>
       `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
-    fetch(`/api/availability?from=${d2s(dateOf(0))}&to=${d2s(dateOf(BOOK_DAYS))}`)
+    fetch(
+      `/api/availability?from=${d2s(dateOf(0))}&to=${d2s(dateOf(BOOK_DAYS))}`,
+    )
       .then((r) => r.json())
       .then((j) =>
         setAvail({
@@ -217,7 +220,8 @@ export function BookTab() {
     const on = st.cut === c;
     return {
       l: c,
-      pick: () => set({ cut: c }),
+      // optional: tap again to clear
+      pick: () => set({ cut: on ? "" : c }),
       bg: on
         ? "linear-gradient(115deg,#151c28,#2a3444)"
         : "rgba(255,255,255,.5)",
@@ -281,14 +285,16 @@ export function BookTab() {
       date: dateStr,
       time: st.time!,
       services: st.sel,
-      cut: st.sel.includes("haare") ? st.cut : undefined,
+      cut: st.sel.includes("haare") && st.cut ? st.cut : undefined,
       payMethod: "ort",
     });
     if (!res.ok) {
       say(
         res.error === "not_authenticated"
           ? "Bitte zuerst anmelden"
-          : "Buchung fehlgeschlagen – bitte nochmal",
+          : res.error === "inactive"
+            ? "Dein Konto ist pausiert – melde dich bei Laurin"
+            : "Buchung fehlgeschlagen – bitte nochmal",
       );
       set({ slideDone: false });
       return;
@@ -388,6 +394,62 @@ export function BookTab() {
     set({ template: [...st.sel] });
     say("Vorlage gespeichert");
   };
+
+  // deactivated by the barber: booking is closed (the server refuses too)
+  if (st.user?.inactive)
+    return (
+      <div
+        style={{
+          display: "flex",
+          flexDirection: "column",
+          gap: 18,
+          animation: "up 1.4s cubic-bezier(.22,1,.36,1) both",
+        }}
+      >
+        <span style={kick}>Buchen</span>
+        <h1
+          style={{
+            margin: 0,
+            fontSize: "clamp(28px,4.4vw,40px)",
+            fontWeight: 300,
+            letterSpacing: "-.025em",
+            lineHeight: 1.1,
+          }}
+        >
+          Dein Konto ist pausiert.
+        </h1>
+        <span
+          style={{
+            fontSize: 14,
+            lineHeight: 1.55,
+            color: "rgba(14,20,28,.7)",
+            maxWidth: 420,
+          }}
+        >
+          Im Moment kannst du keine Termine buchen. Deine Karte und deine Cuts
+          bleiben – melde dich bei Laurin, wenn du wieder dabei sein willst.
+        </span>
+        <a
+          href={salon.wa}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="glass-dark"
+          style={{
+            alignSelf: "flex-start",
+            height: 46,
+            padding: "0 22px",
+            borderRadius: 999,
+            display: "flex",
+            alignItems: "center",
+            fontSize: 13,
+            fontWeight: 500,
+            textDecoration: "none",
+          }}
+        >
+          Laurin auf WhatsApp schreiben
+        </a>
+      </div>
+    );
 
   return (
     <div
@@ -518,7 +580,7 @@ export function BookTab() {
               }}
             >
               <span style={{ fontSize: 11.5, color: "var(--ink-62)" }}>
-                Schnitt
+                Schnitt · optional
               </span>
               <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
                 {cutOpts.map((c) => (

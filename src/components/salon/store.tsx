@@ -46,6 +46,8 @@ export type ClientRecord = {
   since: [number, number];
   tpl: string;
   note: string;
+  inactive?: boolean; // deactivated by the barber: can't book
+  invited?: number; // how many joined with their code
 };
 
 export type Screen = "login" | "onboard" | "welcome" | "app" | "admin";
@@ -243,7 +245,7 @@ function initialState(start?: StartConfig): SalonState {
     cancelling: false,
     booked: null,
     flipped: false,
-    cut: "Mid",
+    cut: "", // optional — no style preselected
     refCode: "",
     walletToken: "",
     circleSel: null,

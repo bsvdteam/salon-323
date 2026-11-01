@@ -35,8 +35,7 @@ export function HomeTab() {
   const T = tiers[ti];
   const TN = tiers[ti + 1];
   const INV = st.invites ?? [];
-  const used = INV.length;
-  const free = Math.max(0, 5 - used); // one code, up to 5 people
+  const used = INV.length; // one code, no cap
   const now = dateOf(0);
 
   // hold-to-release refs
@@ -1022,7 +1021,7 @@ export function HomeTab() {
         }}
       >
         <span style={{ display: "flex", gap: 4 }}>
-          {[0, 1, 2, 3, 4].map((k) => (
+          {[0, 1, 2].map((k) => (
             <span
               key={k}
               style={{
@@ -1035,11 +1034,9 @@ export function HomeTab() {
             />
           ))}
         </span>
-        {free <= 0
-          ? "Alle Einladungen vergeben"
-          : free === 1
-            ? "Eine Einladung frei"
-            : free + " Einladungen frei"}{" "}
+        {used === 0
+          ? "Lade jemanden in deinen Circle ein"
+          : `${used} ${used === 1 ? "Person" : "Leute"} in deinem Circle · weitere einladen`}{" "}
         →
       </button>
     </div>

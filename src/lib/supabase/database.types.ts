@@ -276,6 +276,7 @@ export type Database = {
           created_at: string
           cut: string
           cuts: number
+          deactivated_at: string | null
           first_name: string
           id: string
           invited_by: string | null
@@ -301,6 +302,7 @@ export type Database = {
           created_at?: string
           cut?: string
           cuts?: number
+          deactivated_at?: string | null
           first_name: string
           id?: string
           invited_by?: string | null
@@ -326,6 +328,7 @@ export type Database = {
           created_at?: string
           cut?: string
           cuts?: number
+          deactivated_at?: string | null
           first_name?: string
           id?: string
           invited_by?: string | null
@@ -453,6 +456,7 @@ export type Database = {
           created_at: string
           cut: string
           cuts: number
+          deactivated_at: string | null
           first_name: string
           id: string
           invited_by: string | null
@@ -493,6 +497,7 @@ export type Database = {
           created_at: string
           cut: string
           cuts: number
+          deactivated_at: string | null
           first_name: string
           id: string
           invited_by: string | null

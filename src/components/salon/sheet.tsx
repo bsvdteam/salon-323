@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useSalon } from "./store";
+import { useSalon, type ClientRecord } from "./store";
 import { useSalonActions } from "./actions";
 import {
   tiers,
@@ -16,6 +16,8 @@ import {
   updateUsernameAction,
   changePinAction,
   resetMemberPinAction,
+  setMemberActiveAction,
+  deleteMemberAction,
   walkInAction,
   listMembersAction,
   type AdminMember,
@@ -198,6 +200,128 @@ function PinResetRow({ memberId, first }: { memberId: string; first: string }) {
         </button>
       )}
     </div>
+  );
+}
+
+/** Barber: deactivate (can't book any more, everything stays) or delete a
+ *  member for good. Both destructive steps ask first. */
+function MemberManageRows({ m }: { m: ClientRecord }) {
+  const { set, say } = useSalon();
+  const [ask, setAsk] = useState<"" | "off" | "del">("");
+  const [busy, setBusy] = useState(false);
+  const first = m.n.split(" ")[0];
+  const id = m.id!;
+
+  const toggle = async () => {
+    if (!m.inactive && ask !== "off") return setAsk("off");
+    setBusy(true);
+    try {
+      const r = await setMemberActiveAction(id, !!m.inactive);
+      if (!r.ok) throw new Error();
+      say(m.inactive ? `${first} ist wieder aktiv` : `${first} inaktiviert`);
+      set((p) => ({
+        sheet: { type: "client", m: { ...m, inactive: !m.inactive } },
+        adminTick: p.adminTick + 1,
+      }));
+    } catch {
+      say("Ging nicht – bitte nochmal");
+    } finally {
+      setBusy(false);
+      setAsk("");
+    }
+  };
+  const remove = async () => {
+    setBusy(true);
+    try {
+      const r = await deleteMemberAction(id);
+      if (!r.ok) throw new Error();
+      say(`${first} gelöscht`);
+      set((p) => ({ sheet: null, adminTick: p.adminTick + 1 }));
+    } catch {
+      say("Löschen fehlgeschlagen");
+      setBusy(false);
+    }
+  };
+
+  const red = { ...pillBtn, border: 0, background: "#B5483F", color: "#fff" };
+  return (
+    <>
+      <div style={rowStyle}>
+        <span style={{ fontSize: 13, color: "rgba(14,20,28,.65)" }}>
+          {ask === "off"
+            ? "Kann dann nichts mehr buchen"
+            : m.inactive
+              ? "Inaktiv · kann nicht buchen"
+              : "Status · aktiv"}
+        </span>
+        <span style={{ display: "flex", gap: 6 }}>
+          {ask === "off" && (
+            <button onClick={() => setAsk("")} style={pillBtn}>
+              Nein
+            </button>
+          )}
+          <button
+            onClick={toggle}
+            disabled={busy}
+            style={ask === "off" ? red : pillBtn}
+          >
+            {busy ? "…" : m.inactive ? "Aktivieren" : "Inaktivieren"}
+          </button>
+        </span>
+      </div>
+      {ask === "del" ? (
+        <div
+          style={{
+            ...rowStyle,
+            flexDirection: "column",
+            alignItems: "stretch",
+            gap: 10,
+          }}
+        >
+          <span style={{ fontSize: 13, lineHeight: 1.45 }}>
+            <b style={{ fontWeight: 600 }}>{first} endgültig löschen?</b>{" "}
+            Profil, Cuts, Termine und Wallet-Karte werden entfernt, ein offener
+            Termin wird abgesagt. Der Umsatz bleibt.
+            {m.invited
+              ? ` Die ${m.invited} eingeladenen ${m.invited === 1 ? "Person bleibt" : "Leute bleiben"} Mitglied.`
+              : ""}
+          </span>
+          <span style={{ display: "flex", gap: 8 }}>
+            <button
+              onClick={remove}
+              disabled={busy}
+              style={{ ...red, flex: 1, height: 42 }}
+            >
+              {busy ? "…" : "Endgültig löschen"}
+            </button>
+            <button
+              onClick={() => setAsk("")}
+              disabled={busy}
+              style={{ ...pillBtn, height: 42 }}
+            >
+              Abbrechen
+            </button>
+          </span>
+        </div>
+      ) : (
+        <div style={rowStyle}>
+          <span style={{ fontSize: 13, color: "rgba(14,20,28,.65)" }}>
+            Mitglied löschen
+          </span>
+          <button
+            onClick={() => setAsk("del")}
+            style={{
+              ...pillBtn,
+              border: "1px solid rgba(229,119,108,.35)",
+              background: "rgba(229,119,108,.1)",
+              color: "#B5483F",
+            }}
+          >
+            Löschen
+          </button>
+        </div>
+      )}
+    </>
   );
 }
 
@@ -699,6 +823,9 @@ export function Sheet() {
         {isProfile && <PinChangeRow />}
         {sh.type === "client" && sh.m.id && (
           <PinResetRow memberId={sh.m.id} first={sh.m.n.split(" ")[0]} />
+        )}
+        {sh.type === "client" && sh.m.id && (
+          <MemberManageRows key={sh.m.id} m={sh.m} />
         )}
       </div>
       <div style={{ display: "flex", gap: 8 }}>

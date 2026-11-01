@@ -1,13 +1,9 @@
 // SERVER-ONLY invite data access (service_role). Every member has one personal
-// code (members.ref_code) that up to INVITE_LIMIT people can join with — the
-// barber's has no limit. Still-open codes from the old per-person invites
-// table keep working through the same RPCs. Also assembles the "circle" view
-// (who joined with a member's code + who they brought in).
+// code (members.ref_code) that any number of people can join with. Still-open
+// codes from the old per-person invites table keep working through the same
+// RPCs. Also assembles the "circle" view (the tree of who brought in whom).
 import { supabaseAdmin } from "@/lib/supabase/server";
 import type { MemberRow } from "@/lib/supabase/types";
-
-/** How many people can join with one member's code (DB: redeem_code_…). */
-export const INVITE_LIMIT = 5;
 
 export type InviteValidation = {
   /** Prefill for a legacy per-person invite; "" for a personal code. */
@@ -74,46 +70,41 @@ export type CircleNode = {
   last: string;
   cuts: number;
   since: string; // date
-  kids: { first: string; last: string; cuts: number; since: string }[];
+  kids: CircleNode[]; // the people this one brought in, and so on
 };
 
-/** The member's circle: everyone who joined with their code (oldest first),
- *  each with the people they brought in. */
+/** How many generations below the member the circle reaches. */
+const CIRCLE_DEPTH = 5;
+
+/** The member's circle as a tree: everyone who joined with their code (oldest
+ *  first), the people those brought in, and so on — CIRCLE_DEPTH levels deep.
+ *  One query per level. */
 export async function getCircle(memberId: string): Promise<CircleNode[]> {
   const sb = supabaseAdmin();
-  const { data: direct, error } = await sb
-    .from("members")
-    .select("*")
-    .eq("invited_by", memberId)
-    .order("created_at", { ascending: true });
-  if (error) throw error;
-  const ids = (direct ?? []).map((m) => m.id);
-
-  const kidsByParent = new Map<string, MemberRow[]>();
-  if (ids.length) {
-    const { data: kids, error: e2 } = await sb
+  const byParent = new Map<string, CircleNode[]>();
+  let parents = [memberId];
+  for (let level = 0; level < CIRCLE_DEPTH && parents.length; level++) {
+    const { data, error } = await sb
       .from("members")
-      .select("*")
-      .in("invited_by", ids)
+      .select("id, first_name, last_name, cuts, member_since, invited_by")
+      .in("invited_by", parents)
       .order("created_at", { ascending: true });
-    if (e2) throw e2;
-    for (const k of kids ?? []) {
-      const p = k.invited_by!;
-      (kidsByParent.get(p) ?? kidsByParent.set(p, []).get(p)!).push(k);
+    if (error) throw error;
+    for (const m of data ?? []) {
+      const node: CircleNode = {
+        id: m.id,
+        first: m.first_name,
+        last: m.last_name,
+        cuts: m.cuts,
+        since: m.member_since,
+        kids: [],
+      };
+      const p = m.invited_by!;
+      (byParent.get(p) ?? byParent.set(p, []).get(p)!).push(node);
     }
+    parents = (data ?? []).map((m) => m.id);
   }
-
-  return (direct ?? []).map((m) => ({
-    id: m.id,
-    first: m.first_name,
-    last: m.last_name,
-    cuts: m.cuts,
-    since: m.member_since,
-    kids: (kidsByParent.get(m.id) ?? []).map((k) => ({
-      first: k.first_name,
-      last: k.last_name,
-      cuts: k.cuts,
-      since: k.member_since,
-    })),
-  }));
+  const attach = (nodes: CircleNode[]): CircleNode[] =>
+    nodes.map((n) => ({ ...n, kids: attach(byParent.get(n.id) ?? []) }));
+  return attach(byParent.get(memberId) ?? []);
 }

@@ -965,6 +965,7 @@ export function AdminScreen() {
                     background: "transparent",
                     color: "#0E141C",
                     textAlign: "left",
+                    opacity: m.inactive ? 0.55 : 1,
                   }}
                 >
                   <div
@@ -1003,6 +1004,11 @@ export function AdminScreen() {
                         {m.n}
                       </span>
                       <span style={{ fontSize: 11, color: "var(--ink-60)" }}>
+                        {m.inactive && (
+                          <span style={{ color: "#B5483F", fontWeight: 500 }}>
+                            Inaktiv ·{" "}
+                          </span>
+                        )}
                         via {m.via} · zuletzt {m.last}
                       </span>
                     </div>

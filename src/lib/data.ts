@@ -503,8 +503,8 @@ export const legalDocs: Record<string, LegalDoc> = {
       {
         t: "Mitgliedschaft",
         plain:
-          "Rein kommt nur, wer eingeladen wird. Jedes Mitglied hat einen Code für fünf Leute – und bürgt für sie.",
-        full: "Die Mitgliedschaft ist persönlich und nicht übertragbar. Ein Zugang entsteht ausschliesslich über einen persönlichen Einladungscode eines bestehenden Mitglieds. Jedes Mitglied verfügt über einen persönlichen Code, mit dem höchstens fünf Personen beitreten können. Der Salon kann Einladungen ohne Angabe von Gründen ablehnen und Mitgliedschaften bei wiederholten Verstössen gegen diese AGB beenden.",
+          "Rein kommt nur, wer eingeladen wird. Jedes Mitglied hat einen persönlichen Code – und bürgt für alle, die damit kommen.",
+        full: "Die Mitgliedschaft ist persönlich und nicht übertragbar. Ein Zugang entsteht ausschliesslich über einen persönlichen Einladungscode eines bestehenden Mitglieds. Jedes Mitglied verfügt über einen persönlichen Einladungscode. Der Salon kann Einladungen ohne Angabe von Gründen ablehnen und Mitgliedschaften bei wiederholten Verstössen gegen diese AGB pausieren oder beenden.",
       },
       {
         t: "Termine",
@@ -735,11 +735,14 @@ export type Appt = {
   pay?: string;
   eventId?: string; // Google-Kalender-Event, um die Buchung später zu löschen
 };
+/** One person in a member's circle, with the people they brought in. */
 export type Invite = {
+  id: string;
   name: string;
   meta: string;
   tag: string;
-  kids?: { name: string; meta: string; tag: string }[];
+  cuts: number;
+  kids: Invite[];
 };
 export type SalonUser = {
   first: string;
@@ -752,6 +755,7 @@ export type SalonUser = {
   email: string;
   card: number; // chosen card design 0..2
   isNew: boolean;
+  inactive?: boolean; // deactivated by the barber: booking is closed
 };
 
 // The three member-card designs (photos in /public, index = members.card_index).
