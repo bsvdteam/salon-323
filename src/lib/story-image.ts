@@ -1,7 +1,7 @@
 // Client-only: draws the invite "story" (1080×1920, Instagram/WhatsApp story
 // size) on a canvas — the inviter's card design as backdrop and as a blank
 // "Your Name" card for whoever joins, then just the code, the domain and
-// John 15,15. Fonts come from the page (next/font), like in the app.
+// John 15,16. Fonts come from the page (next/font), like in the app.
 import { cardStyles } from "@/lib/data";
 
 export type StoryInput = {
@@ -10,10 +10,10 @@ export type StoryInput = {
   domain: string; // "salon15.ch"
 };
 
-/** Salon 15 → John 15: friends, which is what an invite is. */
+/** Salon 15 → John 15,16: what you ask for in his name, the Father gives. */
 export const VERSE = {
-  t: ["Euch aber habe ich gesagt,", "dass ihr Freunde seid."],
-  r: "Johannes 15,15",
+  t: ["… worum ihr den Vater bittet", "in meinem Namen, er’s euch gebe."],
+  r: "Johannes 15,16",
 };
 
 const W = 1080;
