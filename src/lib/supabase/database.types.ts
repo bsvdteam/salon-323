@@ -316,6 +316,7 @@ export type Database = {
           cut: string
           cuts: number
           deactivated_at: string | null
+          feedback_always: boolean
           feedback_snooze_until: string | null
           first_name: string
           id: string
@@ -344,6 +345,7 @@ export type Database = {
           cut?: string
           cuts?: number
           deactivated_at?: string | null
+          feedback_always?: boolean
           feedback_snooze_until?: string | null
           first_name: string
           id?: string
@@ -372,6 +374,7 @@ export type Database = {
           cut?: string
           cuts?: number
           deactivated_at?: string | null
+          feedback_always?: boolean
           feedback_snooze_until?: string | null
           first_name?: string
           id?: string
@@ -502,6 +505,7 @@ export type Database = {
           cut: string
           cuts: number
           deactivated_at: string | null
+          feedback_always: boolean
           feedback_snooze_until: string | null
           first_name: string
           id: string
@@ -545,6 +549,7 @@ export type Database = {
           cut: string
           cuts: number
           deactivated_at: string | null
+          feedback_always: boolean
           feedback_snooze_until: string | null
           first_name: string
           id: string

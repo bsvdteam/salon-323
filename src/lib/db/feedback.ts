@@ -16,7 +16,7 @@ export async function countOpenAskFeedback(memberId: string): Promise<boolean> {
   const sb = supabaseAdmin();
   const { data: m } = await sb
     .from("members")
-    .select("app_opens, feedback_snooze_until, is_barber")
+    .select("app_opens, feedback_snooze_until, feedback_always, is_barber")
     .eq("id", memberId)
     .maybeSingle();
   if (!m || m.is_barber) return false;
@@ -24,7 +24,10 @@ export async function countOpenAskFeedback(memberId: string): Promise<boolean> {
   const free =
     !m.feedback_snooze_until ||
     new Date(m.feedback_snooze_until).getTime() < Date.now();
-  const ask = opens >= FIRST_OPEN && free && Math.random() < CHANCE;
+  // test accounts (feedback_always) get it on every open
+  const ask =
+    m.feedback_always ||
+    (opens >= FIRST_OPEN && free && Math.random() < CHANCE);
   await sb
     .from("members")
     .update({
