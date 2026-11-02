@@ -4,6 +4,7 @@ import { useSalon, type AdminTab } from "../store";
 import { useSalonActions } from "../actions";
 import { Icon } from "../icons";
 import { RevenueTab } from "../admin-revenue";
+import { FeedbackTab } from "../admin-feedback";
 import { CalendarTab } from "../admin-calendar";
 import { AvailTab } from "../admin-avail";
 import { InviteGenerator, MemberCount } from "../invite-generator";
@@ -57,6 +58,7 @@ const A_NAV: { k: AdminTab; label: string; icon: string }[] = [
   { k: "avail", label: "Zeiten", icon: "avail" },
   { k: "members", label: "Members", icon: "members" },
   { k: "revenue", label: "Umsatz", icon: "revenue" },
+  { k: "feedback", label: "Feedback", icon: "feedback" },
 ];
 
 export function AdminScreen() {
@@ -1049,6 +1051,8 @@ export function AdminScreen() {
 
       {st.aTab === "revenue" && <RevenueTab />}
 
+      {st.aTab === "feedback" && <FeedbackTab />}
+
       {/* admin nav */}
       <div
         style={{
@@ -1084,9 +1088,9 @@ export function AdminScreen() {
                 }}
                 style={{
                   height: 50,
-                  // shrinks on very narrow phones (320px) so the bar never overflows
-                  minWidth: "clamp(42px, 12vw, 50px)",
-                  padding: "0 clamp(10px, 3.6vw, 16px)",
+                  // six tabs: shrinks on narrow phones so the bar never overflows
+                  minWidth: "clamp(40px, 11vw, 50px)",
+                  padding: "0 clamp(8px, 2.6vw, 16px)",
                   borderRadius: 999,
                   display: "flex",
                   alignItems: "center",
@@ -1105,7 +1109,10 @@ export function AdminScreen() {
                     whiteSpace: "nowrap",
                     fontSize: 12,
                     fontWeight: 600,
-                    maxWidth: active ? 96 : 0,
+                    // the active label only where it fits (gone below ~340px)
+                    maxWidth: active
+                      ? "clamp(0px, calc((100vw - 340px) * 4), 96px)"
+                      : 0,
                     opacity: active ? 1 : 0,
                     transition: "all 1s cubic-bezier(.22,1,.36,1)",
                   }}

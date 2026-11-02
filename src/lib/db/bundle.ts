@@ -27,6 +27,7 @@ export type MemberBundle = {
   invitedByName: string | null; // display name of who invited this member
   standing: Standing; // points, tier basis and rank
   walletToken: string; // signed 24 h link to the Wallet pass (no cookie needed)
+  askFeedback?: boolean; // this app open brings up the feedback question
 };
 
 export function toPublicMember(m: MemberRow): PublicMember {

@@ -42,6 +42,16 @@ import { loadMemberBundle, type MemberBundle } from "@/lib/db/bundle";
 import { createEvent, wallISO, deleteEvent } from "@/lib/google/calendar";
 import { durOf, labelOf, priceOf, tiers, tierAt, SPONTI } from "@/lib/data";
 import { loadStandings } from "@/lib/db/points";
+import {
+  countOpenAskFeedback,
+  addFeedback,
+  updateFeedbackText,
+  snoozeFeedback,
+  listFeedback,
+  deleteFeedback,
+  SNOOZE,
+  type FeedbackEntry,
+} from "@/lib/db/feedback";
 import { supabaseAdmin } from "@/lib/supabase/server";
 import type { ServiceKey, PayMethod } from "@/lib/supabase/types";
 
@@ -102,9 +112,12 @@ export async function loginMemberAction(
   if (check !== "ok")
     return { ok: false, error: check === "locked" ? "locked" : "pin_wrong" };
   await setSession({ mid: member.id, role: "member" });
-  const bundle = await loadMemberBundle(member.id);
+  const [bundle, askFeedback] = await Promise.all([
+    loadMemberBundle(member.id),
+    countOpenAskFeedback(member.id),
+  ]);
   if (!bundle) return { ok: false, error: "not_found" };
-  return { ok: true, bundle };
+  return { ok: true, bundle: { ...bundle, askFeedback } };
 }
 
 export type OnboardArgs = {
@@ -863,5 +876,56 @@ export async function setMemberNoteAction(
   const s = await getSession();
   if (!s || s.role !== "barber") return { ok: false, error: "forbidden" };
   await setMemberNote(memberId, note);
+  return { ok: true };
+}
+
+// ── feedback ────────────────────────────────────────────────────────────────
+
+/** Member rates the app (1–10). Returns the entry id, so the follow-up
+ *  answers can be added to the same entry one step at a time. */
+export async function submitFeedbackAction(f: {
+  score: number;
+  source: "prompt" | "profile";
+}): Promise<{ ok: true; id: string } | { ok: false }> {
+  const s = await getSession();
+  if (s?.role !== "member") return { ok: false };
+  const score = Math.round(Number(f.score));
+  if (!(score >= 1 && score <= 10)) return { ok: false };
+  const id = await addFeedback({
+    memberId: s.mid,
+    score,
+    source: f.source === "profile" ? "profile" : "prompt",
+  });
+  return { ok: true, id };
+}
+
+export async function feedbackTextAction(
+  id: string,
+  t: { wish?: string; annoy?: string },
+): Promise<{ ok: boolean }> {
+  const s = await getSession();
+  if (s?.role !== "member") return { ok: false };
+  await updateFeedbackText(s.mid, id, t);
+  return { ok: true };
+}
+
+/** "Später" on the question that came by itself. */
+export async function snoozeFeedbackAction(): Promise<void> {
+  const s = await getSession();
+  if (s?.role === "member") await snoozeFeedback(s.mid, SNOOZE.later);
+}
+
+export async function listFeedbackAction(): Promise<FeedbackEntry[] | null> {
+  const s = await getSession();
+  if (s?.role !== "barber") return null;
+  return listFeedback();
+}
+
+export async function deleteFeedbackAction(
+  id: string,
+): Promise<{ ok: boolean }> {
+  const s = await getSession();
+  if (s?.role !== "barber") return { ok: false };
+  await deleteFeedback(id);
   return { ok: true };
 }

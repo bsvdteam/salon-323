@@ -72,6 +72,7 @@ export type MemberStatePatch = {
   template: ServiceKey[];
   myInviter: string;
   standing: Standing;
+  fbAsk: boolean; // show the feedback question (once, this app open)
   appt: Appt | null;
   history: { off: number; s: ServiceKey[] }[];
 };
@@ -103,6 +104,7 @@ export function bundleToState(
     template: (m.template as ServiceKey[]) ?? ["haare", "bart"],
     myInviter: b.invitedByName ?? "",
     standing: b.standing,
+    fbAsk: !!b.askFeedback,
     appt: apptFromRow(b.upcoming),
     history: b.history.map((r) => ({
       off: offsetOf(r.starts_at),

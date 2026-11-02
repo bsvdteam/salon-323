@@ -307,6 +307,7 @@ export function useSalonActions() {
         booked: null,
         refCode: "",
         standing: null,
+        fbAsk: false,
       });
       startIntro();
     });

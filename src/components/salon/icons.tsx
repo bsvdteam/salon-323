@@ -35,6 +35,12 @@ const P: Record<string, React.ReactNode> = {
     </>
   ),
   revenue: <path d="M5 19V13M10 19V8M15 19v-4M20 19V5" />,
+  feedback: (
+    <>
+      <path d="M4.5 7a3 3 0 0 1 3-3h9a3 3 0 0 1 3 3v5.5a3 3 0 0 1-3 3H11l-4 3.5v-3.5a3 3 0 0 1-2.5-3z" />
+      <path d="M9 9h6M9 12h3.5" />
+    </>
+  ),
   avail: (
     <>
       <rect x={4} y={5} width={16} height={15} rx={3} />

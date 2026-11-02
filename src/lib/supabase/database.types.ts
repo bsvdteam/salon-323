@@ -197,6 +197,44 @@ export type Database = {
         }
         Relationships: []
       }
+      feedback: {
+        Row: {
+          annoy: string | null
+          created_at: string
+          id: string
+          member_id: string | null
+          score: number
+          source: string
+          wish: string | null
+        }
+        Insert: {
+          annoy?: string | null
+          created_at?: string
+          id?: string
+          member_id?: string | null
+          score: number
+          source?: string
+          wish?: string | null
+        }
+        Update: {
+          annoy?: string | null
+          created_at?: string
+          id?: string
+          member_id?: string | null
+          score?: number
+          source?: string
+          wish?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "feedback_member_id_fkey"
+            columns: ["member_id"]
+            isOneToOne: false
+            referencedRelation: "members"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       google_connection: {
         Row: {
           account_email: string | null
@@ -271,12 +309,14 @@ export type Database = {
       }
       members: {
         Row: {
+          app_opens: number
           card_index: number
           contact_email: string | null
           created_at: string
           cut: string
           cuts: number
           deactivated_at: string | null
+          feedback_snooze_until: string | null
           first_name: string
           id: string
           invited_by: string | null
@@ -297,12 +337,14 @@ export type Database = {
           username: string
         }
         Insert: {
+          app_opens?: number
           card_index?: number
           contact_email?: string | null
           created_at?: string
           cut?: string
           cuts?: number
           deactivated_at?: string | null
+          feedback_snooze_until?: string | null
           first_name: string
           id?: string
           invited_by?: string | null
@@ -323,12 +365,14 @@ export type Database = {
           username: string
         }
         Update: {
+          app_opens?: number
           card_index?: number
           contact_email?: string | null
           created_at?: string
           cut?: string
           cuts?: number
           deactivated_at?: string | null
+          feedback_snooze_until?: string | null
           first_name?: string
           id?: string
           invited_by?: string | null
@@ -451,12 +495,14 @@ export type Database = {
           p_username: string
         }
         Returns: {
+          app_opens: number
           card_index: number
           contact_email: string | null
           created_at: string
           cut: string
           cuts: number
           deactivated_at: string | null
+          feedback_snooze_until: string | null
           first_name: string
           id: string
           invited_by: string | null
@@ -492,12 +538,14 @@ export type Database = {
           p_username: string
         }
         Returns: {
+          app_opens: number
           card_index: number
           contact_email: string | null
           created_at: string
           cut: string
           cuts: number
           deactivated_at: string | null
+          feedback_snooze_until: string | null
           first_name: string
           id: string
           invited_by: string | null

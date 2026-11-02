@@ -8,6 +8,7 @@ import { HomeTab } from "./tabs/home";
 import { BookTab } from "./tabs/book";
 import { CardTab } from "./tabs/card";
 import { CircleTab } from "./tabs/circle";
+import { FeedbackNudge } from "../feedback";
 import { cardStyles } from "@/lib/data";
 
 const NAV: { k: Tab; label: string }[] = [
@@ -163,6 +164,7 @@ export function AppScreen() {
         {state.tab === "card" && <CardTab />}
         {state.tab === "circle" && <CircleTab />}
       </div>
+      <FeedbackNudge />
       <TabBar />
     </div>
   );

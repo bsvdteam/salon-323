@@ -5,18 +5,20 @@
 import { redirect } from "next/navigation";
 import { getSession } from "./session";
 import { loadMemberBundle } from "@/lib/db/bundle";
+import { countOpenAskFeedback } from "@/lib/db/feedback";
 import { getAvailability, salonToday } from "@/lib/db/availability";
 import type { StartConfig, Tab } from "@/components/salon/store";
 
 export async function memberStart(tab: Tab): Promise<StartConfig> {
   const s = await getSession();
   if (s?.role !== "member") redirect("/");
-  const [member, avail] = await Promise.all([
+  const [member, avail, askFeedback] = await Promise.all([
     loadMemberBundle(s.mid),
     getAvailability(salonToday()),
+    countOpenAskFeedback(s.mid),
   ]);
   if (!member) redirect("/");
-  return { screen: "app", tab, member, avail };
+  return { screen: "app", tab, member: { ...member, askFeedback }, avail };
 }
 
 /** /admin: the portal with a barber session — otherwise the barber login right

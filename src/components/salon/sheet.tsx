@@ -3,6 +3,8 @@
 import { useEffect, useState } from "react";
 import { useSalon, type ClientRecord } from "./store";
 import { useSalonActions } from "./actions";
+import { SheetFrame } from "./sheet-frame";
+import { FeedbackSheet } from "./feedback";
 import {
   tierAt,
   labelOf,
@@ -325,86 +327,6 @@ function MemberManageRows({ m }: { m: ClientRecord }) {
   );
 }
 
-/** Bottom sheet chrome: backdrop, glass panel, drag handle. */
-function SheetFrame({ children }: { children: React.ReactNode }) {
-  const { set } = useSalon();
-  return (
-    <>
-      <div
-        onClick={() => set({ sheet: null })}
-        style={{
-          position: "fixed",
-          inset: 0,
-          zIndex: 100,
-          background: "rgba(20,30,46,.22)",
-          animation: "fade .8s ease both",
-        }}
-      />
-      <div
-        style={{
-          position: "fixed",
-          left: 0,
-          right: 0,
-          bottom: 0,
-          zIndex: 101,
-          display: "flex",
-          justifyContent: "center",
-          pointerEvents: "none",
-        }}
-      >
-        <div
-          style={{
-            pointerEvents: "auto",
-            width: "min(520px,100%)",
-            // never taller than the screen; scrolls inside on short phones or
-            // when the keyboard is up while editing a field
-            maxHeight: "calc(100dvh - 20px - env(safe-area-inset-top))",
-            overflowY: "auto",
-            overscrollBehavior: "contain",
-            WebkitOverflowScrolling: "touch",
-            borderRadius: "36px 36px 0 0",
-            padding: "12px 22px calc(28px + env(safe-area-inset-bottom))",
-            background:
-              "linear-gradient(170deg,rgba(250,251,253,.92),rgba(236,241,246,.86))",
-            backdropFilter: "blur(30px) saturate(170%)",
-            WebkitBackdropFilter: "blur(30px) saturate(170%)",
-            border: "1px solid rgba(255,255,255,.9)",
-            boxShadow: "0 -24px 60px -24px rgba(20,30,50,.35)",
-            animation: "sheetUp 1s cubic-bezier(.22,1,.36,1) both",
-            display: "flex",
-            flexDirection: "column",
-            gap: 20,
-          }}
-        >
-          <button
-            onClick={() => set({ sheet: null })}
-            style={{
-              alignSelf: "center",
-              width: 44,
-              height: 16,
-              border: 0,
-              background: "transparent",
-              padding: "6px 0",
-              display: "flex",
-              justifyContent: "center",
-            }}
-          >
-            <span
-              style={{
-                width: 38,
-                height: 4,
-                borderRadius: 9,
-                background: "rgba(14,20,28,.18)",
-              }}
-            />
-          </button>
-          {children}
-        </div>
-      </div>
-    </>
-  );
-}
-
 /** Barber: "+ Sponti" — someone walks in unannounced. Pick the person, the
  *  services and the time (now by default), done: it lands in today's agenda
  *  (own colour) and the calendar; "Fertig · abbuchen" there counts the cut. */
@@ -576,6 +498,7 @@ export function Sheet() {
   const sh = state.sheet;
   if (!sh) return null;
   if (sh.type === "sponti") return <SpontiSheet />;
+  if (sh.type === "feedback") return <FeedbackSheet source={sh.source} />;
 
   const U = state.user ?? {
     first: "Luca",
@@ -820,6 +743,21 @@ export function Sheet() {
             </div>
           ))}
         {isProfile && <PinChangeRow />}
+        {isProfile && (
+          <div style={rowStyle}>
+            <span style={{ fontSize: 13, color: "rgba(14,20,28,.65)" }}>
+              Feedback zur App
+            </span>
+            <button
+              onClick={() =>
+                set({ sheet: { type: "feedback", source: "profile" } })
+              }
+              style={pillBtn}
+            >
+              Geben
+            </button>
+          </div>
+        )}
         {sh.type === "client" && sh.m.id && (
           <PinResetRow memberId={sh.m.id} first={sh.m.n.split(" ")[0]} />
         )}

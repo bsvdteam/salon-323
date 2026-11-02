@@ -53,7 +53,13 @@ export type ClientRecord = {
 
 export type Screen = "login" | "onboard" | "welcome" | "app" | "admin";
 export type Tab = "home" | "book" | "card" | "circle";
-export type AdminTab = "today" | "termine" | "members" | "revenue" | "avail";
+export type AdminTab =
+  | "today"
+  | "termine"
+  | "members"
+  | "revenue"
+  | "avail"
+  | "feedback";
 export type Mode = null | "member" | "invite" | "barber"; // barber = /admin login
 export type OverlayKind = "salon" | "cuts" | "legal" | "story";
 /** Initial state for a deep-linked route (see src/app/* pages). Member and
@@ -85,6 +91,7 @@ export interface SalonState {
   inviteBy: string; // inviter display name ("Marco R.")
   myInviter: string; // who invited the logged-in member (for the circle tab)
   standing: Standing | null; // points, tier and rank of the logged-in member
+  fbAsk: boolean; // the feedback question is due this app open
   busy: boolean; // a server action is in flight (login / onboarding)
   barberAuthed: boolean; // barber session verified (server) or just logged in
   pwFor: null | "member" | "barber"; // landing login, 2nd field: PIN or password
@@ -141,6 +148,7 @@ export interface SalonState {
     | { type: "profile" }
     | { type: "client"; m: ClientRecord }
     | { type: "sponti" }
+    | { type: "feedback"; source: "prompt" | "profile" }
     | null;
 
   // story
@@ -216,6 +224,7 @@ function initialState(start?: StartConfig): SalonState {
     inviteBy: "",
     myInviter: "",
     standing: null,
+    fbAsk: false,
     busy: false,
     barberAuthed: !!start?.barber,
     // /admin without a barber session opens straight on username + password
