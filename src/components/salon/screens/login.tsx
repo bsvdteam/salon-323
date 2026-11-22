@@ -365,60 +365,114 @@ export function LoginScreen() {
         members only
       </div>
 
-      {/* chooser — two plain, unmistakable choices: new here (filled) or
-          already a member (glass). Everyone used to tap "Anmelden". */}
+      {/* chooser — one glass card, two rows: new here / already a member.
+          Same place and width as the panel it opens, so a tap reads as the
+          card turning into that step. */}
       <div
         style={{
           position: "absolute",
           left: 0,
           right: 0,
-          bottom: "calc(58px + env(safe-area-inset-bottom))",
+          bottom: "calc(64px + env(safe-area-inset-bottom))",
           display: "flex",
-          flexDirection: "column",
-          alignItems: "center",
-          gap: 10,
-          padding: "0 24px",
+          justifyContent: "center",
+          padding: "0 16px",
           opacity: ready && !panelOpen ? 1 : 0,
           pointerEvents: ready && !panelOpen ? "auto" : "none",
-          transform: ready && !panelOpen ? "none" : "translateY(10px)",
-          transition: `opacity 1.1s ease ${panelOpen ? "0s" : ".45s"}, transform 1.1s cubic-bezier(.22,1,.36,1) ${panelOpen ? "0s" : ".45s"}`,
+          transform: ready && !panelOpen ? "none" : "translateY(16px)",
+          transition: `opacity .9s ease ${panelOpen ? "0s" : ".35s"}, transform 1s cubic-bezier(.22,1,.36,1) ${panelOpen ? "0s" : ".35s"}`,
         }}
       >
-        <button
-          onClick={(e) => {
-            e.stopPropagation();
-            set({ mode: "invite" });
-          }}
+        <div
+          className="glass-dark"
           style={{
-            ...choice,
-            background: "#F7F9FB",
-            color: "#0E141C",
-            boxShadow: "0 18px 40px -18px rgba(10,16,26,.55)",
+            width: "min(360px,100%)",
+            borderRadius: 30,
+            padding: 6,
+            display: "flex",
+            flexDirection: "column",
           }}
         >
-          Ich bin neu
-          <span style={choiceSub}>Member werden</span>
-        </button>
-        <button
-          onClick={(e) => {
-            e.stopPropagation();
-            set({ mode: "member", username: "" });
-          }}
-          style={{
-            ...choice,
-            color: "#F7F9FB",
-            border: "1px solid rgba(247,249,251,.34)",
-            background: "rgba(247,249,251,.08)",
-            WebkitBackdropFilter: "blur(10px)",
-            backdropFilter: "blur(10px)",
-            textShadow: "0 1px 12px rgba(10,16,26,.45)",
-          }}
-        >
-          Ich bin schon Member
-          <span style={{ ...choiceSub, color: "rgba(247,249,251,.62)" }}>
-            Anmelden
-          </span>
-        </button>
+          {(
+            [
+              {
+                kick: "Neu hier",
+                label: "Member werden",
+                primary: true,
+                go: () => set({ mode: "invite" }),
+              },
+              {
+                kick: "Schon Member",
+                label: "Anmelden",
+                primary: false,
+                go: () => set({ mode: "member", username: "" }),
+              },
+            ] as const
+          ).map((r, i) => (
+            <div key={r.label} style={{ display: "contents" }}>
+              {i > 0 && (
+                <span
+                  style={{
+                    height: 1,
+                    margin: "0 18px",
+                    background: "rgba(255,255,255,.1)",
+                  }}
+                />
+              )}
+              <button
+                className="choice-row"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  r.go();
+                }}
+                style={{
+                  height: 74,
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "space-between",
+                  gap: 12,
+                  padding: "0 10px 0 18px",
+                  borderRadius: 24,
+                  border: 0,
+                  background: "transparent",
+                  color: "#F4F7FA",
+                  textAlign: "left",
+                }}
+              >
+                <span
+                  style={{ display: "flex", flexDirection: "column", gap: 6 }}
+                >
+                  <span style={kicker}>{r.kick}</span>
+                  <span
+                    style={{
+                      fontSize: 19,
+                      fontWeight: 400,
+                      letterSpacing: "-.01em",
+                      lineHeight: 1,
+                    }}
+                  >
+                    {r.label}
+                  </span>
+                </span>
+                <span
+                  style={{
+                    flex: "none",
+                    width: 42,
+                    height: 42,
+                    borderRadius: "50%",
+                    display: "grid",
+                    placeItems: "center",
+                    fontSize: 15,
+                    background: r.primary ? "#F4F7FA" : "rgba(255,255,255,.1)",
+                    color: r.primary ? "#0E141C" : "#F4F7FA",
+                  }}
+                >
+                  →
+                </span>
+              </button>
+            </div>
+          ))}
+        </div>
       </div>
 
       {/* login panel */}
@@ -1031,11 +1085,6 @@ const choice: React.CSSProperties = {
   fontWeight: 600,
   letterSpacing: "-.005em",
   textTransform: "none",
-};
-const choiceSub: React.CSSProperties = {
-  fontSize: 12.5,
-  fontWeight: 400,
-  color: "rgba(14,20,28,.5)",
 };
 const kicker: React.CSSProperties = {
   fontFamily: "var(--font-geist-mono)",

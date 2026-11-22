@@ -582,3 +582,19 @@ button {
     filter: none;
   }
 }
+
+/* Landing chooser rows: a soft light under the finger / pointer. */
+.choice-row {
+  transition:
+    background 0.5s cubic-bezier(0.22, 1, 0.36, 1),
+    transform 0.5s cubic-bezier(0.22, 1, 0.36, 1);
+}
+@media (hover: hover) {
+  .choice-row:hover {
+    background: rgba(255, 255, 255, 0.06) !important;
+  }
+}
+.choice-row:active {
+  background: rgba(255, 255, 255, 0.09) !important;
+  transform: scale(0.985);
+}
