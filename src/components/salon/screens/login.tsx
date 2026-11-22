@@ -108,6 +108,10 @@ export function LoginScreen() {
   // "PIN vergessen?" — shows who resets it (the barber) and a WhatsApp link
   const [forgot, setForgot] = useState(false);
   const panelOpen = !!st.mode;
+  // Landing: first one quiet line ("Take a seat"); a tap reveals the choice.
+  const [choose, setChoose] = useState(false);
+  const showChoice = ready && !panelOpen && choose;
+  const showCta = ready && !panelOpen && !choose;
   const chromeO = ready ? 1 : 0;
 
   const nameMt = panelOpen
@@ -152,7 +156,11 @@ export function LoginScreen() {
   };
   return (
     <div
-      onClick={() => a.set((p) => (p.intro >= 3 ? {} : { intro: 3 }))}
+      onClick={() => {
+        // tap outside the choice → back to the quiet line
+        if (choose && !panelOpen) setChoose(false);
+        a.set((p) => (p.intro >= 3 ? {} : { intro: 3 }));
+      }}
       onWheel={peekWheel}
       onTouchStart={(e) => {
         pty.current = e.touches[0].clientY;
@@ -365,6 +373,49 @@ export function LoginScreen() {
         members only
       </div>
 
+      {/* the quiet first step — reads like the other landing texts */}
+      <div
+        style={{
+          position: "absolute",
+          left: 0,
+          right: 0,
+          bottom: "calc(96px + env(safe-area-inset-bottom))",
+          display: "flex",
+          justifyContent: "center",
+          pointerEvents: showCta ? "auto" : "none",
+          opacity: showCta ? 1 : 0,
+          filter: showCta ? "blur(0px)" : "blur(6px)",
+          transform: showCta ? "none" : "translateY(10px)",
+          transition: `opacity .9s ease ${showCta ? ".5s" : "0s"}, filter .9s ease ${showCta ? ".5s" : "0s"}, transform 1.1s cubic-bezier(.22,1,.36,1) ${showCta ? ".5s" : "0s"}`,
+        }}
+      >
+        <button
+          className="seat-cta"
+          onClick={(e) => {
+            e.stopPropagation();
+            setChoose(true);
+          }}
+          style={{
+            border: 0,
+            background: "transparent",
+            padding: "16px 8px",
+            display: "flex",
+            alignItems: "center",
+            gap: 14,
+            color: "#fff",
+            mixBlendMode: "difference",
+            fontFamily: "var(--font-geist-mono)",
+            fontSize: 10,
+            letterSpacing: ".34em",
+            textTransform: "uppercase",
+          }}
+        >
+          <span className="seat-line" />
+          Take a seat
+          <span className="seat-line" />
+        </button>
+      </div>
+
       {/* chooser — one glass card, two rows: new here / already a member.
           Same place and width as the panel it opens, so a tap reads as the
           card turning into that step. */}
@@ -377,11 +428,12 @@ export function LoginScreen() {
           display: "flex",
           justifyContent: "center",
           padding: "0 16px",
-          opacity: ready && !panelOpen ? 1 : 0,
-          pointerEvents: ready && !panelOpen ? "auto" : "none",
-          transform: ready && !panelOpen ? "none" : "translateY(16px)",
-          transition: `opacity .9s ease ${panelOpen ? "0s" : ".35s"}, transform 1s cubic-bezier(.22,1,.36,1) ${panelOpen ? "0s" : ".35s"}`,
+          opacity: showChoice ? 1 : 0,
+          pointerEvents: showChoice ? "auto" : "none",
+          transform: showChoice ? "none" : "translateY(16px)",
+          transition: `opacity .9s ease ${showChoice ? ".15s" : "0s"}, transform 1s cubic-bezier(.22,1,.36,1) ${showChoice ? ".15s" : "0s"}`,
         }}
+        onClick={(e) => e.stopPropagation()}
       >
         <div
           className="glass-dark"

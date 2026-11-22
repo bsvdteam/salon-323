@@ -598,3 +598,19 @@ button {
   background: rgba(255, 255, 255, 0.09) !important;
   transform: scale(0.985);
 }
+
+/* Landing "Take a seat": two hairlines that reach out under the finger. */
+.seat-line {
+  width: 22px;
+  height: 1px;
+  background: currentColor;
+  transition: width 0.8s cubic-bezier(0.22, 1, 0.36, 1);
+}
+@media (hover: hover) {
+  .seat-cta:hover .seat-line {
+    width: 34px;
+  }
+}
+.seat-cta:active .seat-line {
+  width: 34px;
+}
