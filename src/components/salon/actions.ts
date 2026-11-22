@@ -6,6 +6,7 @@ import { verses, type ServiceKey } from "@/lib/data";
 import {
   validateInviteAction,
   usernameAvailableAction,
+  houseCodeAction,
   type AuthResult,
   type OnboardArgs,
 } from "@/lib/actions";
@@ -21,8 +22,8 @@ const auth = <T>(body: object): Promise<T> =>
     headers: { "content-type": "application/json" },
     body: JSON.stringify(body),
   }).then((r) => r.json());
-const loginMemberAction = (username: string, pin?: string) =>
-  auth<AuthResult>({ op: "member", username, pin });
+const loginMemberAction = (username: string) =>
+  auth<AuthResult>({ op: "member", username });
 const loginBarberAction = (username: string, password: string) =>
   auth<{ ok: true } | { ok: false; error: string }>({
     op: "barber",
@@ -72,8 +73,8 @@ export function useSalonActions() {
     });
   }, [go, set, toApp]);
 
-  // Login: username first; the server then asks for the member's 6-digit PIN
-  // or — for the barber's username — his password, which opens the portal.
+  // Login: just the username for members; the barber's username asks for
+  // his password, which opens the portal.
   const loginUsername = useCallback(() => {
     const st = sref.current;
     const u = st.username.trim();
@@ -107,8 +108,8 @@ export function useSalonActions() {
       });
       return;
     }
-    loginMemberAction(u, st.pwFor === "member" ? st.pw : undefined).then(
-      (res) => {
+    loginMemberAction(u)
+      .then((res) => {
         if (res.ok) {
           set({
             busy: false,
@@ -119,25 +120,17 @@ export function useSalonActions() {
           goWelcome();
           return;
         }
-        const e = res.error;
-        if (e === "use_barber_login")
+        if (res.error === "use_barber_login")
           set({ busy: false, pwFor: "barber", pw: "" });
-        else if (e === "pin_required")
-          set({ busy: false, pwFor: "member", pw: "" });
         else {
           set({ busy: false, pw: "" });
-          say(
-            e === "pin_wrong"
-              ? "PIN falsch"
-              : e === "locked"
-                ? "Zu viele Versuche – in 15 Min. nochmal"
-                : e === "pin_missing"
-                  ? "Noch kein PIN – frag den Barber"
-                  : "Diesen Username gibt es nicht",
-          );
+          say("Diesen Username gibt es nicht");
         }
-      },
-    );
+      })
+      .catch(() => {
+        set({ busy: false });
+        say("Keine Verbindung – bitte nochmal");
+      });
   }, [set, go, goWelcome, say]);
 
   const onCode = useCallback(
@@ -168,6 +161,25 @@ export function useSalonActions() {
     [set],
   );
 
+  // "Ich habe keinen Code": Laurin's own code goes in and is checked as if
+  // it had been typed — the → then leads into the onboarding.
+  const houseCode = useCallback(() => {
+    if (sref.current.checking) return;
+    set({ checking: true });
+    houseCodeAction()
+      .then((c) => {
+        if (c) onCode(c);
+        else {
+          set({ checking: false });
+          say("Ging nicht – bitte nochmal");
+        }
+      })
+      .catch(() => {
+        set({ checking: false });
+        say("Keine Verbindung – bitte nochmal");
+      });
+  }, [set, say, onCode]);
+
   const redeem = useCallback(() => {
     if (!sref.current.inviteOk) return;
     // The invitee types their own name; an old per-person invite prefills it.
@@ -180,14 +192,12 @@ export function useSalonActions() {
         username: "",
         phone: "",
         email: "",
-        pin: "",
-        pin2: "",
         cardSel: 0,
       }),
     );
   }, [go, set]);
 
-  // Onboarding: 0 name → 1 username → 2 PIN → 3 phone → 4 email → 5 card.
+  // Onboarding: 0 name → 1 username → 2 phone → 3 email → 4 card.
   const obNext = useCallback(() => {
     const st = sref.current;
     if (st.ob === 0 && st.first.trim()) set({ ob: 1 });
@@ -208,13 +218,11 @@ export function useSalonActions() {
                 : "Nur a–z, 0–9 und _ · 2–20 Zeichen",
           });
       });
-    } else if (st.ob === 2 && /^\d{6}$/.test(st.pin) && st.pin === st.pin2)
+    } else if (st.ob === 2 && st.phone.replace(/\D/g, "").length >= 6)
       set({ ob: 3 });
-    else if (st.ob === 3 && st.phone.replace(/\D/g, "").length >= 6)
+    else if (st.ob === 3 && /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(st.email.trim()))
       set({ ob: 4 });
-    else if (st.ob === 4 && /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(st.email.trim()))
-      set({ ob: 5 });
-    else if (st.ob === 5) {
+    else if (st.ob === 4) {
       if (st.busy) return;
       set({ busy: true });
       // Atomic on the server: redeem the invite + create the member + log in.
@@ -223,7 +231,6 @@ export function useSalonActions() {
         first: st.first.trim(),
         last: st.last.trim(),
         username: st.username.trim(),
-        pin: st.pin,
         phone: st.phone,
         email: st.email.trim(),
         card: st.cardSel,
@@ -232,8 +239,6 @@ export function useSalonActions() {
           set({
             busy: false,
             ...bundleToState(res.bundle, true),
-            pin: "",
-            pin2: "",
             appt: null,
             history: [],
           });
@@ -252,11 +257,8 @@ export function useSalonActions() {
                   ? "Gerade vergeben worden – wähl einen anderen"
                   : "Nur a–z, 0–9 und _ · 2–20 Zeichen",
             });
-          } else if (res.error === "pin_invalid") {
-            set({ ob: 2, pin: "", pin2: "" });
-            say("PIN: genau 6 Ziffern");
           } else if (res.error === "phone_invalid") {
-            set({ ob: 3 });
+            set({ ob: 2 });
             say("Telefonnummer prüfen");
           } else if (res.error === "first_invalid") {
             set({ ob: 0 });
@@ -355,6 +357,7 @@ export function useSalonActions() {
     toApp,
     loginUsername,
     onCode,
+    houseCode,
     redeem,
     obNext,
     obBack,

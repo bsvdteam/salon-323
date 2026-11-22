@@ -9,11 +9,6 @@ import { useCardScale } from "../use-portrait";
 import { salon } from "@/lib/data";
 import { memberCountAction } from "@/lib/actions";
 
-const WA_CODE_REQUEST =
-  salon.wa +
-  "?text=" +
-  encodeURIComponent("Hoi! Ich hätte gern einen Einladungscode für Salon 15.");
-
 type Box = { ch: string; active: boolean; bg: string; border: string };
 function boxes(str: string, n: number): Box[] {
   return Array.from({ length: n }, (_, k) => {
@@ -110,7 +105,7 @@ export function LoginScreen() {
   const ov = useOverlayActions();
   const st = state;
   const ready = st.intro >= 3;
-  // "PIN vergessen?" — shows who resets it (the barber) and a WhatsApp link
+  // "Username vergessen?" — Laurin knows it; a WhatsApp link to ask him
   const [forgot, setForgot] = useState(false);
   const panelOpen = !!st.mode;
   const chromeO = ready ? 1 : 0;
@@ -370,8 +365,8 @@ export function LoginScreen() {
         members only
       </div>
 
-      {/* chooser — stacked: "Mitglied werden" (white) on top, "Anmelden"
-          (chrome ink) directly below it */}
+      {/* chooser — two plain, unmistakable choices: new here (filled) or
+          already a member (glass). Everyone used to tap "Anmelden". */}
       <div
         style={{
           position: "absolute",
@@ -381,14 +376,12 @@ export function LoginScreen() {
           display: "flex",
           flexDirection: "column",
           alignItems: "center",
-          gap: 6,
-          fontFamily: "var(--font-geist-mono)",
-          fontSize: 9.5,
-          letterSpacing: ".26em",
-          textTransform: "uppercase",
+          gap: 10,
+          padding: "0 24px",
           opacity: ready && !panelOpen ? 1 : 0,
           pointerEvents: ready && !panelOpen ? "auto" : "none",
-          transition: `opacity 1.1s ease ${panelOpen ? "0s" : ".45s"}`,
+          transform: ready && !panelOpen ? "none" : "translateY(10px)",
+          transition: `opacity 1.1s ease ${panelOpen ? "0s" : ".45s"}, transform 1.1s cubic-bezier(.22,1,.36,1) ${panelOpen ? "0s" : ".45s"}`,
         }}
       >
         <button
@@ -397,35 +390,34 @@ export function LoginScreen() {
             set({ mode: "invite" });
           }}
           style={{
-            ...chooserBtn,
-            color: "#F7F9FB",
-            textShadow: "0 1px 14px rgba(10,16,26,.6)",
+            ...choice,
+            background: "#F7F9FB",
+            color: "#0E141C",
+            boxShadow: "0 18px 40px -18px rgba(10,16,26,.55)",
           }}
         >
-          Member werden
+          Ich bin neu
+          <span style={choiceSub}>Member werden</span>
         </button>
-        {/* Ghost pill so sign-in is clearly visible against the dark base. */}
         <button
           onClick={(e) => {
             e.stopPropagation();
             set({ mode: "member", username: "" });
           }}
           style={{
-            ...chooserBtn,
-            marginTop: 2,
-            padding: "9px 20px",
-            fontSize: 9,
+            ...choice,
             color: "#F7F9FB",
-            opacity: 0.92,
-            borderRadius: 999,
-            border: "1px solid rgba(247,249,251,.32)",
-            background: "rgba(247,249,251,.06)",
-            textShadow: "0 1px 12px rgba(10,16,26,.55)",
-            WebkitBackdropFilter: "blur(6px)",
-            backdropFilter: "blur(6px)",
+            border: "1px solid rgba(247,249,251,.34)",
+            background: "rgba(247,249,251,.08)",
+            WebkitBackdropFilter: "blur(10px)",
+            backdropFilter: "blur(10px)",
+            textShadow: "0 1px 12px rgba(10,16,26,.45)",
           }}
         >
-          Anmelden
+          Ich bin schon Member
+          <span style={{ ...choiceSub, color: "rgba(247,249,251,.62)" }}>
+            Anmelden
+          </span>
         </button>
       </div>
 
@@ -560,26 +552,14 @@ export function LoginScreen() {
                   <input
                     key={st.pwFor}
                     value={st.pw}
-                    onChange={(e) => {
-                      if (st.pwFor === "barber")
-                        return set({ pw: e.target.value });
-                      // member PIN: digits only; the 6th digit signs in
-                      const v = e.target.value.replace(/\D/g, "").slice(0, 6);
-                      set(
-                        { pw: v },
-                        v.length === 6 ? () => a.loginUsername() : undefined,
-                      );
-                    }}
+                    onChange={(e) => set({ pw: e.target.value })}
                     onKeyDown={(e) => {
                       if (e.key === "Enter") a.loginUsername();
                     }}
                     autoFocus={!modeBarber}
                     type="password"
-                    inputMode={st.pwFor === "member" ? "numeric" : undefined}
                     autoComplete="current-password"
-                    placeholder={
-                      st.pwFor === "member" ? "PIN · 6 Ziffern" : "Passwort"
-                    }
+                    placeholder="Passwort"
                     style={{
                       flex: 1,
                       minWidth: 0,
@@ -609,7 +589,8 @@ export function LoginScreen() {
                   </button>
                 </div>
               )}
-              {st.pwFor === "member" &&
+              {!modeBarber &&
+                !st.pwFor &&
                 (forgot ? (
                   <div
                     style={{
@@ -630,13 +611,12 @@ export function LoginScreen() {
                         color: "rgba(244,247,250,.8)",
                       }}
                     >
-                      Kein Problem: Laurin setzt dir einen neuen PIN. Schreib
-                      ihm kurz oder frag im Salon – danach kannst du ihn im
-                      Profil wieder selbst ändern.
+                      Kein Problem – schreib Laurin kurz, er sagt dir deinen
+                      Username.
                     </span>
                     <a
                       href={`${salon.wa}?text=${encodeURIComponent(
-                        `Hoi Laurin, ich habe meinen PIN vergessen. Mein Username: ${st.username.trim()}`,
+                        `Hoi Laurin, ich habe meinen Username für Salon 15 vergessen.`,
                       )}`}
                       target="_blank"
                       rel="noopener noreferrer"
@@ -670,7 +650,7 @@ export function LoginScreen() {
                       textUnderlineOffset: 3,
                     }}
                   >
-                    PIN vergessen?
+                    Username vergessen?
                   </button>
                 ))}
             </div>
@@ -692,7 +672,7 @@ export function LoginScreen() {
                   alignItems: "center",
                 }}
               >
-                <span style={kicker}>Persönlicher Code</span>
+                <span style={kicker}>Einladungscode</span>
                 <button
                   onClick={() => set({ mode: null, mStep: 0 })}
                   style={closeBtn}
@@ -850,29 +830,32 @@ export function LoginScreen() {
           )}
         </div>
 
-        {/* Code anfordern — sits cleanly BELOW the card, not inside it */}
-        {modeInvite && (
-          <a
-            href={WA_CODE_REQUEST}
-            target="_blank"
-            rel="noopener noreferrer"
-            onClick={(e) => e.stopPropagation()}
+        {/* No code from a friend? Laurin's own code — anyone can join for now.
+            Sits cleanly BELOW the card, not inside it. */}
+        {modeInvite && !st.inviteOk && (
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              a.houseCode();
+            }}
             style={{
+              ...choice,
+              width: "auto",
+              height: 44,
+              padding: "0 20px",
+              fontSize: 13,
               color: "#F7F9FB",
-              textShadow: "0 1px 14px rgba(10,16,26,.55)",
-              fontFamily: "var(--font-geist-mono)",
-              fontSize: 9,
-              letterSpacing: ".22em",
-              textTransform: "uppercase",
-              textDecoration: "none",
-              padding: "14px 16px",
-              margin: "-12px 0",
-              opacity: ready && panelOpen ? 0.78 : 0,
+              border: "1px solid rgba(247,249,251,.3)",
+              background: "rgba(247,249,251,.08)",
+              WebkitBackdropFilter: "blur(10px)",
+              backdropFilter: "blur(10px)",
+              textShadow: "0 1px 12px rgba(10,16,26,.45)",
+              opacity: ready && panelOpen ? 1 : 0,
               transition: "opacity 1.6s ease .2s",
             }}
           >
-            Keinen Code? Anfordern →
-          </a>
+            Ich habe keinen Code
+          </button>
         )}
       </div>
 
@@ -971,15 +954,25 @@ export function LoginScreen() {
   );
 }
 
-const chooserBtn: React.CSSProperties = {
+const choice: React.CSSProperties = {
+  width: "min(320px,100%)",
+  height: 54,
+  borderRadius: 999,
   border: 0,
-  background: "transparent",
-  color: "inherit",
-  font: "inherit",
-  letterSpacing: "inherit",
-  textTransform: "inherit",
-  padding: "14px 0",
-  opacity: 0.95,
+  display: "flex",
+  alignItems: "center",
+  justifyContent: "center",
+  gap: 10,
+  fontFamily: "var(--font-urbanist)",
+  fontSize: 15,
+  fontWeight: 600,
+  letterSpacing: "-.005em",
+  textTransform: "none",
+};
+const choiceSub: React.CSSProperties = {
+  fontSize: 12.5,
+  fontWeight: 400,
+  color: "rgba(14,20,28,.5)",
 };
 const kicker: React.CSSProperties = {
   fontFamily: "var(--font-geist-mono)",
