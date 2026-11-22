@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { useSalon, type DayHours } from "./store";
 import { EmptyState } from "./empty-state";
+import { PushRow } from "./admin-push";
 import { dateOf, wdL, wdS, monS, mon, fmtTime, BOOK_DAYS } from "@/lib/data";
 
 /**
@@ -288,6 +289,9 @@ export function AvailTab() {
           {gOk ? "WECHSELN" : "VERBINDEN"}
         </a>
       </div>
+
+      {/* Laurin's push: new bookings / cancellations / moves */}
+      <PushRow />
 
       {/* segmented sub-nav */}
       <div

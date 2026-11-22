@@ -148,7 +148,7 @@ export function BookedOverlay() {
               animation: "fade 1s ease 1.2s both",
             }}
           >
-            Gebucht
+            {b.moved ? "Verschoben" : "Gebucht"}
           </span>
           <span
             style={{

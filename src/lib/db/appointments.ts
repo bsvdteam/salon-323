@@ -102,3 +102,31 @@ export async function cancelAppointment(id: string): Promise<void> {
     .eq("id", id);
   if (error) throw error;
 }
+
+/** Move an appointment (new time and, when rebooked, new services/price). */
+export async function updateAppointment(
+  id: string,
+  p: {
+    startsAt: string;
+    durationMin?: number;
+    services?: ServiceKey[];
+    cut?: string | null;
+    priceChf?: number;
+    googleEventId?: string | null;
+  },
+): Promise<void> {
+  const { error } = await supabaseAdmin()
+    .from("appointments")
+    .update({
+      starts_at: p.startsAt,
+      ...(p.durationMin !== undefined ? { duration_min: p.durationMin } : {}),
+      ...(p.services !== undefined ? { services: p.services } : {}),
+      ...(p.cut !== undefined ? { cut: p.cut } : {}),
+      ...(p.priceChf !== undefined ? { price_chf: p.priceChf } : {}),
+      ...(p.googleEventId !== undefined
+        ? { google_event_id: p.googleEventId }
+        : {}),
+    })
+    .eq("id", id);
+  if (error) throw error;
+}

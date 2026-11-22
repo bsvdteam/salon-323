@@ -31,7 +31,16 @@ import {
   getUpcoming,
   settlePastAppointments,
   markAppointmentDone,
+  updateAppointment,
 } from "@/lib/db/appointments";
+import { syncUpcomingWithCalendar, whenLabel } from "@/lib/db/appt-sync";
+import {
+  notifyBarber,
+  vapidKeys,
+  saveSubscription,
+  removeSubscription,
+  type PushSub,
+} from "@/lib/push";
 import {
   getAvailability,
   saveAvailability,
@@ -39,7 +48,12 @@ import {
   type AvailConfig,
 } from "@/lib/db/availability";
 import { loadMemberBundle, type MemberBundle } from "@/lib/db/bundle";
-import { createEvent, wallISO, deleteEvent } from "@/lib/google/calendar";
+import {
+  createEvent,
+  moveEvent,
+  wallISO,
+  deleteEvent,
+} from "@/lib/google/calendar";
 import { durOf, labelOf, priceOf, tiers, tierAt, SPONTI } from "@/lib/data";
 import { loadStandings } from "@/lib/db/points";
 import {
@@ -126,7 +140,8 @@ export async function loginMemberAction(
     return { ok: false, error: check === "locked" ? "locked" : "pin_wrong" };
   await setSession({ mid: member.id, role: "member" });
   const [bundle, askFeedback] = await Promise.all([
-    loadMemberBundle(member.id),
+    // a booking Laurin cancelled/moved in Google shows up correctly at once
+    syncUpcomingWithCalendar(member.id).then(() => loadMemberBundle(member.id)),
     countOpenAskFeedback(member.id),
   ]);
   if (!bundle) return { ok: false, error: "not_found" };
@@ -267,58 +282,84 @@ export async function bookAppointmentAction(
   ).toISOString();
   const dur = durOf(args.services) || 30;
 
-  // Mirror to Google Calendar — optional until the OAuth refresh token is set.
-  let googleEventId: string | null = null;
-  try {
-    const [y, m, d] = args.date.split("-").map(Number);
-    const [hh, mm] = args.time.split(":").map(Number);
-    const startMin = hh * 60 + mm;
-    const ev = await createEvent({
-      summary: `Salon 15 — ${member.first_name} ${member.last_name}`.trim(),
-      description: [
-        `Leistung: ${labelOf(args.services, args.cut ?? undefined)}`,
-        member.phone ? `Telefon: ${member.phone}` : null,
-        `Mitglied: @${member.username} (N° ${member.member_no})`,
-      ]
-        .filter(Boolean)
-        .join("\n"),
-      startISO: wallISO(y, m, d, startMin),
-      endISO: wallISO(y, m, d, startMin + dur),
-      // Member joins as a guest → Google emails them the invitation + updates.
-      attendeeEmail: member.contact_email ?? undefined,
-    });
-    googleEventId = ev.id;
-  } catch {
-    // Calendar not connected yet — the booking still stands in the DB.
+  // One upcoming appointment per member: booking again (= "Verschieben")
+  // moves the existing one — same Google event, the guest gets Google's
+  // update mail — instead of leaving the old slot booked.
+  const up = await getUpcoming(mid);
+  const [y, m, d] = args.date.split("-").map(Number);
+  const [hh, mm] = args.time.split(":").map(Number);
+  const startMin = hh * 60 + mm;
+  const ev = {
+    summary: `Salon 15 — ${member.first_name} ${member.last_name}`.trim(),
+    description: [
+      `Leistung: ${labelOf(args.services, args.cut ?? undefined)}`,
+      member.phone ? `Telefon: ${member.phone}` : null,
+      `Mitglied: @${member.username} (N° ${member.member_no})`,
+    ]
+      .filter(Boolean)
+      .join("\n"),
+    startISO: wallISO(y, m, d, startMin),
+    endISO: wallISO(y, m, d, startMin + dur),
+    // Member joins as a guest → Google emails them the invitation + updates.
+    attendeeEmail: member.contact_email ?? undefined,
+  };
+
+  // Mirror to Google Calendar — best effort, the DB row is the record.
+  let googleEventId: string | null = up?.google_event_id ?? null;
+  let moved = false;
+  if (googleEventId) {
+    try {
+      await moveEvent(googleEventId, ev);
+      moved = true;
+    } catch {
+      googleEventId = null; // gone in Google → create a fresh one below
+    }
+  }
+  if (!moved) {
+    try {
+      googleEventId = (await createEvent(ev)).id;
+    } catch {
+      // Calendar not connected — the booking still stands in the DB.
+    }
   }
 
-  await createAppointment({
-    memberId: mid,
-    startsAt,
-    durationMin: dur,
-    services: args.services,
-    cut: args.cut ?? null,
-    priceChf: price,
-    payMethod: args.payMethod ?? "ort",
-    googleEventId,
-  });
+  const who = `${member.first_name}${member.last_name ? " " + member.last_name[0] + "." : ""}`;
+  if (up) {
+    await updateAppointment(up.id, {
+      startsAt,
+      durationMin: dur,
+      services: args.services,
+      cut: args.cut ?? null,
+      priceChf: price,
+      googleEventId,
+    });
+    after(() =>
+      notifyBarber({
+        title: "Termin verschoben",
+        body: `${who} · neu ${whenLabel(startsAt)} (vorher ${whenLabel(up.starts_at)})`,
+      }),
+    );
+  } else {
+    await createAppointment({
+      memberId: mid,
+      startsAt,
+      durationMin: dur,
+      services: args.services,
+      cut: args.cut ?? null,
+      priceChf: price,
+      payMethod: args.payMethod ?? "ort",
+      googleEventId,
+    });
+    after(() =>
+      notifyBarber({
+        title: "Neue Buchung",
+        body: `${who} · ${whenLabel(startsAt)} · ${labelOf(args.services, args.cut ?? undefined)}`,
+      }),
+    );
+  }
   // the Wallet card becomes the appointment card
   after(() => notifyPassChanged(mid));
 
-  const bundle = await loadMemberBundle(mid);
-  if (!bundle) return { ok: false, error: "unknown" };
-  return { ok: true, bundle };
-}
-
-/** Cancel the member's own upcoming appointment. */
-export async function cancelAppointmentAction(
-  appointmentId: string,
-): Promise<{ ok: true; bundle: MemberBundle } | { ok: false; error: string }> {
-  const mid = await requireMember();
-  const up = await getUpcoming(mid);
-  if (!up || up.id !== appointmentId) return { ok: false, error: "not_found" };
-  await cancelAppointment(appointmentId);
-  after(() => notifyPassChanged(mid));
   const bundle = await loadMemberBundle(mid);
   if (!bundle) return { ok: false, error: "unknown" };
   return { ok: true, bundle };
@@ -332,6 +373,16 @@ export async function cancelUpcomingAction(): Promise<{ ok: boolean }> {
   if (!up) return { ok: true };
   await cancelAppointment(up.id);
   after(() => notifyPassChanged(mid));
+  after(async () => {
+    const m = await getMemberById(mid);
+    const who = m
+      ? `${m.first_name}${m.last_name ? " " + m.last_name[0] + "." : ""}`
+      : "Ein Mitglied";
+    await notifyBarber({
+      title: "Termin abgesagt",
+      body: `${who} · ${whenLabel(up.starts_at)} · Slot ist wieder frei`,
+    });
+  });
   if (up.google_event_id) {
     try {
       await deleteEvent(up.google_event_id);
@@ -941,4 +992,46 @@ export async function deleteFeedbackAction(
   if (s?.role !== "barber") return { ok: false };
   await deleteFeedback(id);
   return { ok: true };
+}
+
+// ── Laurin's push messages (barber only) ────────────────────────────────────
+
+async function requireBarber(): Promise<string> {
+  const s = await getSession();
+  if (s?.role !== "barber") throw new Error("forbidden");
+  return s.mid;
+}
+
+/** VAPID public key for PushManager.subscribe. */
+export async function pushKeyAction(): Promise<string> {
+  await requireBarber();
+  return (await vapidKeys()).publicKey;
+}
+
+export async function pushSubscribeAction(
+  sub: PushSub,
+): Promise<{ ok: boolean }> {
+  const mid = await requireBarber();
+  if (
+    typeof sub?.endpoint !== "string" ||
+    !/^https:\/\//.test(sub.endpoint) ||
+    typeof sub.keys?.p256dh !== "string" ||
+    typeof sub.keys?.auth !== "string"
+  )
+    return { ok: false };
+  await saveSubscription(mid, sub);
+  return { ok: true };
+}
+
+export async function pushUnsubscribeAction(endpoint: string): Promise<void> {
+  const mid = await requireBarber();
+  await removeSubscription(mid, endpoint);
+}
+
+export async function pushTestAction(): Promise<void> {
+  await requireBarber();
+  await notifyBarber({
+    title: "Mitteilungen sind an",
+    body: "Neue Buchungen, Absagen und Verschiebungen kommen ab jetzt hierher.",
+  });
 }

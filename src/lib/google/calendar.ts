@@ -228,6 +228,55 @@ export async function deleteEvent(eventId: string): Promise<void> {
   }
 }
 
+/** Verschiebt einen Termin (und passt Titel/Text an). Gast bekommt die
+ *  Änderung von Google per Mail (sendUpdates=all). */
+export async function moveEvent(
+  eventId: string,
+  input: Pick<EventInput, "startISO" | "endISO" | "summary" | "description">,
+): Promise<void> {
+  const token = await accessToken();
+  const res = await fetch(
+    `${CAL_BASE}/calendars/${encodeURIComponent(calendarId())}/events/${encodeURIComponent(eventId)}?sendUpdates=all`,
+    {
+      method: "PATCH",
+      headers: {
+        Authorization: `Bearer ${token}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        summary: input.summary,
+        description: input.description,
+        start: { dateTime: input.startISO, timeZone: timeZone() },
+        end: { dateTime: input.endISO, timeZone: timeZone() },
+      }),
+    },
+  );
+  if (!res.ok)
+    throw new Error(`Termin verschieben fehlgeschlagen: ${await res.text()}`);
+}
+
+/** Wie steht ein Termin gerade in Google? null = gelöscht/abgesagt,
+ *  sonst Beginn/Ende (ISO mit Offset). Wirft nur, wenn Google nicht erreichbar. */
+export async function eventState(
+  eventId: string,
+): Promise<{ start: string; end: string } | null> {
+  const token = await accessToken();
+  const res = await fetch(
+    `${CAL_BASE}/calendars/${encodeURIComponent(calendarId())}/events/${encodeURIComponent(eventId)}?fields=status,start,end`,
+    { headers: { Authorization: `Bearer ${token}` } },
+  );
+  if (res.status === 404 || res.status === 410) return null;
+  if (!res.ok) throw new Error(`Termin lesen fehlgeschlagen: ${res.status}`);
+  const j = (await res.json()) as {
+    status?: string;
+    start?: { dateTime?: string };
+    end?: { dateTime?: string };
+  };
+  if (j.status === "cancelled" || !j.start?.dateTime || !j.end?.dateTime)
+    return null;
+  return { start: j.start.dateTime, end: j.end.dateTime };
+}
+
 export type CalEvent = {
   id: string;
   start: string; // ISO (dateTime) oder YYYY-MM-DD (Ganztags)

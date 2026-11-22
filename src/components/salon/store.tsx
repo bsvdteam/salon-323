@@ -124,6 +124,7 @@ export interface SalonState {
     when: string;
     what: string;
     cal?: string; // "Zum Kalender"-Link (Google Calendar Template)
+    moved?: boolean; // the existing appointment was moved ("Verschieben")
   } | null;
   flipped: boolean;
   cut: string;

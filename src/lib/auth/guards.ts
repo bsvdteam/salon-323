@@ -6,17 +6,21 @@ import { redirect } from "next/navigation";
 import { getSession } from "./session";
 import { loadMemberBundle } from "@/lib/db/bundle";
 import { countOpenAskFeedback } from "@/lib/db/feedback";
+import { syncUpcomingWithCalendar } from "@/lib/db/appt-sync";
 import { getAvailability, salonToday } from "@/lib/db/availability";
 import type { StartConfig, Tab } from "@/components/salon/store";
 
 export async function memberStart(tab: Tab): Promise<StartConfig> {
   const s = await getSession();
   if (s?.role !== "member") redirect("/");
-  const [member, avail, askFeedback] = await Promise.all([
+  const [first, avail, askFeedback, changed] = await Promise.all([
     loadMemberBundle(s.mid),
     getAvailability(salonToday()),
     countOpenAskFeedback(s.mid),
+    // Laurin cancelled/moved it right in Google Calendar? mirror that first
+    syncUpcomingWithCalendar(s.mid),
   ]);
+  const member = changed ? await loadMemberBundle(s.mid) : first;
   // member gone (deleted): drop the cookie, else the proxy would keep
   // sending "/" back here
   if (!member) redirect("/api/auth/out");

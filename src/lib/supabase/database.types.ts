@@ -405,6 +405,59 @@ export type Database = {
           },
         ]
       }
+      push_keys: {
+        Row: {
+          created_at: string
+          id: number
+          private_key: string
+          public_key: string
+        }
+        Insert: {
+          created_at?: string
+          id?: number
+          private_key: string
+          public_key: string
+        }
+        Update: {
+          created_at?: string
+          id?: number
+          private_key?: string
+          public_key?: string
+        }
+        Relationships: []
+      }
+      push_subscriptions: {
+        Row: {
+          auth: string
+          created_at: string
+          endpoint: string
+          member_id: string
+          p256dh: string
+        }
+        Insert: {
+          auth: string
+          created_at?: string
+          endpoint: string
+          member_id: string
+          p256dh: string
+        }
+        Update: {
+          auth?: string
+          created_at?: string
+          endpoint?: string
+          member_id?: string
+          p256dh?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "push_subscriptions_member_id_fkey"
+            columns: ["member_id"]
+            isOneToOne: false
+            referencedRelation: "members"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       revenue_entries: {
         Row: {
           amount_chf: number

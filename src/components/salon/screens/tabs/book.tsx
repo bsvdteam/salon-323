@@ -315,6 +315,7 @@ export function BookTab() {
         when: `${["Sonntag", "Montag", "Dienstag", "Mittwoch", "Donnerstag", "Freitag", "Samstag"][d.getDay()]}, ${d.getDate()}. ${["Januar", "Februar", "März", "April", "Mai", "Juni", "Juli", "August", "September", "Oktober", "November", "Dezember"][d.getMonth()]}`,
         what: `${labelOf(st.sel, st.cut)} · ${durOf(st.sel)} min · CHF ${bPrice}`,
         cal: calUrl,
+        moved: !!resch,
       },
       rescheduling: false,
     });
