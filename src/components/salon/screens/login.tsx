@@ -105,7 +105,7 @@ export function LoginScreen() {
   const ov = useOverlayActions();
   const st = state;
   const ready = st.intro >= 3;
-  // "Username vergessen?" — Laurin knows it; a WhatsApp link to ask him
+  // "PIN vergessen?" — shows who resets it (the barber) and a WhatsApp link
   const [forgot, setForgot] = useState(false);
   const panelOpen = !!st.mode;
   const chromeO = ready ? 1 : 0;
@@ -552,14 +552,26 @@ export function LoginScreen() {
                   <input
                     key={st.pwFor}
                     value={st.pw}
-                    onChange={(e) => set({ pw: e.target.value })}
+                    onChange={(e) => {
+                      if (st.pwFor === "barber")
+                        return set({ pw: e.target.value });
+                      // member PIN: digits only; the 6th digit signs in
+                      const v = e.target.value.replace(/\D/g, "").slice(0, 6);
+                      set(
+                        { pw: v },
+                        v.length === 6 ? () => a.loginUsername() : undefined,
+                      );
+                    }}
                     onKeyDown={(e) => {
                       if (e.key === "Enter") a.loginUsername();
                     }}
                     autoFocus={!modeBarber}
                     type="password"
+                    inputMode={st.pwFor === "member" ? "numeric" : undefined}
                     autoComplete="current-password"
-                    placeholder="Passwort"
+                    placeholder={
+                      st.pwFor === "member" ? "PIN · 6 Ziffern" : "Passwort"
+                    }
                     style={{
                       flex: 1,
                       minWidth: 0,
@@ -589,8 +601,7 @@ export function LoginScreen() {
                   </button>
                 </div>
               )}
-              {!modeBarber &&
-                !st.pwFor &&
+              {st.pwFor === "member" &&
                 (forgot ? (
                   <div
                     style={{
@@ -611,12 +622,13 @@ export function LoginScreen() {
                         color: "rgba(244,247,250,.8)",
                       }}
                     >
-                      Kein Problem – schreib Laurin kurz, er sagt dir deinen
-                      Username.
+                      Kein Problem: Laurin setzt dir einen neuen PIN. Schreib
+                      ihm kurz oder frag im Salon – danach kannst du ihn im
+                      Profil wieder selbst ändern.
                     </span>
                     <a
                       href={`${salon.wa}?text=${encodeURIComponent(
-                        `Hoi Laurin, ich habe meinen Username für Salon 15 vergessen.`,
+                        `Hoi Laurin, ich habe meinen PIN vergessen. Mein Username: ${st.username.trim()}`,
                       )}`}
                       target="_blank"
                       rel="noopener noreferrer"
@@ -650,7 +662,7 @@ export function LoginScreen() {
                       textUnderlineOffset: 3,
                     }}
                   >
-                    Username vergessen?
+                    PIN vergessen?
                   </button>
                 ))}
             </div>
@@ -829,6 +841,57 @@ export function LoginScreen() {
             </div>
           )}
         </div>
+
+        {/* Wrong door? One tap to the other panel. */}
+        {(modeMember || modeInvite) && !modeBarber && (
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              set(
+                modeInvite
+                  ? { mode: "member", username: "", pwFor: null, pw: "" }
+                  : { mode: "invite" },
+              );
+            }}
+            style={{
+              order: 2,
+              border: 0,
+              background: "transparent",
+              padding: "6px 12px",
+              fontSize: 13,
+              color: "#F7F9FB",
+              textShadow: "0 1px 12px rgba(10,16,26,.55)",
+              opacity: ready && panelOpen ? 0.9 : 0,
+              transition: "opacity 1.6s ease .2s",
+            }}
+          >
+            {modeInvite ? (
+              <>
+                Schon Member?{" "}
+                <span
+                  style={{
+                    textDecoration: "underline",
+                    textUnderlineOffset: 3,
+                  }}
+                >
+                  Anmelden
+                </span>
+              </>
+            ) : (
+              <>
+                Noch kein Account?{" "}
+                <span
+                  style={{
+                    textDecoration: "underline",
+                    textUnderlineOffset: 3,
+                  }}
+                >
+                  Ich bin neu
+                </span>
+              </>
+            )}
+          </button>
+        )}
 
         {/* No code from a friend? Laurin's own code — anyone can join for now.
             Sits cleanly BELOW the card, not inside it. */}

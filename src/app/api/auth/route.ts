@@ -19,7 +19,9 @@ export async function POST(req: Request) {
   const b = await req.json().catch(() => null);
   switch (b?.op) {
     case "member":
-      return Response.json(await loginMemberAction(String(b.username ?? "")));
+      return Response.json(
+        await loginMemberAction(String(b.username ?? ""), b.pin ?? undefined),
+      );
     case "barber":
       return Response.json(
         await loginBarberAction(

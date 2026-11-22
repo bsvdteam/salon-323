@@ -54,12 +54,7 @@ export type ClientRecord = {
 export type Screen = "login" | "onboard" | "welcome" | "app" | "admin";
 export type Tab = "home" | "book" | "card" | "circle";
 export type AdminTab =
-  | "today"
-  | "termine"
-  | "members"
-  | "revenue"
-  | "avail"
-  | "feedback";
+  "today" | "termine" | "members" | "revenue" | "avail" | "feedback";
 export type Mode = null | "member" | "invite" | "barber"; // barber = /admin login
 export type OverlayKind = "salon" | "cuts" | "legal" | "story";
 /** Initial state for a deep-linked route (see src/app/* pages). Member and
@@ -394,7 +389,7 @@ export function SalonProvider({
     setState((p) => ({ ...p, toast: msg, toastOn: true }));
     toastT.current = setTimeout(
       () => setState((p) => ({ ...p, toastOn: false })),
-      2600,
+      Math.max(2600, msg.length * 65), // longer notes stay long enough to read
     );
   }, []);
 

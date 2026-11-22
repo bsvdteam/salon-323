@@ -40,6 +40,10 @@ function buildQR() {
   return qr;
 }
 
+// "Zur Wallet hinzufügen" is hidden for now (pass + web service stay live);
+// flip to true to show it again.
+const WALLET_ON = false;
+
 export function CardTab() {
   const { state, set } = useSalon();
   const st = state;
@@ -571,29 +575,31 @@ export function CardTab() {
         >
           Tippen zum Wenden
         </span>
-        <a
-          href={passHref}
-          className="glass-dark"
-          style={{
-            height: 46,
-            display: "flex",
-            alignItems: "center",
-            gap: 12,
-            borderRadius: 999,
-            padding: "0 22px",
-            fontSize: 12.5,
-            fontWeight: 500,
-            border: 0,
-            color: "inherit",
-            textDecoration: "none",
-            animation: "up 1.6s cubic-bezier(.22,1,.36,1) .6s both",
-          }}
-        >
-          Zur Wallet hinzufügen
-        </a>
+        {WALLET_ON && (
+          <a
+            href={passHref}
+            className="glass-dark"
+            style={{
+              height: 46,
+              display: "flex",
+              alignItems: "center",
+              gap: 12,
+              borderRadius: 999,
+              padding: "0 22px",
+              fontSize: 12.5,
+              fontWeight: 500,
+              border: 0,
+              color: "inherit",
+              textDecoration: "none",
+              animation: "up 1.6s cubic-bezier(.22,1,.36,1) .6s both",
+            }}
+          >
+            Zur Wallet hinzufügen
+          </a>
+        )}
         {/* Chrome & in-app browsers: if they can't hand the pass to Wallet,
             this opens the same signed link in Safari (no login needed) */}
-        {otherBrowser && (
+        {WALLET_ON && otherBrowser && (
           <a
             href={`x-safari-https://${window.location.host}${passHref}`}
             style={{

@@ -109,12 +109,21 @@ export type AuthResult =
 
 const PIN = /^\d{6}$/;
 
-/** Returning member logs in with just their username (kept simple on
- *  purpose: no PIN). The barber's username asks for his password instead. */
-export async function loginMemberAction(username: string): Promise<AuthResult> {
+/** Returning member logs in with username + 6-digit PIN. Without a PIN the
+ *  call only says what comes next ("pin_required" / barber password). */
+export async function loginMemberAction(
+  username: string,
+  pin?: string,
+): Promise<AuthResult> {
   const member = await getMemberByUsername(username);
   if (!member) return { ok: false, error: "not_found" };
   if (member.is_barber) return { ok: false, error: "use_barber_login" };
+  if (!member.pin_hash) return { ok: false, error: "pin_missing" };
+  if (!pin) return { ok: false, error: "pin_required" };
+  if (!PIN.test(pin)) return { ok: false, error: "pin_wrong" };
+  const check = await checkSecret(member, pin, member.pin_hash);
+  if (check !== "ok")
+    return { ok: false, error: check === "locked" ? "locked" : "pin_wrong" };
   await setSession({ mid: member.id, role: "member" });
   const [bundle, askFeedback] = await Promise.all([
     loadMemberBundle(member.id),
@@ -129,7 +138,7 @@ export type OnboardArgs = {
   first: string;
   last: string;
   username: string;
-  pin?: string; // no longer asked; kept optional for older clients
+  pin: string;
   phone: string;
   email?: string;
   card: number;
@@ -146,10 +155,11 @@ export async function redeemOnboardAction(
     return { ok: false, error: "username_invalid" };
   if (args.phone.replace(/\D/g, "").length < 6)
     return { ok: false, error: "phone_invalid" };
+  if (!PIN.test(args.pin)) return { ok: false, error: "pin_invalid" };
 
   const res = await redeemInviteCreateMember(args);
   if (!res.ok) return { ok: false, error: res.error };
-  if (args.pin && PIN.test(args.pin)) await setPin(res.member.id, args.pin);
+  await setPin(res.member.id, args.pin);
   if (args.email && args.email.trim())
     await setContactEmail(res.member.id, args.email);
   await setSession({ mid: res.member.id, role: "member" });
