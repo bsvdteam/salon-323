@@ -79,8 +79,6 @@ export async function validateInviteAction(
   return validateInvite(code);
 }
 
-/** Onboarding: is this username still free? Only answers for a valid invite
- *  code, so it can't be used to probe the member list from outside. */
 /** "Ich habe keinen Code": the barber's own code — anyone can join with it
  *  (for now, while Salon 15 is starting out). */
 export async function houseCodeAction(): Promise<string | null> {
@@ -94,6 +92,8 @@ export async function houseCodeAction(): Promise<string | null> {
   return data?.ref_code ?? null;
 }
 
+/** Onboarding: is this username still free? Only answers for a valid invite
+ *  code, so it can't be used to probe the member list from outside. */
 export async function usernameAvailableAction(
   code: string,
   username: string,

@@ -17,7 +17,9 @@ export async function memberStart(tab: Tab): Promise<StartConfig> {
     getAvailability(salonToday()),
     countOpenAskFeedback(s.mid),
   ]);
-  if (!member) redirect("/");
+  // member gone (deleted): drop the cookie, else the proxy would keep
+  // sending "/" back here
+  if (!member) redirect("/api/auth/out");
   return { screen: "app", tab, member: { ...member, askFeedback }, avail };
 }
 
